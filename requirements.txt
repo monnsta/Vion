@@ -1,0 +1,7 @@
+discord.py
+orjson
+tomli
+tomli_w
+pyyaml
+pytz
+rich
