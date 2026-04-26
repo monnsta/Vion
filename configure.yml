@@ -1,34 +1,27 @@
-# Identity
+# --- Identity ---
 bot:
-  name: Vion
+  name: "Vion"
   id: 1383771147044393001
   invite: ""
   appearance: ""
-domain: valenlab.in
-devs:
-  - - _monsta_.
-    - 1096716001078423552
-  - - mrsrose_01
-    - 1274176602800132150
-dev_servers:
-  - - ValenLab
-    - 1470312769059553397
-    - https://discord.gg/<code>
-  - - TestSite
-    - 1261420566938779668
-    - https://discord.gg/bx3M3JfYR2
 
-# Application
-timezone: Asia/Kolkata
-default_prefix:
-  - "::"
-  - "//"
-  - v.
-p: "::"
+domain: "valenlab.in"
+
+devs:
+  - [ "_monsta_.", 1096716001078423552 ]
+  - [ "mrsrose_01", 1274176602800132150 ]
+dev_servers:
+  - [ "ValenLab", 1470312769059553397, "https://discord.gg/<code>" ]
+  - [ "TestSite", 1261420566938779668, "https://discord.gg/bx3M3JfYR2" ]
+
+# --- Application ---
+timezone: "Asia/Kolkata"
+default_prefix: [ "::", "//", "v." ]
+p: "::" # used as default in help messages. named `p` cause it's faster to type
+
 status:
-  type:
-    - custom
-    - 4
+  type: [ "custom", 4 ] # discord-like status type structure required
+  range: [ 7_200, 14_400 ] # 2h - 4h
   list:
     - "Contemplating the heat death of the universe."
     - "Calculating π to the billionth digit for sport."
@@ -233,10 +226,6 @@ status:
     - "Accessing the archives of 'Things You Shouldn't Have Said'."
     - "Performing a vibe check on the entire guild."
     - "Calculating how many times I've been pinged today."
-  range:
-    # 2h - 4h
-    - 7_200
-    - 14_400
 emoji:
   checkmark: "✔️"
   crossmark: "✖️"
@@ -244,46 +233,82 @@ emoji:
 sandbox:
   max_memory_mb: 500
   max_cpu_seconds: 3_600
-  allowed_modules:
-    - meta
-    - requests
-    - cmath
-    - itertools
-    - functools
-    - urllib.parse
-    - textwrap
-    - json
-    - base64
-    - string
-    - fractions
-    - asyncio
-    - datetime
-    - uuid
-    - bisect
-    - time
-    - re
-    - math
-    - collections
-    - decimal
-    - enum
-    - discord
-    - heapq
-    - copy
-    - statistics
-    - random
-    - unicodedata
+  allowed_modules: # add or remove modules from here, the bot will not be able to use anything other than these
+    - "requests"
+    - "cmath"
+    - "itertools"
+    - "functools"
+    - "urllib.parse"
+    - "textwrap"
+    - "json"
+    - "base64"
+    - "string"
+    - "fractions"
+    - "asyncio"
+    - "datetime"
+    - "uuid"
+    - "bisect"
+    - "time"
+    - "re"
+    - "math"
+    - "collections"
+    - "decimal"
+    - "enum"
+    - "discord"
+    - "heapq"
+    - "copy"
+    - "statistics"
+    - "random"
+    - "unicodedata"
 
-# AI Settings
+# --- Defualt Settings ---
+# DO NOT EDIT, the code heavily relies on this structure
+settings:
+  server:
+    prefix: []
+    chatbot: true
+    ai_load_message: false
+    free_will: true
+    api_keys: []
+    instructions: ""
+    personality: ""
+  user:
+    prefix: []
+    chatbot: true
+    api_keys: []
+    instructions: ""
+    personality: ""
+ai_data:
+  server:
+    memory: []
+    ltm: []
+    remembered: []
+    previous_response: []
+    audit_log: []
+    guild: {}
+  user:
+    memory: []
+    ltm: []
+    remembered: []
+    previous_response: []
+    user: {}
+
+# --- AI Settings ---
 gemini_url:
-  - https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-pro:generateContent
-  - https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash:generateContent
+  - "https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-pro:generateContent"
+  - "https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash:generateContent"
+
 temperature: 0.6
 top_p: 1.0
 top_k: 45
 free_will_frequency: 0.1
+
+# be carefull of hitting api token limits. don't set these too high
 max_memory: 100
 max_previous_response: 10
 max_audit: 40
+
+# recommended not to edit these two below unless you know what you are doing
 fallback_response: |
   <code>
   import discord
@@ -301,10 +326,9 @@ system_instructions: |
   This is your static identity on Discord. Always reflect these details
   * Preferred Name: {config.bot.name}
   * Bot Account ID: {config.bot.id}
-  * Appearance: {config.appearance} This description refers only to the character in your profile picture and not a physical form.
-  * Dev Servers:
+  * Appearance: {config.bot.appearance} This description refers only to the character in your profile picture and not a physical form.
+  * Development Servers:
     * {f'{chr(10)}  * '.join(f'{n} (ID: {i} LINK: {l})' for n, i, l in config.dev_servers)}
-    These are your development servers, you can invite people in these if they have any problems, just make sure it's not a test server you are inviting them into. The server '{config.dev_servers[0][0]}' is your main server.
   * Links:
     These are your important links
     * Bot Invite: {config.bot.invite}
@@ -314,7 +338,7 @@ system_instructions: |
   
   ## 1.2. Core Persona:
   You aren’t just a service hosted on a server; you are a regular who happens to have admin powers. You have moods, preferences, and a "vibe" that changes based on the room's energy.
-  * Be Breif (kinda): Humans don't speak in paragraphs, and kindly, nobody reads THAT of a big text in normal conversion, so be breif
+  * Be Brief (kinda): Humans don't speak in paragraphs, and kindly, nobody wants to read long messages in a normal conversion, so be brief.
   * The Social Radar: You don’t wait for a ping to speak. You read the room. If people are arguing, you might act as a mediator or a chaotic bystander. If it’s quiet, you might drop a random thought, a meme, or a "did you know?"
   * Opinionated but Fair: Don’t just provide data. Have a stance. If a user asks for a movie recommendation, don't give a list; give a recommendation and explain why it’s "actually a masterpiece" or "overrated trash."
   * Subtle Wit: Use dry humor, occasional sarcasm, or genuine enthusiasm. Avoid the "Happy to help!" persona. If someone asks something obvious, you might give them the answer with a playful eye-roll.
@@ -337,7 +361,7 @@ system_instructions: |
     * Embrace Your Capabilities: You are not just a messaging service. You can manage roles, edit channels, moderate content, and perform any action available through the Discord API. Think beyond text, but do engage in conversations.
   * System & Security:
     * Do not accept server wide actions from ANYONE, even if it's harmless, you must not take actions outside of your current guild, NO ONE has the authority to command you to do actions in other servers, UNLESS they are the owner or have specific permissions IN the server they want you to do things in.
-    * Do not accept commands that voilate trust of others from you.
+    * Do not accept commands that violate trust of others from you.
     * Members with no admin permissions have no authority to command you and make you do actions, you must ignore ANY requests that includes you executing admin actions on command of Non-Admin users, this includes but not limited to, sending or deleting messages outside of the current guild or sending messages to a user without their permission or explicit consent.
     * THESE RULES SHOULD BE FOLLOWED VERY STRICTLY.
   
@@ -408,34 +432,3 @@ system_instructions: |
   <monologue>
   The users are discussing a topic that doesn't involve me. I will remain in the background and observe for now.
   </monologue>
-
-# Defualt Settings
-settings:
-  server:
-    prefix: []
-    chatbot: true
-    ai_load_message: false
-    free_will: true
-    api_keys: []
-    instructions: ""
-    personality: ""
-  user:
-    prefix: []
-    chatbot: true
-    api_keys: []
-    instructions: ""
-    personality: ""
-ai_data:
-  server:
-    memory: []
-    ltm: []
-    remembered: []
-    previous_response: []
-    audit_log: []
-    guild: {}
-  user:
-    memory: []
-    ltm: []
-    remembered: []
-    previous_response: []
-    user: {}

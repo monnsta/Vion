@@ -6,8 +6,8 @@ from logging.handlers  import TimedRotatingFileHandler
 
 from rich.traceback    import install
 
-from meta              import base, setup
 from core.lib.file     import json_file, text_file
+from meta              import base, setup
 
 
 json_file._cache.start_background_gc()

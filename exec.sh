@@ -100,11 +100,15 @@ while true; do
 			log "Clean exit detected. Stopping."
 			break
 			;;
+		10)
+			log "Critical error. Exiting."
+			break
+			;;
 		42)
 			log "System requested immediate restart..."
 			sleep 1
 			;;
-		77 | 130 | 143)
+		130 | 143)
 			log "Termination signal ($EXIT_CODE). Exiting."
 			break
 			;;

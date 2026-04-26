@@ -2,14 +2,15 @@ import asyncio
 import builtins
 import json
 import logging
+import sys
 
 import discord
 import pytz
 
-from meta.file          import file, sub
 from core.lib.bttrdict  import BD, Computed, Method, AntiFreeze
-from core.lib.etc       import F, mt
+from core.lib.utils     import F, mt
 from core.lib.file      import json_file, text_file, yaml_file
+from meta.file          import file, sub
 
 
 log = logging.getLogger(__name__)
@@ -24,26 +25,30 @@ try:
 	config = BD.load(data)
 	log.debug(json.dumps(data, indent=4))
 except Exception:
-	log.error("An error accured while setting up config", exc_info=True)
+	log.critical("An error accured while setting up config", exc_info=True)
+	sys.exit(10)
 
 
 def safe_import(name, globals=None, locals=None, fromlist=(), level=0):
 	if any(name == m or name.startswith(m + ".") for m in config.sandbox.allowed_modules):
 		return real_import(name, globals, locals, fromlist, level)
 	raise ImportError(f"Module '{name}' is not allowed in sandbox")
+
 for parent in [config.settings, config.ai_data]:
 	for attr in ['server', 'user']:
 		val = getattr(parent, attr)
 		setattr(parent, attr, AntiFreeze(val.to_dict()))
-for i in range(len(config.devs)): config.devs[i] = tuple(config.devs[i])
-for i in range(len(config.dev_servers)): config.dev_servers[i] = tuple(config.dev_servers[i])
+for obj in [config.devs, config.dev_servers]:
+	for i in range(len(obj)):
+		obj[i] = tuple(obj[i])
 
 emoji = BD.load(config.emoji.to_dict(False))
 config.delete("emoji")
 
+config.status.range = tuple(config.status.range)
 config.timezone = pytz.timezone(config.timezone)
-config.system_instructions = F(config.system_instructions)
-config.secrets = BD.load(asyncio.run(json_file.load(sub.env))[1]).freeze()
+config.system_instructions = Computed(lambda self: F(config.system_instructions).format(config=self)
+config.secrets = BD.load(asyncio.run(yaml_file.load(sub.env))[1]).freeze()
 config.allowed_builtins = {
 	"print": print,
 	"range": range,

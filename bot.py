@@ -1,17 +1,22 @@
 import bootstrap
+
 import asyncio
 import inspect
 import logging
 import os
 import signal
+import traceback
+import textwrap
+import readline
 
 import discord
 from discord.ext         import commands
 
-from meta                import config
 from core.lib.bttrdict   import BD
-from core.wrp.data       import server
+from core.lib.repl       import AsyncREPL
+from core.wrp.profile    import server
 from core.wrp.extension  import extension
+from meta                import config
 
 
 log = logging.getLogger(__name__)
@@ -32,9 +37,24 @@ class Bot(commands.Bot):
 		self._repl_task = None
 		log.info("Bot initialized")
 
+	def _map_command_mentions(self, synced_commands):
+		def walk(command, prefix="", root_id=None):
+			if root_id is None:
+				root_id = command.id
+			full_name = f"{prefix} {command.name}".strip()
+
+			if isinstance(command, discord.app_commands.Command):
+				self.command_mentions.set(full_name, f"</{full_name}:{root_id}>")
+			elif isinstance(command, discord.app_commands.Group):
+				for sub_item in command.commands:
+					walk(sub_item, prefix=full_name, root_id=root_id)
+
+		for cmd in synced_commands:
+			walk(cmd)
+
 	# Setup & Lifecycle
 	async def setup_hook(self):
-		log.info("Starting setup_hook...")
+		log.info("Starting Setup...")
 
 		loop = asyncio.get_running_loop()
 		for sig in (signal.SIGINT, signal.SIGTERM):
@@ -61,21 +81,6 @@ class Bot(commands.Bot):
 
 		self._repl_task = self.loop.create_task(self.terminal_repl())
 
-	def _map_command_mentions(self, synced_commands):
-		def walk(command, prefix="", root_id=None):
-			if root_id is None:
-				root_id = command.id
-			full_name = f"{prefix} {command.name}".strip()
-
-			if isinstance(command, discord.app_commands.Command):
-				self.command_mentions.set(full_name, f"</{full_name}:{root_id}>")
-			elif isinstance(command, discord.app_commands.Group):
-				for sub_item in command.commands:
-					walk(sub_item, prefix=full_name, root_id=root_id)
-
-		for cmd in synced_commands:
-			walk(cmd)
-
 	async def shutdown(self):
 		log.info("Shutdown signal received. Cleaning up...")
 		if self._repl_task:
@@ -96,67 +101,29 @@ class Bot(commands.Bot):
 		)
 		return [*config.prefix, *server_prefixes]
 
-	async def terminal_repl(self):
-		loop = asyncio.get_event_loop()
-		log.info("Terminal REPL session active")
-
-		env = {
-			'bot': self,
+	async def start_repl(self):
+		repl_env = {
+			'bot':     self,
 			'discord': discord,
-			'os': os,
+			'os':      os,
 			'asyncio': asyncio,
-			'config': config
+			'config':  config
 		}
 
-		while not self.is_closed():
-			try:
-				cmd = await loop.run_in_executor(None, input, "Bot-CLI> ")
-				cmd = cmd.strip()
+		repl = AsyncREPL(env=repl_env)
+		await repl.start()
 
-				if not cmd:
-					continue
+		if not self.is_closed():
+			await self.shutdown()
 
-				if cmd.lower() in ("exit", "quit", "stop"):
-					await self.shutdown()
-					break
 
-				if cmd.startswith("!"):
-					log.info(f"Executing system command: {cmd[1:]}")
-					os.system(cmd[1:])
-					continue
-
-				try:
-					if "await " in cmd:
-						lines = cmd.split('\n')
-						func_code = f"async def _repl():\n" + "\n".join(f"	{line}" for line in lines)
-						exec(func_code, globals(), env)
-						result = await env['_repl']()
-					else:
-						result = exec(cmd, globals(), env)
-
-					if inspect.isawaitable(result):
-						result = await result
-
-					if result is not None:
-						log.info(f"REPL Output: {result}")
-				except Exception as e:
-					log.error(f"REPL Runtime Error: {e}")
-			except asyncio.CancelledError:
-				break
-			except Exception as e:
-				log.error(f"REPL Terminal Error: {e}")
-
-def run():
+if __name__ == "__main__":
 	bot = Bot()
-	
+
 	try:
 		log.info("Starting bot process...")
-		bot.run(config.secrets().bot_token)
+		bot.run(config.secrets.discord_api_key)
 	except (KeyboardInterrupt, SystemExit):
 		log.info("Process terminated by user")
 	except Exception:
 		log.critical("Fatal error during bot startup", exc_info=True)
-
-
-if __name__ == "__main__":
-	run()

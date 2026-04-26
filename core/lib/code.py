@@ -9,7 +9,7 @@ from contextlib         import redirect_stderr, redirect_stdout
 from typing             import Any, Callable, Optional
 
 from core.lib.bttrdict  import BD
-from core.lib.etc       import create_id
+from core.lib.utils     import create_id
 
 
 log = logging.getLogger(__name__)

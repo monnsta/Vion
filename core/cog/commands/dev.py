@@ -4,10 +4,10 @@ import discord
 from discord             import app_commands as app
 from discord.ext         import commands
 
-from meta                import config, emoji, sub
-from core.lib.etc        import is_dev
+from core.lib.utils      import is_dev
 from core.ui.template    import Fail, Generic, Success
 from core.wrp.extension  import extension
+from meta                import config, emoji, sub
 
 
 

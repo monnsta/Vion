@@ -24,9 +24,7 @@ sub = BD(
 	servers          = join(base.data, "servers", ""),
 	users            = join(base.data, "users", ""),
 
-	cog              = lambda module: f"{base.core}.cog" if module else join(base.core, "cog", ""),
-	commands         = Method(lambda self, module: f"{self.cog(True)}.commands" if module else join(self.cog(), "commands", "")),
-	events           = Method(lambda self, module: f"{self.cog(True)}.events" if module else join(self.cog(), "events", "")),
+	cog              = join(base.core, "cog", ""),
 	custom_cogs      = lambda i: join(sub.servers, i, "custom_cogs", "")
 )
 
