@@ -1,24 +1,32 @@
 # Bot Documentation & Manual
 > **Note:** This is the internal documentation and manual for the AI Discord Bot framework. It covers startup procedures, configuration requirements, and the underlying directory architecture.
-> 
+
+---
+
 ## Table of Contents
- 1. Getting Started
- 2. Configuration (configure.yml)
- 3. Project Architecture
+ 1. [Getting Started](getting-started)
+ 2. [Configuration](configuration)
+ 3. [Project Architecture](project-architecture)
+
+---
+
 ## Getting Started
 The application is designed to run robustly with built-in fail-safes. There are two primary methods for starting the bot depending on your environment (Production vs. Development).
+
 ### Production Environment (Recommended)
 Execute the provided bash script. This acts as a lightweight process manager that installs dependencies, provides security over the process, automatically restarts the bot in the event of a crash, and detects crash loops to prevent system overload.
 ```bash
 ./exec.sh
-
 ```
+
 ### Development Environment
 For testing or debugging, you can bypass the bash script and run the bot script directly.
 ```bash
 python bot.py
-
 ```
+
+---
+
 ## Configuration
 The bot's identity, behavior, limits, and AI parameters are entirely driven by the configure.yml file located in the project root.
 <details>
@@ -254,12 +262,14 @@ system_instructions: |
   <monologue>
   The users are discussing a topic that doesn't involve me. I will remain in the background and observe for now.
   </monologue>
-
 ```
 </details>
+
+---
+
 ## Project Architecture
 The repository is modularized to separate core logic, configuration, and runtime execution smoothly.
-```text
+```
 .
 ├── core/                   # Core Application Logic
 │   ├── cog/                # Discord command and event extensions
@@ -295,8 +305,8 @@ The repository is modularized to separate core logic, configuration, and runtime
 ├── LICENSE
 ├── README.md               # You are here
 └── requirements.txt        # Python dependencies
-
 ```
+
 ### Directory Breakdown
  * **core/**: The brain of the bot. This holds all executable logic.
    * **cog/**: The command and event handlers loaded into the bot instance.

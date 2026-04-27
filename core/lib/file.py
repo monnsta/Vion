@@ -334,7 +334,6 @@ class TOML(BaseFileIO[dict]):
 		if not data: return {}
 		return orjson.loads(orjson.dumps(data))
 
-
 	@property
 	def _default_empty(self) -> dict:
 		return {}
