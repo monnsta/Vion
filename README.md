@@ -29,8 +29,8 @@ python bot.py
 
 ## Configuration
 The bot's identity, behavior, limits, and AI parameters are entirely driven by the configure.yml file located in the project root.
-<details>
-<summary><b>Click to expand the configure.yml template</b></summary>
+
+configure.yml template:
 ```yaml
 # --- Identity ---
 bot:
@@ -263,7 +263,6 @@ system_instructions: |
   The users are discussing a topic that doesn't involve me. I will remain in the background and observe for now.
   </monologue>
 ```
-</details>
 
 ---
 
