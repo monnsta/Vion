@@ -1,12 +1,28 @@
-# Manual
+# Bot Documentation & Manual
+> **Note:** This is the internal documentation and manual for the AI Discord Bot framework. It covers startup procedures, configuration requirements, and the underlying directory architecture.
+> 
+## Table of Contents
+ 1. Getting Started
+ 2. Configuration (configure.yml)
+ 3. Project Architecture
+## Getting Started
+The application is designed to run robustly with built-in fail-safes. There are two primary methods for starting the bot depending on your environment (Production vs. Development).
+### Production Environment (Recommended)
+Execute the provided bash script. This acts as a lightweight process manager that installs dependencies, provides security over the process, automatically restarts the bot in the event of a crash, and detects crash loops to prevent system overload.
+```bash
+./exec.sh
 
----
+```
+### Development Environment
+For testing or debugging, you can bypass the bash script and run the bot script directly.
+```bash
+python bot.py
 
+```
 ## Configuration
-You can configure the bot by editing the `configure.yml` file in the project root.
-
-configuration template:
-
+The bot's identity, behavior, limits, and AI parameters are entirely driven by the configure.yml file located in the project root.
+<details>
+<summary><b>Click to expand the configure.yml template</b></summary>
 ```yaml
 # --- Identity ---
 bot:
@@ -20,7 +36,7 @@ domain: "example.com"
 devs: # [dev name, dev id]
   - [ "discord_guy", 123 ]
 dev_servers: # [guild name, guild id, guild invite link]
-  - [ "tf is a guild?", 123, "https://discord.gg/<code>" ]
+  - [ "tf is a guild?", 123, "[https://discord.gg/](https://discord.gg/)<code>" ]
 
 # --- Application ---
 timezone: "Asia/Kolkata" # e.g., Asia/Kolkata
@@ -39,7 +55,7 @@ emoji: # add custom ones if you need
 sandbox:
   max_memory_mb: 500
   max_cpu_seconds: 3_600
-  allowed_modules: # add or remove modules from here, the bot will not be able to use anything other than these
+  allowed_modules: # add or remove modules from here
     - "requests"
     - "cmath"
     - "itertools"
@@ -101,8 +117,8 @@ ai_data:
 
 # --- AI Settings ---
 gemini_url:
-  - "https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-pro:generateContent"
-  - "https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash:generateContent"
+  - "[https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-pro:generateContent](https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-pro:generateContent)"
+  - "[https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash:generateContent](https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash:generateContent)"
 
 temperature: 0.6
 top_p: 1.0
@@ -238,67 +254,54 @@ system_instructions: |
   <monologue>
   The users are discussing a topic that doesn't involve me. I will remain in the background and observe for now.
   </monologue>
-```
-
----
-
-## Startup
-You run the exec.sh bash script which runs the bot script with some security over the process like rerunning the bot if crashes and detecting crash loops. However you can still run the bot.py script directly alone
-
----
-
-## Directory explaination
-
-Directory tree:
 
 ```
- .
-├──  core
-│   ├──  cog
-│   │   ├──  commands
-│   │   │   └──  dev.py
-│   │   └──  events
-│   │       └──  general.py
-│   ├──  lib
-│   │   ├──  bttrdict.py
-│   │   ├──  code.py
-│   │   ├──  converter.py
-│   │   ├──  etc.py
-│   │   └──  file.py
-│   ├──  ui
-│   │   └──  template.py
-│   └──  wrp
-│       ├──  blacklist.py
-│       ├──  data.py
-│       ├──  extension.py
-│       └──  memory.py
-├──  meta
-│   ├──  .env
-│   ├──  .env.template
-│   ├──  __init__.py
-│   ├──  file.py
-│   └──  settings.py
-├── 󰙨 tests
-│   └──  file_handler_test.py
-├──  .gitignore
-├──  bootstrap.py
-├──  bot.py
-├──  configure.yml
-├──  exec.sh
-├──  LICENSE
-├──  README.md
-└── 󰌠 requirements.txt
+</details>
+## Project Architecture
+The repository is modularized to separate core logic, configuration, and runtime execution smoothly.
+```text
+.
+├── core/                   # Core Application Logic
+│   ├── cog/                # Discord command and event extensions
+│   │   ├── commands/       # Application slash/prefix commands (e.g., dev.py)
+│   │   └── events/         # Event listeners (e.g., general.py)
+│   ├── lib/                # Low-Level Utilities
+│   │   ├── bttrdict.py     # A dataclass-like utility helpfull for making structured objects with less code
+│   │   ├── code.py         # Code execution and sandbox managers
+│   │   ├── converter.py    # Object-to-JSON and type converters
+│   │   ├── file.py         # File system managers
+│   │   ├── repl.py         # Handles Async repl, Allows running commands while the bot is running, usefull for fixing while the bot is running
+│   │   └── utils.py        # Miscellaneous helpers
+│   ├── ui/                 # Interface Components
+│   │   └── template.py     # UI templates for Discord components
+│   └── wrp/                # High-Level Wrappers
+│       ├── blacklist.py    # Access control
+│       ├── extension.py    # Cog loading utilities
+│       ├── memory.py       # Conversational and state memory
+│       └── profile.py      # Handles settings and info of users or servers
+├── meta/                   # Configuration Setup
+│   ├── .env                # Environment variables (Credentials)
+│   ├── .env.template       # Template for .env file
+│   ├── __init__.py
+│   ├── file.py             # File paths used everywhere
+│   └── settings.py         # Global settings variables
+├── tests/                  # Testing Suite
+│   └── file_handler_test.py
+├── .gitignore
+├── bootstrap.py            # Initialization script (Logging, early setup)
+├── bot.py                  # Main application entry point
+├── configure.yml           # Primary bot configuration and behavior settings
+├── exec.sh                 # Process manager script (Keeps bot alive)
+├── LICENSE
+├── README.md               # You are here
+└── requirements.txt        # Python dependencies
+
 ```
-
-Core: This is where the logic lives
-* Cog: All the command cog files are added here
-* UI: Some ui templates used in commands and events
-* Lib: This is all the low level utilities, like file managing, code running, objects to json converters live
-* Wrp: Short for wrappers and these are the modules you really use in the cogs, 
-
-Meta: Configuration setup
-Tests: Just test scripts, not necessarily needed
-bootstrap.py: Initial setup like logging
-bot.py: Main entry point
-configure.yml: The actual configuration file you use to configure the bot
-exec.sh: The runner script, main job is to keep the process alive reliably and install dependacies
+### Directory Breakdown
+ * **core/**: The brain of the bot. This holds all executable logic.
+   * **cog/**: The command and event handlers loaded into the bot instance.
+   * **lib/**: Foundational utilities handling file IO, isolated code execution, and data formatting.
+   * **ui/**: Pre-built interface structures (like embeds or views) used across commands.
+   * **wrp/**: Simple APIs built over complex systems (wrappers). This allows the cogs to easily interact with memory, data, and blacklists without writing boilerplate.
+ * **meta/**: Handles the ingestion of environmental variables and parsing configure.yml upon initialization.
+ * **Root Scripts (bot.py, bootstrap.py, exec.sh)**: The structural layers that boot up the logging environment, establish the Discord connection, and manage the operating system process.
