@@ -1,4 +1,5 @@
 import asyncio
+import difflib
 import logging
 import os
 import random
@@ -10,6 +11,7 @@ from discord.ext       import commands, tasks
 
 from core.lib.file     import json_file
 from core.wrp.profile  import server
+from core.ui.template  import Fail
 from meta              import config, file, sub
 
 
@@ -174,6 +176,28 @@ class General(commands.Cog):
 	async def on_guild_remove(self, guild: discord.Guild):
 		log.info(f"Left guild: {guild.name} ({guild.id}). Purging data.")
 		await server.data.delete(guild.id)
+
+	@commands.Cog.listener()
+	async def on_command_error(self, ctx: commands.Context, error):
+		if isinstance(error, commands.CommandNotFound):
+			invoked_with = ctx.invoked_with
+
+			all_commands = list(self.bot.command_mentions.keys())
+
+			matches = difflib.get_close_matches(invoked_with, all_commands, n=1, cutoff=0.6)
+
+			if matches:
+				suggestion_name = matches[0]
+				suggestion_mention = self.bot.command_mentions.get(suggestion_name)
+				description = f"The command `{invoked_with}` does not exist. Did you mean {suggestion_mention}?"
+			else:
+				description = "The command you entered does not exist."
+
+			await ctx.reply(view=Fail(
+				"Invalid Command",
+				description
+			))
+
 
 async def setup(bot: commands.Bot):
 	await bot.add_cog(General(bot))

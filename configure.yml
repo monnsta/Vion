@@ -234,6 +234,7 @@ sandbox:
   max_memory_mb: 500
   max_cpu_seconds: 3_600
   allowed_modules: # add or remove modules from here, the bot will not be able to use anything other than these
+    - "core.wrp"
     - "requests"
     - "cmath"
     - "itertools"

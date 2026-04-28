@@ -21,11 +21,15 @@ real_import = builtins.__import__
 log.info("Setting up config...")
 success, data = asyncio.run(yaml_file.load("configure.yml"))
 
+if not success:
+	log.critical("Failed to load configure.yml")
+	sys.exit(10)
+
 try:
 	config = BD.load(data)
 	log.debug(json.dumps(data, indent=4))
 except Exception:
-	log.critical("An error accured while setting up config", exc_info=True)
+	log.critical("An error occurred while parsing config into BD object", exc_info=True)
 	sys.exit(10)
 
 
@@ -38,73 +42,52 @@ for parent in [config.settings, config.ai_data]:
 	for attr in ['server', 'user']:
 		val = getattr(parent, attr)
 		setattr(parent, attr, AntiFreeze(val.to_dict()))
+
 for obj in [config.devs, config.dev_servers]:
 	for i in range(len(obj)):
 		obj[i] = tuple(obj[i])
 
-emoji = BD.load(config.emoji.to_dict(False))
+emoji = BD.load(config.emoji.to_dict(update_self=False))
 config.delete("emoji")
 
 config.status.range = tuple(config.status.range)
 config.timezone = pytz.timezone(config.timezone)
-config.system_instructions = Computed(lambda self: F(config.system_instructions).format(config=self)
-config.secrets = BD.load(asyncio.run(yaml_file.load(sub.env))[1]).freeze()
-config.allowed_builtins = {
-	"print": print,
-	"range": range,
-	"len": len,
-	"int": int,
-	"float": float,
-	"str": str,
-	"bool": bool,
-	"dict": dict,
-	"list": list,
-	"set": set,
-	"tuple": tuple,
-	"enumerate": enumerate,
-	"abs": abs,
-	"min": min,
-	"max": max,
-	"sum": sum,
-	"any": any,
-	"all": all,
-	"filter": filter,
-	"map": map,
-	"reversed": reversed,
-	"sorted": sorted,
-	"round": round,
-	"divmod": divmod,
-	"ord": ord,
-	"chr": chr,
-	"slice": slice,
-	"zip": zip,
-	"pow": pow,
-	"isinstance": isinstance,
-	"issubclass": issubclass,
-	"format": format,
-	"repr": repr,
-	"frozenset": frozenset,
-	"bytearray": bytearray,
-	"bytes": bytes,
-	"__import__": safe_import
-}
-config.event_inst = BD( #{
+
+config.system_instructions = Computed(lambda self: F(self._data['system_instructions']).format(config=self))
+
+_, secrets_data = asyncio.run(yaml_file.load(sub.env))
+config.secrets = BD.load(secrets_data).freeze()
+
+
+allowed_names = [
+	"print", "range", "len", "int", "float", "str", "bool", "dict", "list", 
+	"set", "tuple", "enumerate", "abs", "min", "max", "sum", "any", "all", 
+	"filter", "map", "reversed", "sorted", "round", "divmod", "ord", "chr", 
+	"slice", "zip", "pow", "isinstance", "issubclass", "format", "repr", 
+	"frozenset", "bytearray", "bytes"
+]
+
+config.allowed_builtins = {name: getattr(builtins, name) for name in allowed_names}
+config.allowed_builtins["__import__"] = safe_import
+
+
+config.event_inst = BD(
 	_template = lambda event, objects, extra_text: mt(
 		f"You're triggered by the `{event}` event.",
-		f"You have these objects to work with:\n * {f'{char[10]} * '.join(objects)}",
+		f"You have these objects to work with:\n * {f'{chr(10)} * '.join(objects)}",
 		f"{extra_text}"
 	),
 
 	freewill = Method(lambda self: self._template(
 		"freewill",
 		["guild", "bot"],
-		"You can do anything you want in this event, get a channel to message in or just ignore. upto you."
+		"You can do anything you want in this event, get a channel to message in or just ignore. Upto you."
 	)),
 
 	inactivity = Method(lambda self: self._template(
 		"inactivity",
 		["guild", "bot"],
-		"You can send a message to increase activity in a channel of your choice or ignore"
+		"You can send a message to increase activity in a channel of your choice or ignore."
 	)),
 
 	on_message = Method(lambda self, message_id: self._template(
@@ -124,8 +107,9 @@ config.event_inst = BD( #{
 		["member", "guild", "bot"],
 		"A member left, you can say goodbye to them or do anything you want."
 	))
-) #}
-config.freeze()
+)
 
+# Lock down the configuration
+config.freeze()
 
 __all__ = ('emoji', 'config')
