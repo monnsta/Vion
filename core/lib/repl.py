@@ -35,7 +35,7 @@ class AsyncREPL:
 			if not self.buffer and line.strip().lower() in ("exit", "quit", "stop"):
 				break
 
-			if not self.buffer and line.startswith("!"):
+			if not self.buffer and line.startswith(":"):
 				os.system(line[1:])
 				continue
 

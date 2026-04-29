@@ -3,9 +3,9 @@ import gzip
 import logging
 import os
 import time
-from abc         import ABC, abstractmethod
-from contextlib  import asynccontextmanager
-from typing      import Any, AsyncIterator, Generic, TypeVar
+from abc          import ABC, abstractmethod
+from contextlib   import asynccontextmanager
+from typing       import Any, AsyncIterator, Generic, TypeVar
 
 try:
 	import orjson

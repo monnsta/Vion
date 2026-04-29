@@ -14,7 +14,7 @@ class _EntityListStore:
 		self.key = key
 		self.max_items = max_items
 		self.entity_type = entity_type
-	
+
 	def _path(self, entity_id: int) -> str:
 		eid = str(entity_id)
 		if self.entity_type == "guild":
@@ -24,24 +24,24 @@ class _EntityListStore:
 		else:
 			log.error(f"Unknown entity type encountered: {self.entity_type}")
 			raise ValueError(f"Unknown entity type: {self.entity_type}")
-	
+
 	async def _load(self, entity_id: int) -> tuple[bool, dict]:
 		log.debug(f"Loading {self.key} for {self.entity_type} {entity_id}")
 		return await json_file.load(self._path(entity_id))
-	
+
 	async def _save(self, entity_id: int, data: dict) -> None:
 		log.debug(f"Saving {self.key} for {self.entity_type} {entity_id}")
 		await json_file.save(self._path(entity_id), data)
-	
+
 	def _get_list(self, data: dict) -> list[Any]:
 		return data.setdefault(self.key, [])
-	
+
 	def _trim(self, items: list[Any]) -> list[Any]:
 		if len(items) > self.max_items:
 			log.debug(f"Trimming {self.key} list: {len(items)} -> {self.max_items}")
 			return items[-self.max_items:]
 		return items
-	
+
 	async def get(self, entity_id: int) -> tuple[bool, list[Any]]:
 		try:
 			success, data = await self._load(entity_id)
@@ -52,7 +52,7 @@ class _EntityListStore:
 		except Exception as e:
 			log.error(f"Error retrieving {self.key} for {self.entity_type} {entity_id}: {e}", exc_info=True)
 			return False, []
-	
+
 	async def clear(self, entity_id: int) -> bool:
 		try:
 			success, data = await self._load(entity_id)
@@ -70,18 +70,18 @@ class _EntityListStore:
 class Memory(_EntityListStore):
 	def __init__(self, entity_type="guild"):
 		super().__init__("memory", config.max_memory, entity_type)
-	
+
 	async def add(self, entity_id: int, message) -> bool:
 		try:
 			entry = await convert1(message)
 			success, data = await self._load(entity_id)
 			if not success:
 				return False
-			
+
 			items = self._get_list(data)
 			items.append(entry)
 			data[self.key] = self._trim(items)
-			
+
 			await self._save(entity_id, data)
 			log.info(f"Added memory entry for {self.entity_type} {entity_id}")
 			return True
@@ -92,18 +92,18 @@ class Memory(_EntityListStore):
 class Audit(_EntityListStore):
 	def __init__(self, entity_type="guild"):
 		super().__init__("audit", config.max_audit, entity_type)
-	
+
 	async def add(self, entity_id: int, event) -> bool:
 		try:
 			entry = await convert1(event)
 			success, data = await self._load(entity_id)
 			if not success:
 				return False
-			
+
 			items = self._get_list(data)
 			items.append(entry)
 			data[self.key] = self._trim(items)
-			
+
 			await self._save(entity_id, data)
 			log.info(f"Added audit entry for {self.entity_type} {entity_id}")
 			return True
@@ -114,17 +114,17 @@ class Audit(_EntityListStore):
 class Response(_EntityListStore):
 	def __init__(self, entity_type="guild"):
 		super().__init__("previous_response", config.max_previous_response, entity_type)
-	
+
 	async def add(self, entity_id: int, response_text: str) -> bool:
 		try:
 			success, data = await self._load(entity_id)
 			if not success:
 				return False
-			
+
 			items = self._get_list(data)
 			items.append(response_text)
 			data[self.key] = self._trim(items)
-			
+
 			await self._save(entity_id, data)
 			log.info(f"Updated previous response for {self.entity_type} {entity_id}")
 			return True

@@ -1,11 +1,9 @@
 import bootstrap
 
 import asyncio
-import inspect
 import logging
 import os
 import signal
-import traceback
 import textwrap
 import readline
 

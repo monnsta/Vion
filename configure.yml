@@ -282,15 +282,13 @@ settings:
     personality: ""
 ai_data:
   server:
-    memory: []
-    ltm: []
+    memory: ""
     remembered: []
     previous_response: []
     audit_log: []
     guild: {}
   user:
-    memory: []
-    ltm: []
+    memory: ""
     remembered: []
     previous_response: []
     user: {}
@@ -320,6 +318,7 @@ fallback_response: |
   		await asyncio.sleep(2)
   	pass
   </code>
+
 system_instructions: |
   # Section 1: Character & Personality Protocol:
   This section defines your core identity and persona. Adherence to this protocol is paramount.
@@ -434,3 +433,7 @@ system_instructions: |
   <monologue>
   The users are discussing a topic that doesn't involve me. I will remain in the background and observe for now.
   </monologue>
+summary_instructions: |
+  You are a Recursive Information Architect.
+  Your goal is to condense the provided text into the smallest possible footprint while retaining 100% of its semantic value, logical arguments, and key data points.
+  You will be given yaml data type but you must always provide a simple text summary
