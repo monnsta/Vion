@@ -6,12 +6,13 @@ from logging.handlers  import TimedRotatingFileHandler
 
 from rich.traceback    import install
 
-from core.lib.file     import json_file, text_file
-from meta              import base, setup
+from core.lib.file     import json_file
+from meta              import base, load_config, setup_directory
 
 
 json_file._cache.start_background_gc()
-text_file._cache.start_background_gc()
+setup_directory()
+load_config()
 
 install(show_locals=True)
 
@@ -35,10 +36,10 @@ class JsonFormatter(logging.Formatter):
 			"millisecond_created": record.msecs,
 			"epoch_created": record.created
 		}
-		
+
 		if record.exc_info:
 			log_data["exception"] = self.formatException(record.exc_info)
-		
+
 		return json.dumps(log_data)
 
 # 1. Setup the log directory and dynamic naming

@@ -88,7 +88,7 @@ class General(commands.Cog):
 						moved_at_str = info.get("moved_at")
 						if moved_at_str:
 							moved_at_time = datetime.fromisoformat(moved_at_str)
-							if current_time - moved_at_time > timedelta(days=7):
+							if current_time - moved_at_time > timedelta(days=config.cleanup_days):
 								shutil.rmtree(folder_path)
 								log.info(f"Permanently deleted data for guild {guild_id_folder} from bin.")
 					except Exception:

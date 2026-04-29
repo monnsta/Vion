@@ -90,9 +90,9 @@ class CreatePath:
 		log.debug("Path processing batch complete.")
 create_path = CreatePath()
 
-async def setup() -> None:
+def setup_directory() -> None:
 	log.info("Initializing filesystem setup...")
-	await create_path(
+	asyncio.run(create_path(
 		base.data,
 		base.logs,
 
@@ -102,16 +102,16 @@ async def setup() -> None:
 		sub.glob,
 
 		file.glob.blacklist,
-		file.glob.bot_obj,
-		file.glob.bot_activity,
-		file.glob.server_list
-	)
+		file.glob.bot_activity
+	))
 	log.info("Filesystem setup complete.")
-base.setup = setup
 
 base.freeze()
 sub.freeze()
 file.freeze()
 
 
-__all__ = ('create_path', 'setup', 'base', 'sub', 'file')
+__all__ = (
+	'setup_directory', 'create_path',
+	'base', 'sub', 'file'
+)

@@ -48,6 +48,7 @@ dev_servers: # [guild name, guild id, guild invite link]
 
 # --- Application ---
 timezone: "Asia/Kolkata" # e.g., Asia/Kolkata
+cleanup_days: 7 # how many days should old data stay untill it's deleted forever
 default_prefix: [ "!", "?" ]
 p: "!" # used as default in help messages. named `p` cause it's faster to type
 

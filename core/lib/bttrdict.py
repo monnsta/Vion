@@ -331,6 +331,7 @@ class BD:
 			if update_self: self._data[k] = serialized_val
 		return out
 
+
 __all__ = (
 	'DataError', 'ComputationError', 'ImmutableError',
 	'Repr', 'AntiFreeze', 'Method', 'Computed', 'Secret', 'Validated', 'Alias', 'Observed',
