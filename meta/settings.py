@@ -18,8 +18,8 @@ log = logging.getLogger(__name__)
 real_import = builtins.__import__
 
 
-config = None
-emoji  = None
+config = BD()
+emoji  = BD()
 
 def load_config():
 	global config, emoji
@@ -31,12 +31,11 @@ def load_config():
 		sys.exit(10)
 
 	try:
-		config = BD.load(data)
+		config.update(BD.load(data))
 		log.debug(json.dumps(data, indent=4))
 	except Exception:
 		log.critical("An error occurred while parsing config into BD object", exc_info=True)
 		sys.exit(10)
-
 
 	def safe_import(name, globals=None, locals=None, fromlist=(), level=0):
 		if any(name == m or name.startswith(m + ".") for m in config.sandbox.allowed_modules):
@@ -52,17 +51,14 @@ def load_config():
 		for i in range(len(obj)):
 			obj[i] = tuple(obj[i])
 
-	emoji = BD.load(config.emoji.to_dict(update_self=False))
+	emoji.update(BD.load(config.emoji.to_dict(update_self=False)))
 	config.delete("emoji")
 
 	config.status.range = tuple(config.status.range)
 	config.timezone = pytz.timezone(config.timezone)
 
-	config.system_instructions = Computed(lambda self: F(self._data['system_instructions']).format(config=self))
-
 	_, secrets_data = asyncio.run(yaml_file.load(sub.env))
 	config.secrets = BD.load(secrets_data).freeze()
-
 
 	allowed_names = [
 		"print", "range", "len", "int", "float", "str", "bool", "dict", "list", 
@@ -72,9 +68,10 @@ def load_config():
 		"frozenset", "bytearray", "bytes"
 	]
 
-	config.allowed_builtins = {name: getattr(builtins, name) for name in allowed_names}
-	config.allowed_builtins["__import__"] = safe_import
+	config.sandbox.allowed_builtins = {name: getattr(builtins, name) for name in allowed_names}
+	config.sandbox.allowed_builtins["__import__"] = safe_import
 
+	config.system_instructions = Computed(lambda self: F(self.system_instructions).format(config=self))
 
 	config.event_inst = BD(
 		_template = lambda event, objects, extra_text: mt(
@@ -118,4 +115,4 @@ def load_config():
 	emoji.freeze()
 
 
-__all__ = ('emoji', 'config')
+__all__ = ('load_config', 'emoji', 'config')

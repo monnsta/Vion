@@ -122,6 +122,35 @@ class BD:
 		for k, v in kwargs.items():
 			self.set(k, v)
 
+	@classmethod
+	def load(cls: Type[T], data: Union[str, Dict[str, Any]]) -> T:
+		"""Loads a dictionary or JSON string, recursively converting nested dicts to BD instances."""
+		if isinstance(data, str):
+			try:
+				parsed_data = json.loads(data)
+			except json.JSONDecodeError as e:
+				raise DataError(f"Failed to parse JSON string: {e}")
+		elif isinstance(data, dict):
+			parsed_data = data
+		else:
+			raise TypeError("load() expects a JSON string or a dictionary.")
+
+		if not isinstance(parsed_data, dict):
+			raise DataError("Root structure must be a dictionary/object.")
+
+		def _convert(item: Any) -> Any:
+			if isinstance(item, dict):
+				return cls(**{k: _convert(v) for k, v in item.items()})
+			if isinstance(item, list):
+				return [_convert(i) for i in item]
+			if isinstance(item, set):
+				return {_convert(i) for i in item}
+			if isinstance(item, tuple):
+				return tuple(_convert(i) for i in item)
+			return item
+
+		return _convert(parsed_data)
+
 	def __repr__(self) -> str:
 		def _format_val(val: Any) -> str:
 			if isinstance(val, (BD, Repr)):
@@ -147,6 +176,9 @@ class BD:
 
 	def __iter__(self) -> Iterator[str]:
 		return iter(self._data)
+
+	def __contains__(self, key: str) -> bool:
+		return key in self._data
 
 	def __eq__(self, other: Any) -> bool:
 		if isinstance(other, BD):
@@ -181,22 +213,6 @@ class BD:
 			except Exception as e:
 				raise ComputationError(f"Lazy computation failed for '{key}': {e}") from e
 
-		return val
-
-	def __getattr__(self, key: str) -> Any:
-		try:
-			val = self._data[key]
-		except KeyError:
-			raise AttributeError(f"'{type(self).__name__}' object has no attribute '{key}'")
-
-		if type(val) is Computed:
-			try:
-				result = val.fn(self)
-				self._data[key] = result
-				return result
-			except Exception as e:
-				raise ComputationError(f"Lazy computation failed for '{key}': {e}") from e
-
 		if type(val) is Alias:
 			return self.get(val.path)
 
@@ -205,12 +221,45 @@ class BD:
 
 		return val
 
-
 	def __setattr__(self, key: str, value: Any) -> None:
 		if key in type(self).__slots__:
 			super().__setattr__(key, value)
 			return
 		self.set(key, value)
+
+	def keys(self) -> Iterator[str]:
+		return self._data.keys()
+
+	def values(self) -> Iterator[Any]:
+		return (getattr(self, k) for k in self._data)
+
+	def items(self) -> Iterator[tuple[str, Any]]:
+		return ((k, getattr(self, k)) for k in self._data)
+
+	def update(self, data: Union[Dict[str, Any], "BD"]) -> "BD":
+		"""Updates the BD instance with another dictionary or BD instance."""
+		iterable = data._data.items() if isinstance(data, BD) else data.items()
+		for k, v in iterable:
+			self.set(k, v)
+		return self
+
+	def pop(self, key: str, default: Any = KeyError) -> Any:
+		"""Removes a key and returns its value."""
+		if key in self._data:
+			val = getattr(self, key)
+			self.delete(key)
+			return val
+		if default is not KeyError:
+			return default
+		raise KeyError(f"Key '{key}' not found.")
+
+	def clear(self) -> None:
+		"""Removes all items from the BD instance, respecting anti-freeze/frozen limits."""
+		if self._frozen:
+			raise ImmutableError("Cannot clear; the object is frozen.")
+		for key in list(self._data.keys()):
+			if key not in self._anti_freeze:
+				self.delete(key)
 
 	def set(self, path: str, value: Any) -> "BD":
 		"""Sets a value at a potentially nested path (e.g., 'user.profile.name')."""
@@ -276,20 +325,17 @@ class BD:
 
 		old_value = self._data.get(key)
 
-		# 1. Handle Validation
 		if type(value) is Validated:
 			if not value.validator(value.value):
 				raise DataError(f"Validation failed for key '{key}'")
 			value = value.value
 
-		# 2. Handle Secrets & AntiFreeze
 		if type(value) is Secret:
 			pass 
 		elif type(value) is AntiFreeze:
 			self._anti_freeze.add(key)
 			value = value.value
 
-		# 3. Handle Logic Wrappers
 		elif type(value) is Method:
 			value = types.MethodType(value.fn, self)
 		elif type(value) is Computed and not value.lazy:
@@ -330,6 +376,37 @@ class BD:
 			out[k] = serialized_val
 			if update_self: self._data[k] = serialized_val
 		return out
+
+	def freeze(self) -> "BD":
+		"""
+		Recursively freezes the object, nested BD instances, and converts 
+		mutable collections (list, set, dict) into immutable types.
+		"""
+		super().__setattr__("_frozen", True)
+
+		def _deep_freeze(item: Any) -> Any:
+			if isinstance(item, BD):
+				return item.freeze()
+
+			if isinstance(item, list):
+				return tuple(_deep_freeze(i) for i in item)
+			
+			if isinstance(item, set):
+				return frozenset(_deep_freeze(i) for i in item)
+
+			if isinstance(item, dict):
+				return MappingProxyType({k: _deep_freeze(v) for k, v in item.items()})
+
+			return item
+
+		for key, val in list(self._data.items()):
+			if key in self._anti_freeze:
+				continue
+
+			if not isinstance(val, (types.MethodType, Computed, Alias)):
+				self._data[key] = _deep_freeze(val)
+
+		return self
 
 
 __all__ = (

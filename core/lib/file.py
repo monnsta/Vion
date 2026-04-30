@@ -96,7 +96,7 @@ class SlidingTTLCache(Generic[T]):
 		for k in expired:
 			del self._cache[k]
 
-	def start_background_gc(self, interval_seconds: int | None = None) -> None:
+	async def start_background_gc(self, interval_seconds: int | None = None) -> None:
 		"""
 		Starts a background asyncio task to periodically clear expired items.
 		Should be called after the asyncio event loop is running.
@@ -107,7 +107,7 @@ class SlidingTTLCache(Generic[T]):
 			log.warning("Garbage collection task is already running.")
 			return
 
-		self._gc_task = asyncio.create_task(self._gc_loop(interval))
+		self._gc_task = await asyncio.create_task(self._gc_loop(interval))
 
 	def stop_background_gc(self) -> None:
 		"""Cancels the running background garbage collection task."""

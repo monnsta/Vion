@@ -9,7 +9,6 @@ import discord
 from discord.ext         import commands
 
 from core.lib.bttrdict   import BD
-from core.lib.repl       import AsyncREPL
 from core.wrp.profile    import server
 from core.wrp.extension  import extension
 from meta                import config
@@ -30,7 +29,6 @@ class Bot(commands.Bot):
 			intents=intents
 		)
 		self.command_mentions = BD()
-		self._repl_task = None
 		log.info("Bot initialized")
 
 	def _map_command_mentions(self, synced_commands):
@@ -75,8 +73,6 @@ class Bot(commands.Bot):
 
 		self._map_command_mentions(synced_global)
 
-		self._repl_task = self.loop.create_task(self.terminal_repl())
-
 	async def shutdown(self):
 		log.info("Shutdown signal received. Cleaning up...")
 		if self._repl_task:
@@ -96,21 +92,6 @@ class Bot(commands.Bot):
 			if prefix not in config.prefix
 		)
 		return [*config.prefix, *server_prefixes]
-
-	async def start_repl(self):
-		repl_env = {
-			'bot':     self,
-			'discord': discord,
-			'os':      os,
-			'asyncio': asyncio,
-			'config':  config
-		}
-
-		repl = AsyncREPL(env=repl_env)
-		await repl.start()
-
-		if not self.is_closed():
-			await self.shutdown()
 
 
 if __name__ == "__main__":

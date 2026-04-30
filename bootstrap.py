@@ -1,20 +1,14 @@
+import asyncio
 import json
 import logging
+from logging.handlers             import TimedRotatingFileHandler
 import os
 import time
-from logging.handlers  import TimedRotatingFileHandler
 
-from rich.traceback    import install
+from rich.traceback               import install
 
-from core.lib.file     import json_file
-from meta              import base, load_config, setup_directory
-
-
-json_file._cache.start_background_gc()
-setup_directory()
-load_config()
-
-install(show_locals=True)
+from core.lib.file                import json_file
+from meta                         import base, load_config, setup_directory
 
 
 class JsonFormatter(logging.Formatter):
@@ -75,3 +69,10 @@ console_handler.setLevel(logging.INFO)
 console_formatter = logging.Formatter('%(asctime)s - %(levelname)s: %(message)s', datefmt='%H:%M:%S')
 console_handler.setFormatter(console_formatter)
 root_logger.addHandler(console_handler)
+
+
+asyncio.run(json_file._cache.start_background_gc())
+setup_directory()
+load_config()
+
+install(show_locals=True)
