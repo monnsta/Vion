@@ -1,4 +1,4 @@
-import os
+from typing              import Optional, Literal
 
 import discord
 from discord             import app_commands as app
@@ -7,8 +7,8 @@ from discord.ext         import commands
 from core.lib.utils      import is_dev
 from core.ui.template    import Fail, Generic, Success
 from core.wrp.extension  import extension
+from core.wrp.blacklist  import blacklist
 from meta                import config, emoji, sub
-
 
 
 dev_only = True
@@ -162,5 +162,127 @@ class Extension(commands.Cog):
 	async def reload_all(self, ctx: commands.Context):
 		await self._multi_handle(ctx, extension.reload_all)
 
+class Blacklist(commands.Cog):
+	def __init__(self, bot: commands.Bot):
+		self.bot = bot
+
+	@dev.group(
+		name='blacklist',
+		aliases=['bl'],
+		description='Manage the global bot blacklist.'
+	)
+	async def blacklist_group(self, ctx: commands.Context):
+		if ctx.invoked_subcommand is None:
+			await ctx.reply(view=Fail(
+				"Subcommand missing",
+				"Available subcommands:",
+				"```",
+				"* add    (a)",
+				"* remove (r)",
+				"* show   (s)",
+				"* list   (l)",
+				"```"
+			))
+
+
+	@blacklist_group.command(
+		name='add',
+		aliases=['a'],
+		description='Add a user or server to the blacklist.'
+	)
+	@app.describe(
+		target_id='The ID of the user or server',
+		type='Whether this is a user or server',
+		reason='Reason for blacklisting',
+		duration='Duration (e.g., 7d, 12h, 30m). Leave empty for permanent.'
+	)
+	async def add(
+		self, 
+		ctx: commands.Context, 
+		target_id: str, 
+		type: Literal['user', 'server'], 
+		reason: str, 
+		duration: Optional[str] = None
+	):
+		try:
+			tid = int(target_id)
+		except ValueError:
+			return await ctx.reply(view=Fail("Target ID must be a valid integer."))
+
+		success, msg = await blacklist.add(tid, type, ctx.author.id, reason, duration)
+
+		if success:
+			await ctx.reply(view=Success(f"**{type.capitalize()} {tid}** has been blacklisted.\n**Reason:** {reason}"))
+		else:
+			await ctx.reply(view=Fail(msg))
+
+
+	@blacklist_group.command(
+		name='remove',
+		aliases=['rm'],
+		description='Remove a user or server from the blacklist.'
+	)
+	async def remove(self, ctx: commands.Context, target_id: str, type: Literal['user', 'server']):
+		try:
+			tid = int(target_id)
+		except ValueError:
+			return await ctx.reply(view=Fail("Target ID must be a valid integer."))
+
+		success, msg = await blacklist.remove(tid, type)
+		
+		if success:
+			await ctx.reply(view=Success(msg))
+		else:
+			await ctx.reply(view=Fail(msg))
+
+
+	@blacklist_group.command(
+		name='show',
+		aliases=['s'],
+		description='Show detailed info about a specific blacklist entry.'
+	)
+	async def show(self, ctx: commands.Context, target_id: str, type: Literal['user', 'server']):
+		try:
+			tid = int(target_id)
+		except ValueError:
+			return await ctx.reply(view=Fail("Target ID must be a valid integer."))
+
+		success, data = await blacklist.get(tid, type)
+		
+		if not success:
+			return await ctx.reply(view=Fail(data))
+
+		expiry = data['expires_at'] if data['expires_at'] else "Never"
+		details = (
+			f"**ID:** `{data['id']}`\n"
+			f"**Type:** {data['type']}\n"
+			f"**Moderator:** <@{data['mod_id']}>\n"
+			f"**Reason:** {data['reason']}\n"
+			f"**Created:** {data['created_at']}\n"
+			f"**Expires:** {expiry}"
+		)
+		await ctx.reply(view=Generic(details))
+
+
+	@blacklist_group.command(
+		name='list',
+		aliases=['l'],
+		description='List all blacklisted entities.'
+	)
+	async def list_bl(self, ctx: commands.Context, type: Optional[Literal['user', 'server']] = None):
+		entries = await blacklist.list_all(type)
+		
+		if not entries:
+			return await ctx.reply(view=Generic("The blacklist is currently empty."))
+
+		results = []
+		for e in entries:
+			line = f"• `[{e['type'][0].upper()}]` `{e['id']}` - {e['reason']}"
+			results.append(line)
+
+		await ctx.reply(view=Generic("### Global Blacklist\n" + "\n".join(results)))
+
+
 async def setup(bot: commands.Bot):
 	await bot.add_cog(Extension(bot))
+	await bot.add_cog(Blacklist(bot))

@@ -7,7 +7,7 @@ from typing              import Any, Union
 
 import discord
 
-from core.lib.converter  import convert2, convert3, convert4
+from core.lib.converter  import convert_guild, convert_user
 from core.lib.file       import json_file, text_file
 from meta                import config, create_path, file, sub
 
@@ -115,6 +115,31 @@ class BaseProfileManager:
 				await asyncio.to_thread(rollback)
 				return False
 
+		async def delete_permanent(self, entity_id: int) -> bool:
+			eid = str(entity_id)
+			source = os.path.join(self.parent.active_dir, eid)
+			binned = os.path.join(sub.bin, eid)
+
+			def sync_delete_logic():
+				if os.path.exists(binned):
+					log.info(f"Permanently purging {self.parent.entity_type} {eid} from bin")
+					shutil.rmtree(binned)
+					return True
+
+				if os.path.exists(source):
+					log.info(f"Moving active {self.parent.entity_type} {eid} to bin")
+					shutil.rmtree(binned)
+					return True
+
+				log.warning(f"Permanent delete failed: {eid} not found in active or bin")
+				return False
+
+			try:
+				return await asyncio.to_thread(sync_delete_logic)
+			except Exception:
+				log.error(f"Error during permanent delete for {eid}", exc_info=True)
+				return False
+
 	class Settings:
 		def __init__(self, parent: "BaseProfileManager"):
 			self.parent = parent
@@ -148,10 +173,11 @@ class BaseProfileManager:
 			if not success:
 				return False
 
-			convert = convert2 if self.parent.entity_type == "guild" else convert4
+			convert = convert_guild if self.parent.entity_type == "guild" else convert_user
 
 			data[self.parent.entity_type] = await convert(entity)
 			return await json_file.save(path, data)
+
 
 class Server(BaseProfileManager):
 	def __init__(self):
@@ -180,14 +206,6 @@ class Server(BaseProfileManager):
 
 		return success
 
-	async def save_list(self, guilds: list[discord.Guild]):
-		log.debug(f"Updating global server list for {len(guilds)} guilds")
-		data = await convert3(guilds)
-		if isinstance(data, dict):
-			await json_file.save(file.glob.server_list, data)
-		else:
-			log.error("Could not save guild list: converted data was not of type 'dict'")
-
 class User(BaseProfileManager):
 	def __init__(self):
 		super().__init__(
@@ -204,7 +222,9 @@ class User(BaseProfileManager):
 			entity_name=user.name
 		)
 
+
 server = Server()
 user = User()
+
 
 __all__ = ('server', 'user')

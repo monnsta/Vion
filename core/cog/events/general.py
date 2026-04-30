@@ -115,15 +115,24 @@ class General(commands.Cog):
 			),
 			status=discord.Status.dnd
 		)
-		await server.save_list(list(self.bot.guilds))
+		log.info("Updating Guilds...")
 		for guild in self.bot.guilds:
+			if await blacklist.is_blacklisted(guild.id, "server"):
+				log.warning(f"Found blacklisted guild {guild.name} ({guild.id}). Leaving...")
+				await guild.leave()
 			await server.info.save(guild)
+			log.debug(f"Updated guild: '{getattr(guild, 'id', 'Could not retrieve id... somehow')}'")
 
 		self.cleanup_old_data.start()
 		log.info("Initialization tasks completed.")
 
 	@commands.Cog.listener()
 	async def on_guild_join(self, guild: discord.Guild):
+		if await blacklist.is_blacklisted(guild.id, "server"):
+			log.warning(f"Joined blacklisted guild: {guild.name} ({guild.id}). Leaving...")
+			await guild.leave()
+			return
+
 		log.info(f"Joined guild: {guild.name} ({guild.id})")
 		data_restored = await server.data.restore(guild.id)
 

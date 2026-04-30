@@ -76,7 +76,7 @@ def load_config():
 	config.event_inst = BD(
 		_template = lambda event, objects, extra_text: mt(
 			f"You're triggered by the `{event}` event.",
-			f"You have these objects to work with:\n * {f'{chr(10)} * '.join(objects)}",
+			f"You have these objects to work with: {', '.join(objects)}",
 			f"{extra_text}"
 		),
 
@@ -91,6 +91,12 @@ def load_config():
 			["guild", "bot"],
 			"You can send a message to increase activity in a channel of your choice or ignore."
 		)),
+
+		error_notify = Method(lambda self, traceback: self._template(
+			"error_notify",
+			["guild", "bot"],
+			f"You had error_notify on a code block, and it hit an error, this is the traceback:\n\n{traceback}"
+		))
 
 		on_message = Method(lambda self, message_id: self._template(
 			"on_message",
@@ -108,6 +114,18 @@ def load_config():
 			"on_member_remove",
 			["member", "guild", "bot"],
 			"A member left, you can say goodbye to them or do anything you want."
+		)),
+
+		on_channel_create = Method(lambda self: self._template(
+			"on_channel_create",
+			["channel", "bot"],
+			"A new channel was created, you can comment on it by sending a message to the channel or a different one if it's readonly."
+		)),
+
+		on_channel_remove = Method(lambda self: self._template(
+			"on_channel_remove",
+			["guild", "bot"],
+			"A channel was deleted, you can comment on it by sending a message in a general place people talk."
 		))
 	)
 

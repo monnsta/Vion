@@ -1,7 +1,7 @@
 import logging
 from typing              import Any
 
-from core.lib.converter  import convert1
+from core.lib.converter  import convert_message
 from core.lib.file       import json_file
 from meta                import config, file
 
@@ -73,7 +73,7 @@ class Memory(_EntityListStore):
 
 	async def add(self, entity_id: int, message) -> bool:
 		try:
-			entry = await convert1(message)
+			entry = await convert_message(message)
 			success, data = await self._load(entity_id)
 			if not success:
 				return False
@@ -95,7 +95,7 @@ class Audit(_EntityListStore):
 
 	async def add(self, entity_id: int, event) -> bool:
 		try:
-			entry = await convert1(event)
+			entry = await convert_message(event)
 			success, data = await self._load(entity_id)
 			if not success:
 				return False

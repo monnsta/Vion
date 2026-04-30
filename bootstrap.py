@@ -1,14 +1,14 @@
 import asyncio
 import json
 import logging
-from logging.handlers             import TimedRotatingFileHandler
 import os
 import time
+from logging.handlers  import TimedRotatingFileHandler
 
-from rich.traceback               import install
+from rich.logging      import RichHandler
 
-from core.lib.file                import json_file
-from meta                         import base, load_config, setup_directory
+from core.lib.file     import json_file
+from meta              import base, load_config, setup_directory
 
 
 class JsonFormatter(logging.Formatter):
@@ -36,15 +36,18 @@ class JsonFormatter(logging.Formatter):
 
 		return json.dumps(log_data)
 
+
 # 1. Setup the log directory and dynamic naming
 os.makedirs(base.logs, exist_ok=True)
 log_date_format = f"%B-%-d-%Y.log"
 log_file_path = os.path.join(base.logs, time.strftime(log_date_format))
 
+
 # 2. Configure the Root Logger
 root_logger = logging.getLogger()
 root_logger.setLevel(logging.DEBUG)
 root_logger.handlers.clear()
+
 
 # 3. Setup TimedRotatingFileHandler
 file_handler = TimedRotatingFileHandler(
@@ -55,24 +58,25 @@ file_handler = TimedRotatingFileHandler(
 	encoding='utf-8'
 )
 
-def namer(_):
-	return os.path.join(base.logs, time.strftime(log_date_format))
+def namer(_): return os.path.join(base.logs, time.strftime(log_date_format))
 
 file_handler.namer = namer
 file_handler.setLevel(logging.DEBUG)
 file_handler.setFormatter(JsonFormatter())
 root_logger.addHandler(file_handler)
 
+
 # 4. Setup Console Handler
-console_handler = logging.StreamHandler()
-console_handler.setLevel(logging.INFO)
-console_formatter = logging.Formatter('%(asctime)s - %(levelname)s: %(message)s', datefmt='%H:%M:%S')
-console_handler.setFormatter(console_formatter)
+console_handler = RichHandler(
+	level=logging.INFO,
+	rich_tracebacks=True,
+	tracebacks_show_locals=True,
+	markup=True
+)
 root_logger.addHandler(console_handler)
 
 
+# 5. Other setup
 asyncio.run(json_file._cache.start_background_gc())
 setup_directory()
 load_config()
-
-install(show_locals=True)
