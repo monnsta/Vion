@@ -4,8 +4,6 @@ import asyncio
 import logging
 import os
 import signal
-import textwrap
-import readline
 
 import discord
 from discord.ext         import commands
