@@ -1,6 +1,6 @@
 import logging
 import os
-from typing       import Dict, List, Optional, Tuple
+from typing       import Dict, List, Optional, Tuple, Iterable
 
 from discord.ext  import commands
 
@@ -15,7 +15,7 @@ class Extension:
 	def _get_cog_name(extension: str) -> str:
 		return extension.split('.')[-1].capitalize()
 
-	async def _handle_dev_guilds(self, bot: commands.Bot, extension: str, dev_guilds: Optional[list]) -> None:
+	async def _handle_dev_guilds(self, bot: commands.Bot, extension: str, dev_guilds: Iterable | None = None) -> None:
 		if not dev_guilds:
 			return
 
@@ -44,7 +44,7 @@ class Extension:
 	async def load(self, bot: commands.Bot, extension: str) -> Tuple[bool, str]:
 		try:
 			await bot.load_extension(extension)
-			await self._handle_dev_guilds(bot, extension, config.dev_servers)
+			await self._handle_dev_guilds(bot, extension, config.dev_server_ids)
 			log.info(f"Loaded cog: '{extension}'")
 			return True, f"Successfully loaded `{extension}`."
 		except commands.ExtensionAlreadyLoaded:

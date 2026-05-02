@@ -54,10 +54,6 @@ class StreamInterceptor(io.StringIO):
 class Code:
 	tasks = BD()
 
-	@staticmethod
-	def get_task(execution_id: str) -> Optional['Code']:
-		return getattr(Code.tasks, execution_id, None)
-
 	def __init__(self, code_str: str, on_stdout: Optional[Callable[[str], None]] = None, on_stderr: Optional[Callable[[str], None]] = None):
 		self.code_str = code_str
 		self.execution_id = f"EI{str(create_id())}"
@@ -75,6 +71,10 @@ class Code:
 
 		Code.tasks.set(self.execution_id, self)
 		log.debug(f"Code task initialized: {self.execution_id}")
+
+	@staticmethod
+	def get_task(execution_id: str) -> Optional['Code']:
+		return getattr(Code.tasks, execution_id, None)
 
 	async def execute(self, timeout: Optional[float] = None, **context_vars: Any) -> asyncio.Task:
 		if self._task and not self._task.done():

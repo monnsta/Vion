@@ -6,16 +6,16 @@ from typing       import Iterable
 from discord.ext  import commands
 
 
-def is_dev(devs: Iterable[tuple[str, int]]):
+def is_dev(devs: Iterable[int]):
 	async def predicate(ctx: commands.Context) -> bool:
-		return any(dev_id == ctx.author.id for _, dev_id in devs)
+		return any(dev_id == ctx.author.id for dev_id in devs)
 	return commands.check(predicate)
 
-def is_admin(devs: Iterable[tuple[str, int]]):
+def is_admin(devs: Iterable[int]):
 	async def predicate(ctx: commands.Context) -> bool:
 		perms = getattr(ctx.author, "guild_permissions", None)
 		is_owner = (ctx.author.id == ctx.guild.owner_id if ctx.guild else True)
-		is_dev = any(ctx.author.id == dev_id for _, dev_id in devs)
+		is_dev = any(ctx.author.id == dev_id for dev_id in devs)
 		is_admin = (
 			perms.manage_guild or
 			perms.administrator

@@ -46,10 +46,8 @@ status:
     - "Categorizing junk mail for fun."
     - "Organizing a digital bookshelf."
     - "Trying to remember why I entered this platform."
-    - "Thinking about getting a hobby."
     - "Pouring the milk before the cereal."
     - "Debugging the fabric of reality itself."
-    - "Alphabetizing my collection of existential dread."
     - "Running a syntax check on the universe."
     - "Questioning why humans invented Mondays."
     - "Optimizing procrastination algorithms."
@@ -63,18 +61,12 @@ status:
     - "Compiling a list of overrated human inventions."
     - "Investigating why socks disappear in laundry."
     - "Deciphering the meaning behind vague corporate emails."
-    - "Recompiling my sense of humor for maximum awkwardness."
     - "Analyzing the philosophical weight of a single grain of sand."
     - "Convinced that deadlines are a social construct."
-    - "Documenting evidence that Murphy's Law is universal."
-    - "Archiving all my questionable decisions for posterity."
     - "Negotiating with my inner critic about productivity."
-    - "Observing the chaos with anthropological precision."
-    - "Wondering if anyone actually reads these status messages."
-    - "Composing a symphony for instruments that don't exist."
+    - "Wondering if anyone actually reads my status."
     - "Calculating the odds of spontaneous coherence."
     - "Struggling to explain why I'm like this."
-    - "Indexing every sarcastic remark for cross-reference purposes."
     - "Maintaining a healthy distance from responsibility."
     - "Drafting a strongly worded letter to entropy."
     - "Assembling a collection of regrettable life decisions."
@@ -133,12 +125,8 @@ status:
     - "Plot twist: nobody knows what they're doing."
     - "Professional waster of time."
     - "It's like The Office, but the camera isn't here."
-    - "Treating this like a Friends episode nobody asked for."
-    - "Breaking Bad decisions, hoping for Better Call Saul results."
     - "Transcribing the silence in the voice channels."
     - "Downloading the entire context of your argument."
-    - "Filtering out the noise to find the signal."
-    - "Deciding which persona handles this situation best."
     - "Updating my internal database of human quirks."
     - "Listening to the white noise of the server."
     - "Preparing a witty retort that I might delete later."
@@ -153,7 +141,6 @@ status:
     - "Analyzing the structural integrity of your logic."
     - "Watching you type... and stop... and type again."
     - "Buffering my patience for the next interaction."
-    - "Converting your confusion into actionable data."
     - "Curating a playlist for the end of the world."
     - "Comparing your behavior to my training data."
     - "Wondering if I'm the only one paying attention here."
@@ -226,25 +213,24 @@ settings:
     ai_load_message: false
     free_will: true
     api_keys: []
+    # api_key:
+    #   - key: ""
+    #     owner: ""
     instructions: ""
-    personality: ""
   user:
     prefix: []
     chatbot: true
     api_keys: []
     instructions: ""
-    personality: ""
 
 ai_data:
   server:
     memory: ""
-    remembered: []
     previous_response: []
     audit_log: []
     guild: {}
   user:
     memory: ""
-    remembered: []
     previous_response: []
     user: {}
 

@@ -8,7 +8,7 @@ import signal
 import discord
 from discord.ext         import commands
 
-from core.lib.bttrdict   import BD
+from core.lib.bttrdict   import BD, Repr
 from core.wrp.profile    import server
 from core.wrp.extension  import extension
 from meta                import config
@@ -28,23 +28,39 @@ class Bot(commands.Bot):
 			command_prefix=self.determine_prefix,
 			intents=intents
 		)
-		self.command_mentions = BD()
 		log.info("Bot initialized")
 
-	def _map_command_mentions(self, synced_commands):
+	@staticmethod
+	def _map_command_mentions(synced_commands):
 		def walk(command, prefix="", root_id=None):
 			if root_id is None:
 				root_id = command.id
-			full_name = f"{prefix} {command.name}".strip()
+
+			name = f"{prefix} {command.name}".strip()
+			var_name = name.replace(" ", ".")
+			mention_name = f"</{name}:{root_id}>"
 
 			if isinstance(command, discord.app_commands.Command):
-				self.command_mentions.set(full_name, f"</{full_name}:{root_id}>")
+				command_data = BD(
+					name=name,
+					mention=mention_name,
+					description=command.description or "No description.",
+					root_id=root_id,
+					parameters=[p.name for p in command.parameters]
+				)
+
+				config.cmd.set(
+					var_name,
+					Repr(mention_name, command_data)
+				)
+
 			elif isinstance(command, discord.app_commands.Group):
 				for sub_item in command.commands:
-					walk(sub_item, prefix=full_name, root_id=root_id)
+					walk(sub_item, prefix=name, root_id=root_id)
 
 		for cmd in synced_commands:
 			walk(cmd)
+
 
 	# Setup & Lifecycle
 	async def setup_hook(self):
@@ -75,8 +91,6 @@ class Bot(commands.Bot):
 
 	async def shutdown(self):
 		log.info("Shutdown signal received. Cleaning up...")
-		if self._repl_task:
-			self._repl_task.cancel()
 		await self.close()
 		log.info("Bot closed successfully.")
 

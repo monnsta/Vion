@@ -3,6 +3,7 @@ import gzip
 import logging
 import os
 import time
+import threading
 from abc          import ABC, abstractmethod
 from contextlib   import asynccontextmanager
 from typing       import Any, AsyncIterator, Generic, TypeVar
@@ -37,22 +38,24 @@ T = TypeVar("T")
 class SlidingTTLCache(Generic[T]):
 	"""
 	An in-memory cache using a Sliding Window TTL (Time To Live) and LRU eviction.
-	
-	Optimized for asyncio by utilizing synchronous dictionary operations which are 
-	atomic within the context of the single-threaded event loop. Includes an 
+
+	Optimized for asyncio by utilizing synchronous dictionary operations which are
+	atomic within the context of the single-threaded event loop. Includes an
 	optional background garbage collection task to prevent memory bloat.
 	"""
 	def __init__(self, ttl_seconds: int = 60, maxsize: int = 1000) -> None:
 		"""
 		Initialize the cache.
-		
+
 		:param ttl_seconds: Seconds of inactivity before an item is considered expired.
 		:param maxsize: Maximum number of items to keep in memory.
 		"""
 		self._ttl = ttl_seconds
 		self._maxsize = maxsize
 		self._cache: dict[str, list] = {}
-		self._gc_task: asyncio.Task | None = None
+
+		self._gc_thread: threading.Thread | None = None
+		self._gc_stop_event: threading.Event | None = None
 
 	def get(self, key: str) -> T | None:
 		"""Retrieve an item and refresh its expiration timer."""
@@ -85,46 +88,69 @@ class SlidingTTLCache(Generic[T]):
 		self._cache.pop(key, None)
 
 	def _cleanup(self) -> None:
-		"""Internal method to prune all expired keys at once. Optimized for O(expired)."""
+		"""
+		Internal method to prune all expired keys at once.
+		Iterates through all items to find expired ones, as expiration times are not
+		guaranteed to be in insertion order due to 'get' refreshing TTL.
+		"""
 		now = time.monotonic()
-		expired = []
-		for k, v in self._cache.items():
-			if now >= v[1]:
-				expired.append(k)
-			else:
-				break
-		for k in expired:
+		keys_to_remove = [k for k, v in self._cache.items() if now >= v[1]]
+		for k in keys_to_remove:
 			del self._cache[k]
 
-	async def start_background_gc(self, interval_seconds: int | None = None) -> None:
+	def _gc_loop_sync(self, interval: float, stop_event: threading.Event) -> None:
 		"""
-		Starts a background asyncio task to periodically clear expired items.
-		Should be called after the asyncio event loop is running.
+		The actual loop that sleeps and triggers cleanup in a separate system thread.
+		Uses `time.sleep` and a `threading.Event` for control.
+		"""
+		log.debug(f"SlidingTTLCache _gc_loop_sync started in thread {threading.current_thread().name}")
+		try:
+			while not stop_event.is_set():
+				stop_event.wait(interval)
+				if stop_event.is_set():
+					break
+				self._cleanup()
+		except Exception as e:
+			log.error("Error in SlidingTTLCache _gc_loop_sync", exc_info=e)
+		finally:
+			log.debug("SlidingTTLCache _gc_loop_sync stopped.")
+
+	def start_background_gc(self, interval_seconds: int | None = None) -> None:
+		"""
+		Starts a background *system thread* to periodically clear expired items.
+		This method is synchronous and does not use `asyncio`.
 		"""
 		interval = interval_seconds or (self._ttl / 2.0)
-		
-		if self._gc_task is not None and not self._gc_task.done():
-			log.warning("Garbage collection task is already running.")
+
+		if self._gc_thread is not None and self._gc_thread.is_alive():
+			log.warning("SlidingTTLCache background GC thread is already running.")
 			return
 
-		self._gc_task = await asyncio.create_task(self._gc_loop(interval))
+		self._gc_stop_event = threading.Event()
+
+		self._gc_thread = threading.Thread(
+			target=self._gc_loop_sync,
+			args=(interval, self._gc_stop_event),
+			daemon=True,
+			name="SlidingTTLCache_GC_Thread"
+		)
+		self._gc_thread.start()
+		log.info("SlidingTTLCache background GC thread started.")
 
 	def stop_background_gc(self) -> None:
-		"""Cancels the running background garbage collection task."""
-		if self._gc_task is not None and not self._gc_task.done():
-			self._gc_task.cancel()
-			self._gc_task = None
-
-	async def _gc_loop(self, interval: float) -> None:
-		"""The actual loop that sleeps and triggers cleanup."""
-		try:
-			while True:
-				await asyncio.sleep(interval)
-				self._cleanup()
-		except asyncio.CancelledError:
-			log.debug("SlidingTTLCache background GC cancelled.")
-		except Exception as e:
-			log.error("Error in SlidingTTLCache GC loop", exc_info=e)
+		"""Cancels the running background garbage collection thread."""
+		if self._gc_thread is not None and self._gc_thread.is_alive():
+			log.debug("Signaling SlidingTTLCache background GC thread to stop...")
+			if self._gc_stop_event:
+				self._gc_stop_event.set()
+			self._gc_thread.join(timeout=5)
+			if self._gc_thread.is_alive():
+				log.warning("SlidingTTLCache background GC thread did not terminate gracefully within 5 seconds.")
+			self._gc_thread = None
+			self._gc_stop_event = None
+			log.info("SlidingTTLCache background GC thread stopped.")
+		else:
+			log.debug("SlidingTTLCache background GC thread is not running.")
 
 class RefCountedLock:
 	"""A wrapper for asyncio.Lock that tracks active users to allow safe deletion from memory."""

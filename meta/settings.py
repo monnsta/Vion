@@ -51,6 +51,9 @@ def load_config():
 		for i in range(len(obj)):
 			obj[i] = tuple(obj[i])
 
+	config.dev_server_ids = [dsid for _, dsid, _ in config.dev_servers]
+	config.dev_ids = [did for _, did in config.devs]
+
 	emoji.update(BD.load(config.emoji.to_dict(update_self=False)))
 	config.delete("emoji")
 
@@ -128,6 +131,7 @@ def load_config():
 			"A channel was deleted, you can comment on it by sending a message in a general place people talk."
 		))
 	)
+	config.cmd = AntiFreeze(BD())
 
 	config.freeze()
 	emoji.freeze()
