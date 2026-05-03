@@ -99,7 +99,7 @@ def load_config():
 			"error_notify",
 			["guild", "bot"],
 			f"You had error_notify on a code block, and it hit an error, this is the traceback:\n\n{traceback}"
-		))
+		)),
 
 		on_message = Method(lambda self, message_id: self._template(
 			"on_message",

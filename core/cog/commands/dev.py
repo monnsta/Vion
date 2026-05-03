@@ -4,11 +4,11 @@ import discord
 from discord             import app_commands as app
 from discord.ext         import commands
 
-from core.lib.utils      import is_dev
+from core.lib.utils      import is_dev, mt
 from core.lib.code       import Code, status
 from core.wrp.extension  import extension
 from core.wrp.blacklist  import blacklist
-from core.ui.template    import Fail, Generic, Success
+from core.ui.template    import Fail, Success, Generic, Paginated
 from meta                import config, emoji, sub
 
 
@@ -26,7 +26,7 @@ async def dev(ctx: commands.Context):
 		return
 
 	await ctx.reply(view=Fail(
-		"Subcommand messing",
+		"Subcommand Missing",
 		"Available subcommands:",
 		"```",
 		"* extension (ex)",
@@ -43,54 +43,23 @@ async def dev_error(ctx: commands.Context, error):
 class Extension(commands.Cog):
 	def __init__(self, bot: commands.Bot):
 		self.bot = bot
-		self.dev_guilds = [discord.Object(id=g[0]) for g in config.dev_guilds]
 
 	@staticmethod
 	async def autocomplete(interaction: discord.Interaction, current: str):
 		all_extensions = await extension.get_all()
 		choices = []
 
+		loaded_exts = [ext.lower() for ext in interaction.client.extensions.keys()]
+
 		for ext_path in all_extensions:
-			label = ext_path.split('.')[-1]
-
 			if current.lower() in ext_path.lower():
-				choices.append(app_commands.Choice(name=label, value=ext_path))
-
-		for loaded in getattr(interaction.client, 'extensions', {}).keys():
-			if len(choices) >= 25:
-				break
-			if current.lower() in loaded.lower() and not any(c.value == loaded for c in choices):
-				choices.append(app_commands.Choice(name=f"[Loaded] {loaded}", value=loaded))
+				prefix = "[+]" if ext_path.lower() in loaded_exts else "[-]"
+				choices.append(app.Choice(name=f"{prefix} {ext_path}", value=ext_path))
 
 		return choices[:25]
 
-
-	@dev.group(
-		name='extension', 
-		aliases=['ex'],
-		description='Manage bot extensions and cogs.'
-	)
-	async def extension(self, ctx: commands.Context):
-		"""Group for all the extension commands. Extensions are just groups of commands that you can load, unload, etc."""
-		if ctx.invoked_subcommand is not None:
-			return
-
-		await ctx.reply(view=Fail(
-			"Subcommand messing",
-			"Available subcommands:",
-			"```",
-			"* load       (l )",
-			"* unload     (u )",
-			"* reload     (r )",
-			"* load_all   (la)",
-			"* unload_all (ua)",
-			"* reload_all (ra)",
-			"```"
-		))
-
-
 	async def _single_handle(self, ctx, module, path):
-		is_success, msg = await module(self.bot, path, self.dev_guilds)
+		is_success, msg = await module(self.bot, path)
 
 		if is_success: view = Success(msg)
 		else: view = Fail(msg)
@@ -109,15 +78,42 @@ class Extension(commands.Cog):
 		await ctx.reply(view=view)
 
 
+	@dev.group(
+		name='extension', 
+		aliases=['ex'],
+		description='Manage bot extensions and cogs.'
+	)
+	async def extension(self, ctx: commands.Context):
+		"""Group for all the extension commands."""
+		if ctx.invoked_subcommand is not None:
+			return
+
+		await ctx.reply(view=Fail(
+			"Subcommand Missing",
+			"Available subcommands:",
+			"```",
+			"* load       (l )",
+			"* unload     (u )",
+			"* reload     (r )",
+			"* load_all   (la)",
+			"* unload_all (ua)",
+			"* reload_all (ra)",
+			"```"
+		))
+
+
 	@extension.command(
 		name='load',
 		aliases=['l'],
 		description='Load a specific cog file.'
 	)
 	@app.describe(path='The extension path to load')
-	@app.autocomplete(path=self.autocomplete)
+	@app.autocomplete(path=autocomplete)
 	async def load(self, ctx: commands.Context, *, path: str):
-		"""Load an extension to the bot, all extensions are loaded by default."""
+		"""
+		Load an extension to the bot, all extensions are loaded by default.
+		Example: /dev extension load core.cog.commands.help
+		"""
 		await self._single_handle(ctx, extension.load, path)
 
 
@@ -127,9 +123,12 @@ class Extension(commands.Cog):
 		description='Unload a specific cog file.'
 	)
 	@app.describe(path='The extension path to unload')
-	@app.autocomplete(path=self.autocomplete)
+	@app.autocomplete(path=autocomplete)
 	async def unload(self, ctx: commands.Context, *, path: str):
-		"""Unload an extension, all the commands or events of that extension will stop working."""
+		"""
+		Unload an extension, all the commands or events of that extension will stop working.
+		Example: /dev extension unload core.cog.commands.help
+		"""
 		await self._single_handle(ctx, extension.unload, path)
 
 
@@ -139,9 +138,12 @@ class Extension(commands.Cog):
 		description='Reload a specific cog file.'
 	)
 	@app.describe(path='The extension path to reload')
-	@app.autocomplete(path=self.autocomplete)
+	@app.autocomplete(path=autocomplete)
 	async def reload(self, ctx: commands.Context, *, path: str):
-		"""Reload an extension, if there are any errors in this process, it'll keep using the extension loaded in memory."""
+		"""
+		Reload an extension, if there are any errors in this process, it'll keep using the extension loaded in memory.
+		Example: /dev extension unload core.cog.commands.help
+		"""
 		await self._single_handle(ctx, extension.reload, path)
 
 
@@ -174,6 +176,28 @@ class Extension(commands.Cog):
 		"""Reloads all the extensions."""
 		await self._multi_handle(ctx, extension.reload_all)
 
+
+	@extension.command(
+		name='list',
+		aliases=['li'],
+		description='List all available cogs.'
+	)
+	async def list(self, ctx: commands.Context):
+		"""Get a list of all the cogs."""
+		all_extensions = await extension.get_all()
+		loaded_exts = [ext.lower() for ext in self.bot.extensions.keys()]
+		
+		results = []
+		for ext in all_extensions:
+			is_loaded = ext.lower() in loaded_exts
+			status_icon = emoji.checkmark if is_loaded else emoji.crossmark
+			results.append(f"{status_icon} `{ext}`")
+
+		await ctx.reply(view=Generic(
+			"### Extension List:",
+			"\n".join(results) if results else "No extensions found."
+		))
+
 class Blacklist(commands.Cog):
 	def __init__(self, bot: commands.Bot):
 		self.bot = bot
@@ -190,7 +214,7 @@ class Blacklist(commands.Cog):
 			return
 
 		await ctx.reply(view=Fail(
-			"Subcommand missing",
+			"Subcommand Missing",
 			"Available subcommands:",
 			"```",
 			"* add    (a)",
@@ -213,7 +237,10 @@ class Blacklist(commands.Cog):
 		duration='Duration (e.g., 7d, 12h, 30m). Leave empty for permanent.'
 	)
 	async def add(self, ctx: commands.Context, target_id: str, type: Literal['user', 'server'], reason: str, duration: Optional[str] = None):
-		"""Add a user or server to the blacklist."""
+		"""
+		Add a user or server to the blacklist.
+		Example: /dev blacklist add 123 user abuse 7d
+		"""
 		try:
 			tid = int(target_id)
 		except ValueError:
@@ -229,21 +256,25 @@ class Blacklist(commands.Cog):
 
 	@blacklist.command(
 		name='remove',
-		aliases=['rm'],
+		aliases=['r'],
 		description='Remove a user or server from the blacklist.'
 	)
 	@app.describe(
-		target_id='The ID of the user or server'
+		target_id='The ID of the user or server',
+		type='Whether this is a user or server'
 	)
 	async def remove(self, ctx: commands.Context, target_id: str, type: Literal['user', 'server']):
-		"""Remove a user or server from the blacklist."""
+		"""
+		Remove a user or server from the blacklist.
+		Example: /dev blacklist remove 123 user
+		"""
 		try:
 			tid = int(target_id)
 		except ValueError:
 			return await ctx.reply(view=Fail("Target ID must be a valid integer."))
 
 		success, msg = await blacklist.remove(tid, type)
-		
+
 		if success:
 			await ctx.reply(view=Success(msg))
 		else:
@@ -256,30 +287,44 @@ class Blacklist(commands.Cog):
 		description='Show detailed info about a specific blacklist entry.'
 	)
 	@app.describe(
-		target_id='The ID of the user or server'
+		target_id='The ID of the user or server',
+		type='Whether this is a user or server'
 	)
 	async def show(self, ctx: commands.Context, target_id: str, type: Literal['user', 'server']):
-		"""Show information of a blacklisted user or server."""
+		"""
+		Show information of a blacklisted user or server.
+		Example: /dev blacklist show 123 user
+		"""
 		try:
 			tid = int(target_id)
 		except ValueError:
 			return await ctx.reply(view=Fail("Target ID must be a valid integer."))
 
 		success, data = await blacklist.get(tid, type)
-		
 		if not success:
 			return await ctx.reply(view=Fail(data))
 
-		expiry = data['expires_at'] if data['expires_at'] else "Never"
-		details = (
-			f"**ID:** `{data['id']}`\n"
-			f"**Type:** {data['type']}\n"
-			f"**Moderator:** <@{data['mod_id']}>\n"
-			f"**Reason:** {data['reason']}\n"
-			f"**Created:** {data['created_at']}\n"
-			f"**Expires:** {expiry}"
-		)
-		await ctx.reply(view=Generic(details))
+		label = f"Unknown {type.capitalize()}"
+		if type == 'user':
+			user = self.bot.get_user(tid) or await self.bot.fetch_user(tid).catch(lambda _: None)
+			if user: label = f"**{user.name}** ({user.id})"
+		else:
+			guild = self.bot.get_guild(tid)
+			if guild: label = f"**{guild.name}** ({guild.id})"
+
+		def format_dt(dt_obj):
+			if not dt_obj: return "Never"
+			ts = int(dt_obj.timestamp()) if hasattr(dt_obj, 'timestamp') else dt_obj
+			return f"<t:{ts}:F> (<t:{ts}:R>)"
+
+		await ctx.reply(view=Generic(
+			f"## Blacklisted {type.capitalize()}",
+			f"* **Target:** {label}",
+			f"* **Moderator:** <@{data['mod_id']}>",
+			f"* **Reason:** {data['reason']}",
+			f"* **Created:** {format_dt(data.get('created_at'))}",
+			f"* **Expires:** {format_dt(data.get('expires_at'))}"
+		))
 
 
 	@blacklist.command(
@@ -287,22 +332,54 @@ class Blacklist(commands.Cog):
 		aliases=['l'],
 		description='List all blacklisted entities.'
 	)
-	@app.describe(
-		type='Filter by user or server'
-	)
-	async def list_bl(self, ctx: commands.Context, type: Optional[Literal['user', 'server']] = None):
-		"""List all blacklisted users or servers"""
+	@app.describe(type='Filter by user or server')
+	async def list(self, ctx: commands.Context, type: Optional[Literal['user', 'server']] = None):
+		"""List all blacklisted users or servers."""
 		entries = await blacklist.list_all(type)
-		
+
 		if not entries:
-			return await ctx.reply(view=Generic("The blacklist is currently empty."))
+			return await ctx.reply(view=Generic("### Global Blacklist", "The blacklist is currently empty."))
+
+		def format_dt(dt_obj):
+			if not dt_obj: return "Never"
+			ts = int(dt_obj.timestamp()) if hasattr(dt_obj, 'timestamp') else dt_obj
+			return f"<t:{ts}:R>"
 
 		results = []
 		for e in entries:
-			line = f"• `[{e['type'][0].upper()}]` `{e['id']}` - {e['reason']}"
-			results.append(line)
+			e_type = e['type'].capitalize()
+			e_id = e['id']
+			
+			icon = None
+			label = f"Unknown {e_type}"
+			if e['type'] == 'user':
+				u = self.bot.get_user(e_id)
+				if u: label = f"**{u.name}**"
+				if u and u.avatar: icon = u.avatar.url
+			elif e['type'] == 'server':
+				g = self.bot.get_guild(e_id)
+				if g: label = f"**{g.name}**"
+				if g and g.icon: icon = g.icon.url
 
-		await ctx.reply(view=Generic("### Global Blacklist\n" + "\n".join(results)))
+			block = mt(
+				f"**{e_type}:** {label} (`{e_id}`)",
+				f"* **Moderator:** <@{e['mod_id']}>",
+				f"* **Reason:** {e['reason']}",
+				f"* **Created:** {format_dt(e.get('created_at'))}",
+				f"* **Expires:** {format_dt(e.get('expires_at'))}",
+			)
+			if icon: block = [block, icon]
+			results.append(block)
+
+		header = f"## Blacklisted {type.capitalize() + 's' if type else ''}"
+		
+		view = Paginated(
+			header=header,
+			items=results,
+			user=ctx.author
+		)
+
+		await ctx.reply(view=view)
 
 class Misc(commands.Cog):
 	def __init__(self, bot: commands.Bot):
@@ -350,3 +427,4 @@ class Misc(commands.Cog):
 async def setup(bot: commands.Bot):
 	await bot.add_cog(Extension(bot))
 	await bot.add_cog(Blacklist(bot))
+	await bot.add_cog(Misc(bot))

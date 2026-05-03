@@ -54,8 +54,8 @@ class Extension:
 			return False, f"Failed to load:\n```py\n{e}\n```"
 
 	async def unload(self, bot: commands.Bot, extension: str) -> Tuple[bool, str]:
-		if "cog_manager" in extension:
-			return False, "This core cog cannot be unloaded."
+		if "dev" in extension:
+			return False, "This cog cannot be unloaded."
 
 		try:
 			await bot.unload_extension(extension)

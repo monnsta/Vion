@@ -46,7 +46,7 @@ class Bot(commands.Bot):
 					mention=mention_name,
 					description=command.description or "No description.",
 					root_id=root_id,
-					parameters=[p.name for p in command.parameters]
+					parameters=command.parameters
 				)
 
 				config.cmd.set(

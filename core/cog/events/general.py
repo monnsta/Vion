@@ -153,7 +153,7 @@ class General(commands.Cog):
 			log.info(f"Setup performed for new guild {guild.id}.")
 			message = (
 				"## Ding Dong.\n"
-				f"Use `{config.p}help`, or your server's organic matter might achieve peak frustration with me.\n"
+				f"Use {config.cmd.help.manual}, or your server's organic matter might achieve peak frustration with me.\n"
 				f"{legal}"
 			)
 

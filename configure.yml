@@ -20,8 +20,6 @@ timezone: "Asia/Kolkata"
 cleanup_days: 7
 default_prefix: [ "::", "//", "v." ]
 
-p: "::" # used as default in help messages. named `p` cause it's faster to type
-
 status:
   type: [ "custom", 4 ] # discord-like status type structure required
   range: [ 14_400, 28_800 ] # 4 to 8 hours
