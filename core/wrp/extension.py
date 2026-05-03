@@ -34,7 +34,7 @@ class Extension:
 
 		for root, _, files in os.walk(sub.cog):
 			for filename in files:
-				if filename.endswith('.py') and not filename.startswith('__'):
+				if filename.endswith('.py') and not filename.startswith('_'):
 					path = os.path.join(root, filename[:-3])
 					extension_path = path.replace(os.sep, '.')
 					extensions.append(extension_path)

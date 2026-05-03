@@ -233,9 +233,7 @@ ai_data:
     user: {}
 
 # --- AI Settings ---
-gemini_url:
-  - "https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-pro:generateContent"
-  - "https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash:generateContent"
+gemini_modals: ["gemini-2.5-pro", "gemini-2.5-flash"]
 
 temperature: 0.6
 top_p: 1.0

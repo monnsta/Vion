@@ -3,3 +3,5 @@ orjson
 pyyaml
 pytz
 rich
+google-genai
+httpx

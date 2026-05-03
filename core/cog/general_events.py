@@ -188,11 +188,14 @@ class General(commands.Cog):
 
 	@commands.Cog.listener()
 	async def on_command_error(self, ctx: commands.Context, error):
+		if hasattr(ctx.command, 'on_error'):
+			return
+
+		error = getattr(error, 'original', error)
+
 		if isinstance(error, commands.CommandNotFound):
 			invoked_with = ctx.invoked_with
-
 			all_commands = list(self.bot.command_mentions.keys())
-
 			matches = difflib.get_close_matches(invoked_with, all_commands, n=1, cutoff=0.6)
 
 			if matches:
@@ -202,10 +205,42 @@ class General(commands.Cog):
 			else:
 				description = "The command you entered does not exist."
 
+			await ctx.reply(view=Fail("Invalid Command", description))
+
+		elif isinstance(error, commands.MissingRequiredArgument):
 			await ctx.reply(view=Fail(
-				"Invalid Command",
-				description
+				"Missing Argument", 
+				f"You missed the `{error.param.name}` parameter. Use {config.cmd.help.command} {ctx.command} for details."
 			))
+
+		elif isinstance(error, commands.CommandOnCooldown):
+			await ctx.reply(view=Fail(
+				"On Cooldown", 
+				f"You can try this again in **{error.retry_after:.1f}s**."
+			))
+
+		elif isinstance(error, commands.MissingPermissions):
+			perms = ", ".join([f"`{p.replace('_', ' ').title()}`" for p in error.missing_permissions])
+			await ctx.reply(view=Fail(
+				"Missing Permissions", 
+				f"You need the following permission(s) to do that: {perms}"
+			))
+
+		elif isinstance(error, commands.BotMissingPermissions):
+			perms = ", ".join([f"`{p.replace('_', ' ').title()}`" for p in error.missing_permissions])
+			await ctx.reply(view=Fail(
+				"Missing Permissions", 
+				f"I don't have the permissions required to run this: {perms}"
+			))
+
+		elif isinstance(error, (commands.CheckFailure, commands.BadArgument)):
+			await ctx.reply(view=Fail(
+				"Command Error",
+				f"```{error}```"
+			))
+
+		else:
+			log.error(f"Ignoring exception in command {ctx.command}:", exc_info=error)
 
 
 async def setup(bot: commands.Bot):
