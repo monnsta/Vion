@@ -1,10 +1,9 @@
 from typing              import Optional, Literal
 
-import discord
 from discord             import app_commands as app
 from discord.ext         import commands
 
-from ._dev_cog           import dev
+from ._dev_group         import dev
 from core.lib.utils      import mt
 from core.wrp.blacklist  import blacklist
 from core.ui.template    import Fail, Success, Generic, Paginated
@@ -121,7 +120,13 @@ class Blacklist(commands.Cog):
 
 		label = f"Unknown {type.capitalize()}"
 		if type == 'user':
-			user = self.bot.get_user(tid) or await self.bot.fetch_user(tid).catch(lambda _: None)
+			user = self.bot.get_user(tid)
+			if not user:
+				try:
+					user = await self.bot.fetch_user(tid)
+				except Exception:
+					user = None
+
 			if user: label = f"**{user.name}** ({user.id})"
 		else:
 			guild = self.bot.get_guild(tid)
@@ -198,4 +203,4 @@ class Blacklist(commands.Cog):
 
 
 async def setup(bot: commands.Bot):
-	bot.add_cog(Blacklist(bot))
+	await bot.add_cog(Blacklist(bot))

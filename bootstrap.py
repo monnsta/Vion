@@ -76,6 +76,6 @@ root_logger.addHandler(console_handler)
 
 
 # 5. Other setup
-json_file._cache.start_background_gc()
+if json_file: json_file._cache.start_background_gc()
 setup_directory()
 load_config()

@@ -5,12 +5,21 @@ import pathlib
 import tempfile
 from typing      import Tuple, List, Optional, Union, Any
 
-from google      import generativeai as genai
 import httpx
+from google      import generativeai as genai
 
 
 log = logging.getLogger(__name__)
 
+
+async def validate_key(api_key: str) -> bool:
+	try:
+		genai.configure(api_key=api_key)
+		await asyncio.to_thread(genai.list_models)
+		return True
+	except Exception:
+		log.error(f"API key validation failed", exc_info=True)
+		return False
 
 class GenerateContent:
 	def __init__(

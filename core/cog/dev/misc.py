@@ -1,8 +1,7 @@
-import discord
 from discord             import app_commands as app
 from discord.ext         import commands
 
-from ._dev_cog           import dev
+from ._dev_group         import dev
 from core.lib.code       import Code, status
 from core.ui.template    import Fail, Success
 
@@ -13,6 +12,7 @@ dev_only = True
 class Misc(commands.Cog):
 	def __init__(self, bot: commands.Bot):
 		self.bot = bot
+
 
 	@dev.command(
 		name='execute',

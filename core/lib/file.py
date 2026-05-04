@@ -204,7 +204,6 @@ class BaseFileIO(ABC, Generic[T]):
 	def _sync_read(self, path: str) -> T:
 		with open(path, "rb") as f:
 			content = f.read()
-		# Transparently decompress if gzip magic bytes are detected
 		if content.startswith(b'\x1f\x8b'):
 			content = gzip.decompress(content)
 		return self._deserialize(content)

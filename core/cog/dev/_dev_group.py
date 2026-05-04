@@ -1,4 +1,8 @@
-from core.lib.utils import is_dev
+from discord.ext       import commands
+
+from core.lib.utils    import is_dev
+from core.ui.template  import Fail
+from meta              import config
 
 
 @commands.hybrid_group(
@@ -18,6 +22,7 @@ async def dev(ctx: commands.Context):
 		"```",
 		"* extension (ex)",
 		"* blacklist (bl)",
+		"* execute   (e )",
 		"```"
 	))
 

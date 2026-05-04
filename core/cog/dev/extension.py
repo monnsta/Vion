@@ -2,7 +2,7 @@ import discord
 from discord             import app_commands as app
 from discord.ext         import commands
 
-from ._dev_cog           import dev
+from ._dev_group         import dev
 from core.wrp.extension  import extension
 from core.ui.template    import Fail, Success, Generic
 from meta                import emoji
@@ -20,7 +20,7 @@ class Extension(commands.Cog):
 		all_extensions = await extension.get_all()
 		choices = []
 
-		loaded_exts = [ext.lower() for ext in interaction.client.extensions.keys()]
+		loaded_exts = [ext.lower() for ext in interaction.bot.extensions.keys()]
 
 		for ext_path in all_extensions:
 			if current.lower() in ext_path.lower():

@@ -1,8 +1,11 @@
 import asyncio
 import datetime
+import io
+import json
 import logging
 import os
 import shutil
+import zipfile
 from typing              import Any, Union
 
 import discord
@@ -53,6 +56,12 @@ class BaseProfileManager:
 	class Data:
 		def __init__(self, parent: "BaseProfileManager"):
 			self.parent = parent
+
+		async def exists(self, entity_id: int) -> bool:
+			eid = str(entity_id)
+			path = os.path.join(self.parent.active_dir, eid)
+
+			return await asyncio.to_thread(os.path.exists, path)
 
 		async def delete(self, entity_id: int) -> bool:
 			eid = str(entity_id)
@@ -115,30 +124,106 @@ class BaseProfileManager:
 				await asyncio.to_thread(rollback)
 				return False
 
-		async def delete_permanent(self, entity_id: int) -> bool:
+		async def delete_permanent(self, entity_id: int) -> tuple[bool, str]:
 			eid = str(entity_id)
 			source = os.path.join(self.parent.active_dir, eid)
 			binned = os.path.join(sub.bin, eid)
 
 			def sync_delete_logic():
-				if os.path.exists(binned):
-					log.info(f"Permanently purging {self.parent.entity_type} {eid} from bin")
-					shutil.rmtree(binned)
-					return True
+				if os.path.exists(binned): path = binned
+				elif os.path.exists(source): path = source
+				else: path = None
 
-				if os.path.exists(source):
-					log.info(f"Moving active {self.parent.entity_type} {eid} to bin")
-					shutil.rmtree(binned)
-					return True
+				if not path:
+					log.warning(f"Permanent delete failed: {eid} not found in active or bin")
+					return False, "Could not find any data"
 
-				log.warning(f"Permanent delete failed: {eid} not found in active or bin")
-				return False
+				log.info(f"Permanently purging {self.parent.entity_type} {eid}")
+				shutil.rmtree(path)
+				return True, "Data deleted permanently"
 
 			try:
 				return await asyncio.to_thread(sync_delete_logic)
 			except Exception:
 				log.error(f"Error during permanent delete for {eid}", exc_info=True)
-				return False
+				return False, "There was an error deleting your data, please report this"
+
+		async def get_zip(self, entity_id: int) -> tuple[bool, Union[io.BytesIO, str]]:
+			eid = str(entity_id)
+			source_dir = os.path.join(self.parent.active_dir, eid)
+
+			if not os.path.exists(source_dir):
+				log.warning(f"Zip failed: Source path {source_dir} does not exist")
+				return False, "We could not find any data related to you in our storage."
+
+			def create_in_memory_zip():
+				buffer = io.BytesIO()
+				try:
+					def dict_to_markdown(data_obj, level=0) -> str:
+						md = ""
+						indent = "\t" * level
+						if isinstance(data_obj, dict):
+							for key, value in data_obj.items():
+								if isinstance(value, (dict, list)) and value:
+									md += f"{indent}- **{key}**:\n"
+									md += dict_to_markdown(value, level + 1)
+								else:
+									md += f"{indent}- **{key}**: {value}\n"
+						elif isinstance(data_obj, list):
+							for item in data_obj:
+								if isinstance(item, (dict, list)):
+									md += dict_to_markdown(item, level + 1)
+								else:
+									md += f"{indent}- {item}\n"
+						else:
+							md += f"{indent}{data_obj}\n"
+						return md
+
+					with zipfile.ZipFile(buffer, "w", zipfile.ZIP_DEFLATED) as zf:
+						readme_content = (
+							f"# {self.parent.entity_type.capitalize()} Data Export\n\n"
+							"This archive contains a readable export of your requested data.\n\n"
+							"### File Guide:\n"
+							"- **settings.md**: Your core preferences and configuration settings.\n"
+							"- **ai_data.md**: Cached information the AI uses for processing.\n"
+						)
+						if self.parent.entity_type == "guild":
+							readme_content += (
+								"- **commands.py**: Custom commands setup for this server.\n"
+								"- **events.py**: Custom events setup for this server.\n"
+							)
+						
+						readme_content += "\n*Note: Original JSON data files have been formatted as readable Markdown lists for easier viewing.*"
+						zf.writestr("README.md", readme_content)
+
+						for root, _, files in os.walk(source_dir):
+							for file_name in files:
+								full_path = os.path.join(root, file_name)
+								rel_path = os.path.relpath(full_path, source_dir)
+
+								if file_name.endswith('.json'):
+									try:
+										with open(full_path, 'r', encoding='utf-8') as f:
+											json_data = json.load(f)
+
+										md_content = f"# {file_name.replace('.json', '').capitalize()} Data\n\n"
+										md_content += dict_to_markdown(json_data)
+
+										md_rel_path = rel_path[:-5] + ".md"
+										zf.writestr(md_rel_path, md_content)
+									except json.JSONDecodeError:
+										zf.write(full_path, rel_path)
+								else:
+									zf.write(full_path, rel_path)
+
+					buffer.seek(0)
+					return True, buffer
+				except Exception:
+					log.error(f"Error creating zip for {eid}", exc_info=True)
+					return False, "There was an error gathering your data. Please report this."
+
+			log.info(f"Generating archive for {self.parent.entity_type} {eid}")
+			return await asyncio.to_thread(create_in_memory_zip)
 
 	class Settings:
 		def __init__(self, parent: "BaseProfileManager"):

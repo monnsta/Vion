@@ -62,6 +62,36 @@ class General(commands.Cog):
 				log.error(f"An unexpected error occurred in random_status_change", exc_info=True)
 				await asyncio.sleep(10)
 
+	@staticmethod
+	async def safe_send(guild: discord.Guild, message: str):
+		if (
+			guild.system_channel
+			and isinstance(guild.system_channel, discord.TextChannel)
+			and guild.system_channel.permissions_for(guild.me).send_messages
+		):
+			try:
+				await guild.system_channel.send(message)
+				return
+			except discord.Forbidden:
+				log.warning(f"Forbidden to send in system channel of {guild.id}")
+				pass
+
+		for channel in sorted(guild.text_channels, key=lambda c: c.position):
+			if channel.permissions_for(guild.me).send_messages:
+				if (
+					channel == channel.guild.system_channel or
+					channel.type == discord.ChannelType.news or
+					(channel.guild.rules_channel and channel.id == channel.guild.rules_channel.id)
+				):
+					continue
+				try:
+					await channel.send(message)
+					log.info(f"Sent join message to channel {channel.name} in {guild.id}")
+					return
+				except discord.Forbidden:
+					continue
+		log.warning(f"Could not find a suitable channel to send join message in {guild.id}")
+
 	# --- Background Tasks ---
 
 	@tasks.loop(hours=24)
@@ -157,29 +187,7 @@ class General(commands.Cog):
 				f"{legal}"
 			)
 
-		if guild.system_channel and isinstance(guild.system_channel, discord.TextChannel) and guild.system_channel.permissions_for(guild.me).send_messages:
-			try:
-				await guild.system_channel.send(message)
-				return
-			except discord.Forbidden:
-				log.warning(f"Forbidden to send in system channel of {guild.id}")
-				pass
-
-		for channel in sorted(guild.text_channels, key=lambda c: c.position):
-			if channel.permissions_for(guild.me).send_messages:
-				if (
-					channel == channel.guild.system_channel or
-					channel.type == discord.ChannelType.news or
-					(channel.guild.rules_channel and channel.id == channel.guild.rules_channel.id)
-				):
-					continue
-				try:
-					await channel.send(message)
-					log.info(f"Sent join message to channel {channel.name} in {guild.id}")
-					return
-				except discord.Forbidden:
-					continue
-		log.warning(f"Could not find a suitable channel to send join message in {guild.id}")
+		await self.safe_send(guild, message)
 
 	@commands.Cog.listener()
 	async def on_guild_remove(self, guild: discord.Guild):

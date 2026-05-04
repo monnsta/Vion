@@ -2,7 +2,6 @@ import bootstrap
 
 import asyncio
 import logging
-import os
 import signal
 
 import discord
@@ -75,7 +74,7 @@ class Bot(commands.Bot):
 
 		dev_guilds = [discord.Object(id=g[0]) for g in config.dev_guilds]
 
-		await extension.load_all(self, dev_guilds)
+		await extension.load_all(self)
 
 		log.info("Syncing application commands...")
 		synced_global = await self.tree.sync()

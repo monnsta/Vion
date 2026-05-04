@@ -1,6 +1,6 @@
 import logging
 import os
-from typing       import Dict, List, Optional, Tuple, Iterable
+from typing       import Dict, List, Tuple, Iterable
 
 from discord.ext  import commands
 

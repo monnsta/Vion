@@ -2,6 +2,7 @@ import discord
 from discord             import app_commands as app
 from discord.ext         import commands
 
+from core.lib.utils      import mt
 from core.ui.template    import Generic, Fail
 from meta                import config
 
@@ -18,39 +19,39 @@ class Help(commands.Cog):
 			"**Disclaimer:** While robust security measures are in place, AI can be unpredictable. "
 			"Use at your own discretion and consider restricting high-level permissions like 'Administrator'.\n\n"
 		)
-		self.manual = Generic(
+		self.man = mt(
 			"# Bot Manual",
-			intro,
+			self.intro,
 			"## Commands",
 			"```<> Required | [] Optional | () Type/Choice | '' Literal | @ Default```",
 			f"View details: {config.cmd.help.command} `<command>`",
 			"",
 			"### Settings",
-			f"* {config.cmd.settings.view}\n> `[raw('True', @'False')]`",
+			f"* {config.cmd.setting.view}\n> `[raw('True', @'False')]`",
 			"",
 			"**Prefix Management**",
-			f"* {config.cmd.settings.prefix.add}\n> `<char>` `[scope('server', @'user')]`",
-			f"* {config.cmd.settings.prefix.remove}\n> `<char|pos>` `[scope('server', @'user')]`",
-			f"* {config.cmd.settings.prefix.list}\n> `[scope('server', @'user')]`",
+			f"* {config.cmd.setting.prefix.add}\n> `<char>` `[scope('server', @'user')]`",
+			f"* {config.cmd.setting.prefix.remove}\n> `<char|pos>` `[scope('server', @'user')]`",
+			f"* {config.cmd.setting.prefix.list}\n> `[scope('server', @'user')]`",
 			"",
 			"**API Key Management**",
-			f"* {config.cmd.settings.gemini_key.add}\n> `<key>` `[scope('server', @'user')]`",
-			f"* {config.cmd.settings.gemini_key.remove}\n> `<pos>` `[scope('server', @'user')]`",
-			f"* {config.cmd.settings.gemini_key.list}\n> `[scope('server', @'user')]`",
+			f"* {config.cmd.setting.gemini_key.add}\n> `<key>` `[scope('server', @'user')]`",
+			f"* {config.cmd.setting.gemini_key.remove}\n> `<pos>` `[scope('server', @'user')]`",
+			f"* {config.cmd.setting.gemini_key.list}\n> `[scope('server', @'user')]`",
 			"",
 			"**System Instructions**",
-			f"* {config.cmd.settings.instructions.set}\n> `[content(text, @form)]`",
-			f"* {config.cmd.settings.instructions.delete}",
-			f"* {config.cmd.settings.instructions.view}",
+			f"* {config.cmd.setting.instructions.set}\n> `[content(text, @form)]`",
+			f"* {config.cmd.setting.instructions.delete}",
+			f"* {config.cmd.setting.instructions.view}",
 			"",
 			"**Behavior Toggles**",
-			f"* {config.cmd.settings.freewill}\n> `<bool('True', 'False')>`",
-			f"* {config.cmd.settings.show_loading}\n> `<bool('True', 'False')>`",
-			f"* {config.cmd.settings.chat_bot_only}\n> `<bool('True', 'False')>`",
+			f"* {config.cmd.setting.freewill}\n> `<bool('True', 'False')>`",
+			f"* {config.cmd.setting.show_loading}\n> `<bool('True', 'False')>`",
+			f"* {config.cmd.setting.chatbot_only}\n> `<bool('True', 'False')>`",
 			"",
 			"### Your Data",
-			f"* {config.cmd.delete_my_data}",
-			f"* {config.cmd.give_my_data}",
+			f"* {config.cmd.get_my_data} `<scope('server', 'user')>`",
+			f"* {config.cmd.delete_my_data} `<scope('server', 'user')>`",
 			"",
 			"### Fun",
 			f"* {config.cmd.fun.magic_ball}\n> `<question>`",
@@ -60,7 +61,7 @@ class Help(commands.Cog):
 		)
 
 	@staticmethod
-	async def autocomplete(interaction: discord.Interaction, current: str):
+	async def autocomplete(_: discord.Interaction, current: str):
 		choices = []
 		for cmd in config.cmd:
 			if current.lower() in cmd.name:
@@ -78,7 +79,7 @@ class Help(commands.Cog):
 		"""Group for all the help commands."""
 		if ctx.invoked_subcommand is not None:
 			return
-		await ctx.reply(view=self.manual)
+		await ctx.reply(view=Generic(self.man))
 
 
 	@help.command(
@@ -88,7 +89,7 @@ class Help(commands.Cog):
 	)
 	async def manual(self, ctx: commands.Context):
 		"""Shows the manual of the bot to get started."""
-		await ctx.reply(view=self.manual)
+		await ctx.reply(view=Generic(self.man))
 
 
 	@help.command(
@@ -96,8 +97,8 @@ class Help(commands.Cog):
 		aliases=['c'],
 		description='Show the help message of a specific command.'
 	)
-	app.describe(command="The name of the command (e.g., settings view)")
-	app.autocomplete(command=autocomplete)
+	@app.describe(command="The name of the command (e.g., settings view)")
+	@app.autocomplete(command=autocomplete)
 	async def command(self, ctx: commands.Context, *, command: str):
 		"""
 		Shows help for a specific command.

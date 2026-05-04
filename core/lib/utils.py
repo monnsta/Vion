@@ -11,8 +11,11 @@ def is_dev(devs: Iterable[int]):
 		return any(dev_id == ctx.author.id for dev_id in devs)
 	return commands.check(predicate)
 
-def is_admin(devs: Iterable[int]):
+def is_admin(devs: Iterable[int], compare: tuple[str, str] | None = None):
 	async def predicate(ctx: commands.Context) -> bool:
+		if compare and ctx.kwargs.get(compare[0]) == compare[1]:
+			return True
+
 		perms = getattr(ctx.author, "guild_permissions", None)
 		is_owner = (ctx.author.id == ctx.guild.owner_id if ctx.guild else True)
 		is_dev = any(ctx.author.id == dev_id for dev_id in devs)
