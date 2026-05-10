@@ -154,6 +154,9 @@ class Blacklist:
 		result = str(entity_id) in data[entity_type]
 		log.debug(f"Check is_blacklisted for {entity_type} {entity_id}: {result}")
 		return result
+
+
 blacklist = Blacklist()
+
 
 __all__ = ('blacklist')

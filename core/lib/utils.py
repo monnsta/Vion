@@ -48,7 +48,7 @@ def create_id() -> str:
 	id_str = base62_encode(combined_int, 10)
 	return id_str
 
-def escape_markdowns(text: str) -> str:
+def em(text: str) -> str:
 	MARKDOWN_CHARS = r"\*_~`|>#-.()[]{}!"
 	result = []
 	for ch in text:

@@ -1,5 +1,5 @@
 # Bot Documentation & Manual
-> **Note:** This is the internal documentation and manual for the AI Discord Bot framework. It covers startup procedures, configuration requirements, and the underlying directory architecture.
+> This is the internal documentation and manual for the AI Discord Bot framework. It covers startup procedures, configuration requirements, and the underlying directory architecture.
 
 ---
 
@@ -37,17 +37,14 @@ The repository is modularized to separate core logic, configuration, and runtime
 ```
 .
 ├── core/                   # Core Application Logic
-│   ├── cog/                # Discord command and event extensions
-│   │   ├── commands/       # Application slash/prefix commands (e.g., help.py)
-│   │   └── events/         # Event listeners (e.g., general.py)
+│   ├── cog/                # Discord commands and events extensions
 │   ├── lib/                # Low-Level Utilities
 │   │   ├── bttrdict.py     # A dataclass-like utility helpfull for making structured objects with less code
 │   │   ├── code.py         # Code execution and sandbox managers
 │   │   ├── converter.py    # Object-to-JSON and type converters
 │   │   ├── file.py         # File system managers
+│   │   ├── llm.py          # LLM content generation
 │   │   └── utils.py        # Miscellaneous helpers
-│   ├── ui/                 # Interface Components
-│   │   └── template.py     # UI templates for Discord components
 │   └── wrp/                # High-Level Wrappers
 │       ├── blacklist.py    # Access control
 │       ├── extension.py    # Cog loading utilities
@@ -57,13 +54,15 @@ The repository is modularized to separate core logic, configuration, and runtime
 │   ├── .env                # Environment variables (Credentials)
 │   ├── .env.template       # Template for .env file
 │   ├── __init__.py
-│   ├── file.py             # File paths used everywhere
+│   ├── paths.py            # File paths used everywhere
 │   └── settings.py         # Global settings variables
-├── test/                   # Testing Suite
+├── .dockerignore
 ├── .gitignore
 ├── bootstrap.py            # Initialization script (Logging, early setup)
 ├── bot.py                  # Main application entry point
 ├── configure.yml           # Primary bot configuration and behavior settings
+├── docker-compose.yml
+├── dockerfile
 ├── exec.sh                 # Process manager script (Keeps bot alive)
 ├── LICENSE
 ├── README.md               # You are here

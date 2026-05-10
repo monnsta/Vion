@@ -1,8 +1,8 @@
-from discord.ext       import commands
+from discord.ext            import commands
 
-from core.lib.utils    import is_dev
-from core.ui.template  import Fail
-from meta              import config
+from core.lib.utils         import is_dev
+from core.cog.ui_template   import Fail
+from meta                   import config
 
 
 @commands.hybrid_group(
@@ -20,9 +20,9 @@ async def dev(ctx: commands.Context):
 		"Subcommand Missing",
 		"Available subcommands:",
 		"```",
-		"* extension (ex)",
-		"* blacklist (bl)",
-		"* execute   (e )",
+		"* extension (e)",
+		"* blacklist (b)",
+		"* code      (c)",
 		"```"
 	))
 

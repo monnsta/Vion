@@ -1,14 +1,11 @@
 import discord
-from discord             import app_commands as app
-from discord.ext         import commands
+from discord                import app_commands as app
+from discord.ext            import commands
 
-from ._dev_group         import dev
-from core.wrp.extension  import extension
-from core.ui.template    import Fail, Success, Generic
-from meta                import emoji
-
-
-dev_only = True
+from core.wrp.extension     import extension
+from core.cog.dev._group    import dev
+from core.cog.ui_template   import Fail, Success, Generic
+from meta                   import emoji
 
 
 class Extension(commands.Cog):
@@ -168,7 +165,3 @@ class Extension(commands.Cog):
 			"### Extension List:",
 			"\n".join(results) if results else "No extensions found."
 		))
-
-
-async def setup(bot: commands.Bot):
-	await bot.add_cog(Extension(bot))

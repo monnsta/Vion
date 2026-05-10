@@ -1,25 +1,31 @@
 import asyncio
 import logging
-import os
-import pathlib
 import tempfile
-from typing      import Tuple, List, Optional, Union, Any
+from pathlib          import Path
+from typing           import Tuple, List, Optional, Union, Any
 
 import httpx
-from google      import generativeai as genai
+from google           import generativeai as genai
+from google.api_core  import exceptions
 
 
 log = logging.getLogger(__name__)
 
 
-async def validate_key(api_key: str) -> bool:
+async def validate_key(api_key: str) -> bool | None:
 	try:
 		genai.configure(api_key=api_key)
 		await asyncio.to_thread(genai.list_models)
 		return True
-	except Exception:
-		log.error(f"API key validation failed", exc_info=True)
+	except (exceptions.InvalidArgument, exceptions.Unauthenticated, exceptions.PermissionDenied) as e:
+		log.error(f"API key validation failed: {e}")
 		return False
+	except (exceptions.RetryError, exceptions.InternalServerError, exceptions.ServiceUnavailable) as e:
+		log.warning(f"Validation inconclusive due to network/service error: {e}")
+		return None
+	except Exception:
+		log.error("An unexpected error occurred during API key validation", exc_info=True)
+		return None
 
 class GenerateContent:
 	def __init__(
@@ -70,27 +76,28 @@ class GenerateContent:
 			with tempfile.NamedTemporaryFile(delete=False) as tmp:
 				tmp.write(response.content)
 				tmp_path = tmp.name
-		
+
 		log.debug(f"Temporary file created at: {tmp_path}")
 		try:
 			return await self._upload_and_wait(tmp_path)
 		finally:
-			if os.path.exists(tmp_path):
-				os.remove(tmp_path)
+			tmp_file = Path(tmp_path)
+			if tmp_file.exists():
+				tmp_file.unlink()
 				log.debug(f"Cleaned up temporary file: {tmp_path}")
 
 	async def _process_input(self, item: Any) -> Any:
 		if isinstance(item, str):
 			if item.startswith(("http://", "https://")):
 				return await self._handle_remote_file(item)
-			if pathlib.Path(item).is_file():
+			if Path(item).is_file():
 				log.debug(f"Detected local file path: {item}")
 				return await self._upload_and_wait(item)
-		
+
 		if isinstance(item, bytes):
 			log.debug("Detected raw bytes input")
 			return {"mime_type": "application/octet-stream", "data": item}
-			
+
 		return item
 
 	async def call(self, prompt: str, inputs: Optional[List[Any]] = None) -> Tuple[bool, str]:
@@ -102,18 +109,21 @@ class GenerateContent:
 				processed_parts = await asyncio.gather(
 					*[self._process_input(i) for i in inputs]
 				)
-			
+
 			payload = processed_parts + [prompt]
 			log.debug("Sending payload to Gemini API")
 			response = await self.model.generate_content_async(payload)
-			
+
 			if response.candidates and len(response.candidates) > 0:
 				log.info("Content generation successful")
 				return True, response.text
-			
+
 			log.warning("AI returned no candidates or content")
 			return False, "AI returned no content."
 
 		except Exception as e:
 			log.error("Error during call execution", exc_info=True)
 			return False, f"Utility Error: {str(e)}"
+
+
+__all__ = ('validate_key', 'GenerateContent')

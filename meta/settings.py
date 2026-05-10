@@ -7,10 +7,10 @@ import sys
 import discord
 import pytz
 
-from core.lib.bttrdict  import BD, Computed, Method, AntiFreeze
+from core.lib.bttrdict  import BD, Computed, Method
 from core.lib.utils     import F, mt
 from core.lib.file      import json_file, text_file, yaml_file
-from meta.file          import file, sub
+from meta.paths         import file, sub
 
 
 log = logging.getLogger(__name__)
@@ -21,9 +21,13 @@ real_import = builtins.__import__
 config = BD()
 emoji  = BD()
 
+
 def load_config():
 	global config, emoji
 	log.info("Setting up config...")
+	if yaml_file == None:
+		log.critical("yaml_file was None, please install the required dependencies")
+		sys.exit(10)
 	success, data = asyncio.run(yaml_file.load("configure.yml"))
 
 	if not success:
@@ -37,8 +41,11 @@ def load_config():
 		log.critical("An error occurred while parsing config into BD object", exc_info=True)
 		sys.exit(10)
 
+	allowed_prefixes = tuple(f"{m}." for m in config.sandbox.allowed_modules)
+	allowed_exact = set(config.sandbox.allowed_modules)
+
 	def safe_import(name, globals=None, locals=None, fromlist=(), level=0):
-		if any(name == m or name.startswith(m + ".") for m in config.sandbox.allowed_modules):
+		if name in allowed_exact or name.startswith(allowed_prefixes):
 			return real_import(name, globals, locals, fromlist, level)
 		raise ImportError(f"Module '{name}' is not allowed in sandbox")
 
@@ -61,17 +68,9 @@ def load_config():
 	config.timezone = pytz.timezone(config.timezone)
 
 	_, secrets_data = asyncio.run(yaml_file.load(sub.env))
-	config.secrets = BD.load(secrets_data).freeze()
+	config.secrets = BD.load(secrets_data)
 
-	allowed_names = [
-		"print", "range", "len", "int", "float", "str", "bool", "dict", "list", 
-		"set", "tuple", "enumerate", "abs", "min", "max", "sum", "any", "all", 
-		"filter", "map", "reversed", "sorted", "round", "divmod", "ord", "chr", 
-		"slice", "zip", "pow", "isinstance", "issubclass", "format", "repr", 
-		"frozenset", "bytearray", "bytes"
-	]
-
-	config.sandbox.allowed_builtins = {name: getattr(builtins, name) for name in allowed_names}
+	config.sandbox.allowed_builtins = {name: getattr(builtins, name) for name in config.sandbox.allowed_builtins}
 	config.sandbox.allowed_builtins["__import__"] = safe_import
 
 	config.system_instructions = Computed(lambda self: F(self.system_instructions).format(config=self))
@@ -131,10 +130,7 @@ def load_config():
 			"A channel was deleted, you can comment on it by sending a message in a general place people talk."
 		))
 	)
-	config.cmd = AntiFreeze(BD())
-
-	config.freeze()
-	emoji.freeze()
+	config.cmd = BD()
 
 
 __all__ = ('load_config', 'emoji', 'config')

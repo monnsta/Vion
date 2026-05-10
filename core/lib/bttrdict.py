@@ -27,7 +27,8 @@ class ImmutableError(DataError):
 class Repr:
 	"""
 	A proxy wrapper that returns a specific string representation
-	while delegating all attribute access to an underlying value.
+	while delegating all attribute access and comparisons to an 
+	underlying value.
 	"""
 	__slots__ = ("_repr_val", "_actual_val")
 
@@ -40,6 +41,22 @@ class Repr:
 
 	def __getitem__(self, key: Any) -> Any:
 		return self._actual_val[key]
+
+	# Comparison Operators
+	def __lt__(self, other: Any) -> bool:
+		return self._actual_val < (other._actual_val if isinstance(other, Repr) else other)
+
+	def __le__(self, other: Any) -> bool:
+		return self._actual_val <= (other._actual_val if isinstance(other, Repr) else other)
+
+	def __eq__(self, other: Any) -> bool:
+		return self._actual_val == (other._actual_val if isinstance(other, Repr) else other)
+
+	def __gt__(self, other: Any) -> bool:
+		return self._actual_val > (other._actual_val if isinstance(other, Repr) else other)
+
+	def __ge__(self, other: Any) -> bool:
+		return self._actual_val >= (other._actual_val if isinstance(other, Repr) else other)
 
 	def __str__(self) -> str:
 		return self._repr_val

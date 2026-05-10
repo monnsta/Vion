@@ -1,58 +1,18 @@
-from typing            import Literal
+from typing                   import Literal
 
-from discord           import app_commands as app
-from discord.ext       import commands
+from discord                  import app_commands as app
+from discord.ext              import commands
 
-from ._setting_group   import setting
-from core.lib.utils    import mt, is_admin
-from core.wrp.profile  import server, user
-from core.ui.template  import Success, Fail, Generic, Confirmation, UnexpectedError
-from meta              import config
+from core.lib.utils           import mt, em, is_admin
+from core.cog.setting._group  import setting
+from core.cog.cog_utils       import resolve_target, load_settings, handle_missing_perms
+from core.cog.ui_template     import Success, Fail, Generic, Confirmation, UnexpectedError
+from meta                     import config
 
 
 class Prefix(commands.Cog):
 	def __init__(self, bot: commands.Bot):
 		self.bot = bot
-
-	@staticmethod
-	async def _check(ctx: commands.Context, type: str, char: str | None = None):
-		if type not in ('server', 'user'):
-			await ctx.reply(view=Fail(
-				"Invalid Type",
-				f"Type must be either server or user, and not '{type}'..."
-			))
-			return False
-
-		if type == 'server':
-			if not ctx.guild:
-				await ctx.reply(view=Fail(
-					"Invalid Scope",
-					"This command must be used in a server to request server data."
-				))
-				return False
-
-		if char and len(char) > 2:
-			await ctx.reply(view=Fail(
-				"Prefix Too Long",
-				"Prefix must be under 2 characters long"
-			))
-			return False
-
-		return True
-
-	@staticmethod
-	async def _handle_missing_perms(ctx):
-		return await ctx.reply(view=Fail(
-			"Missing Required Permission",
-			"You need **Administrator** permissions for that."
-		))
-
-	@staticmethod
-	async def _get_data(manager, target_id: int, type: str) -> dict:
-		success, data = await manager.settings.load(target_id)
-		if success:
-			return data
-		return config.settings.get(type)
 
 
 	@setting.group(
@@ -61,6 +21,7 @@ class Prefix(commands.Cog):
 		description='Group for prefix commands.'
 	)
 	async def prefix(self, ctx: commands.Context):
+		"""Group for prefix commands."""
 		if ctx.invoked_subcommand is not None:
 			return
 
@@ -81,69 +42,85 @@ class Prefix(commands.Cog):
 		description='Add a prefix to your personal profile or current server.'
 	)
 	@app.describe(
-		char='The character to add as prefix',
-		type='Whether to add the prefix to your personal profile or current server'
+		type='Whether to add the prefix to your personal profile or current server',
+		char='The character to add as prefix'
 	)
 	@is_admin(config.dev_ids, ('type', 'user'))
-	async def add(self, ctx: commands.Context, *, char: str, type: Literal['server', 'user']):
-		if not await self._check(ctx, type, char):
+	async def add(self, ctx: commands.Context, type: Literal['server', 'user'] = 'user', *, char: str):
+		"""
+		Add a prefix to your personal profile or current server, allows you to run commands by your own prefix
+		Example: /setting prefix add user !
+		"""
+		if len(char) > 2:
+			await ctx.reply(view=Fail(
+				"Prefix Too Long",
+				"Prefix must be under 2 characters long."
+			))
 			return
 
-		if type == 'server':
-			manager = server
-			target_id = getattr(ctx.guild, 'id', None)
-		else:
-			manager = user
-			target_id = ctx.author.id
-		if not target_id:
+		manager, target_id = await resolve_target(ctx, type)
+		if not manager:
 			return
 
-		data = await self._get_data(manager, target_id, type)
+		data = await load_settings(manager, target_id, type)
+
+		if len(data["prefix"]) >= config.max_prefix:
+			await ctx.reply(view=Fail(
+				"Max Prefix Limit Reached",
+				f"You can only add {config.max_prefix} prefixes.{f'.. Well the current amount is passed that but you still cannot add more.' if len(data['prefix']) > config.max_prefix else ''}"
+			))
+			return
+		if char in data["prefix"]:
+			await ctx.reply(view=Fail(
+				"Prefix Already exists",
+				f"Prefix '{em(char)}' already in the settings, you don't need to add it twice."
+			))
+			return
+		if char in config.prefix:
+			await ctx.reply(view=Fail(
+				"Prefix Reserved By Bot",
+				f"Prefix '{em(char)}' is reserved by the bot and used globaly, you don't need to add it to use it."
+			))
+			return
 
 		data["prefix"].append(char)
 
 		success = await manager.settings.save(target_id, data)
-		if success:
-			await ctx.reply(view=Success(
-				"Prefix Added",
-				f"Successfully added prefix: `{char}`"
-			))
+		if not success:
+			await ctx.reply(view=UnexpectedError)
+			return
 
-		await ctx.reply(view=Fail(
-			"Failed To Add Prefix",
-			"There was an unexpected error. please report this"
+		await ctx.reply(view=Success(
+			"Prefix Added",
+			f"Successfully added prefix: `{char}`"
 		))
 
 	@add.error
 	async def add_error(self, ctx: commands.Context, error):
 		if isinstance(error, commands.CheckFailure):
-			await self._handle_missing_perms(ctx)
+			await handle_missing_perms(ctx)
 
 
 	@prefix.command(
 		name='remove',
 		aliases=['r'],
-		description='Remove a prefix '
+		description='Remove a prefix from your personal profile or current server.'
 	)
 	@app.describe(
-		pos='The position of the preifx (shown in list command)',
-		type='Whether to delete the prefix from your personal profile or server'
+		type='Whether to delete the prefix from your personal profile or server',
+		pos='The position of the prefix (shown in list command)'
 	)
 	@is_admin(config.dev_ids, ('type', 'user'))
-	async def remove(self, ctx: commands.Context, pos: int, type: Literal['server', 'user']):
-		if not await self._check(ctx, type):
+	async def remove(self, ctx: commands.Context, type: Literal['server', 'user'] = 'user', pos: int):
+		"""
+		Remove an added prefix from your personal profile or current server
+		Example: /setting prefix remove user 1
+		"""
+		manager, target_id = await resolve_target(ctx, type)
+		if not manager:
 			return
 
-		if type == 'server':
-			manager = server
-			target_id = getattr(ctx.guild, 'id', None)
-		else:
-			manager = user
-			target_id = ctx.author.id
-		if not target_id:
-			return
-
-		data = await self._get_data(manager, target_id, type)
+		data = await load_settings(manager, target_id, type)
 		prefixes = data.get("prefix", [])
 
 		idx = pos - 1
@@ -151,14 +128,16 @@ class Prefix(commands.Cog):
 		if not prefixes:
 			await ctx.reply(view=Fail(
 				"No Prefixes Found",
-				"You don't have any prefixes added, therefore cannot remove any"
+				"You don't have any prefixes added, therefore cannot remove any."
 			))
+			return
 
 		if idx < 0 or idx >= len(prefixes):
 			await ctx.reply(view=Fail(
 				"Invalid Position",
 				f"Position {pos} is out of range. Check the list command for valid positions."
 			))
+			return
 
 		view = Confirmation(
 			mt(
@@ -167,7 +146,7 @@ class Prefix(commands.Cog):
 			),
 			mt(
 				"Prefix Removed",
-				f"Succeessfully removed prefix: `{prefixes[idx]}`"
+				f"Successfully removed prefix: `{prefixes[idx]}`"
 			),
 			"Action Aborted",
 			ctx.author
@@ -178,6 +157,7 @@ class Prefix(commands.Cog):
 
 		if confirmed:
 			prefixes.pop(idx)
+			data["prefix"] = prefixes
 			success = await manager.settings.save(target_id, data)
 
 			if not success:
@@ -186,7 +166,7 @@ class Prefix(commands.Cog):
 	@remove.error
 	async def remove_error(self, ctx: commands.Context, error):
 		if isinstance(error, commands.CheckFailure):
-			await self._handle_missing_perms(ctx)
+			await handle_missing_perms(ctx)
 
 
 	@prefix.command(
@@ -195,22 +175,18 @@ class Prefix(commands.Cog):
 		description='List all the prefixes added to your personal profile or current server'
 	)
 	@app.describe(
-		type='Whether to list prefixes from yout personal profile or current server'
+		type='Whether to list prefixes from your personal profile or current server'
 	)
-	async def list(self, ctx: commands.Context, type: Literal['server', 'user']):
-		if not await self._check(ctx, type):
+	async def list(self, ctx: commands.Context, type: Literal['server', 'user'] = 'user'):
+		"""
+		List all prefix from your personal profile or current server
+		Example: /setting prefix list
+		"""
+		manager, target_id = await resolve_target(ctx, type)
+		if not manager:
 			return
 
-		if type == 'server':
-			manager = server
-			target_id = getattr(ctx.guild, 'id', None)
-		else:
-			manager = user
-			target_id = ctx.author.id
-		if not target_id:
-			return
-
-		data = await self._get_data(manager, target_id, type)
+		data = await load_settings(manager, target_id, type)
 		prefixes = data.get("prefix", [])
 
 		if not prefixes:
@@ -228,7 +204,7 @@ class Prefix(commands.Cog):
 	@list.error
 	async def list_error(self, ctx: commands.Context, error):
 		if isinstance(error, commands.CheckFailure):
-			await self._handle_missing_perms(ctx)
+			await handle_missing_perms(ctx)
 
 
 async def setup(bot: commands.Bot):

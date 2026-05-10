@@ -4,6 +4,7 @@ import logging
 import os
 import time
 import threading
+from pathlib      import Path
 from abc          import ABC, abstractmethod
 from contextlib   import asynccontextmanager
 from typing       import Any, AsyncIterator, Generic, TypeVar
@@ -220,14 +221,14 @@ class BaseFileIO(ABC, Generic[T]):
 		if compress:
 			data = gzip.compress(data)
 
-		dir_name = os.path.dirname(path)
-		if dir_name:
-			os.makedirs(dir_name, exist_ok=True)
+		target_path = Path(f"{path}.{os.getpid()}.tmp") if atomic else Path(path)
+		final_path = Path(path)
 
-		target_path = f"{path}.{os.getpid()}.tmp" if atomic else path
+		if final_path.parent:
+			final_path.parent.mkdir(parents=True, exist_ok=True)
 		
 		flags = os.O_WRONLY | os.O_CREAT | os.O_TRUNC
-		fd = os.open(target_path, flags, mode or 0o666)
+		fd = os.open(str(target_path), flags, mode or 0o666)
 		try:
 			with os.fdopen(fd, 'wb') as f:
 				f.write(data)
@@ -235,22 +236,22 @@ class BaseFileIO(ABC, Generic[T]):
 				os.fsync(f.fileno())
 			
 			if mode is not None:
-				os.chmod(target_path, mode)
+				target_path.chmod(mode)
 				
 		except Exception:
-			if atomic and os.path.exists(target_path):
-				os.remove(target_path)
+			if atomic:
+				target_path.unlink(missing_ok=True)
 			raise
 
 		if verify:
 			with open(target_path, 'rb') as f:
 				if f.read() != data:
-					if atomic and os.path.exists(target_path):
-						os.remove(target_path)
+					if atomic:
+						target_path.unlink(missing_ok=True)
 					raise IOError("Verification failed: Disk content does not match intended data.")
 
 		if atomic:
-			os.replace(target_path, path)
+			target_path.replace(final_path)
 
 	async def _save_internal(
 		self, 
@@ -495,6 +496,7 @@ text_file = TEXT(**_default)
 json_file = JSON(**_default) if orjson           else None
 toml_file = TOML(**_default) if tomli and orjson else None
 yaml_file = YAML(**_default) if yaml  and orjson else None
+
 
 __all__ = (
 	'text_file', 'json_file', 'toml_file', 'yaml_file',

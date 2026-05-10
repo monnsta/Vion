@@ -1,5 +1,5 @@
 import logging
-import os
+from pathlib      import Path
 from typing       import Dict, List, Tuple, Iterable
 
 from discord.ext  import commands
@@ -31,13 +31,14 @@ class Extension:
 
 	async def get_all(self) -> List[str]:
 		extensions = []
+		cog_dir = Path(sub.cog)
 
-		for root, _, files in os.walk(sub.cog):
-			for filename in files:
-				if filename.endswith('.py') and not filename.startswith('_'):
-					path = os.path.join(root, filename[:-3])
-					extension_path = path.replace(os.sep, '.')
-					extensions.append(extension_path)
+		for path in cog_dir.rglob('*.py'):
+			if any(part.startswith('_') for part in path.parts):
+				continue
+
+			extension_path = str(path.with_suffix('')).replace('\\', '.').replace('/', '.')
+			extensions.append(extension_path)
 
 		return extensions
 
@@ -102,6 +103,8 @@ class Extension:
 			results[ext] = await self.reload(bot, ext)
 		return results
 
+
 extension = Extension()
+
 
 __all__ = ('extension')

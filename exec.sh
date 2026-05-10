@@ -82,9 +82,25 @@ is_crash_looping() {
 	return 1 # False
 }
 
+run_docker() {
+	if ! command -v docker &> /dev/null; then
+		error "Docker not found. Please install Docker first."
+		exit 1
+	fi
+	
+	log "Building and starting containers (detached)..."
+	docker compose up --build -d
+	log "Container is up. Use 'docker compose logs -f' to view output."
+	exit 0
+}
+
 
 # --- 4. Main Execution ---
 trap "log 'Manual interruption detected. Exiting...'; exit 0" SIGINT SIGTERM
+
+if [[ "$1" == "--docker" ]]; then
+	run_docker
+fi
 
 check_env
 install_deps

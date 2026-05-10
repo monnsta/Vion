@@ -1,15 +1,13 @@
-from typing              import Optional, Literal
+from typing                 import Optional, Literal
 
-from discord             import app_commands as app
-from discord.ext         import commands
+from discord                import app_commands as app
+from discord.ext            import commands
 
-from ._dev_group         import dev
-from core.lib.utils      import mt
-from core.wrp.blacklist  import blacklist
-from core.ui.template    import Fail, Success, Generic, Paginated
-
-
-dev_only = True
+from core.lib.utils         import mt
+from core.wrp.blacklist     import blacklist
+from core.cog.dev._group    import dev
+from core.cog.cog_utils     import format_dt
+from core.cog.ui_template   import Fail, Success, Generic, Paginated
 
 
 class Blacklist(commands.Cog):
@@ -19,7 +17,7 @@ class Blacklist(commands.Cog):
 
 	@dev.group(
 		name='blacklist',
-		aliases=['bl'],
+		aliases=['b'],
 		description='Manage the global bot blacklist.'
 	)
 	async def blacklist(self, ctx: commands.Context):
@@ -45,15 +43,15 @@ class Blacklist(commands.Cog):
 		description='Add a user or server to the blacklist.'
 	)
 	@app.describe(
-		target_id='The ID of the user or server',
 		type='Whether this is a user or server',
+		target_id='The ID of the user or server',
 		reason='Reason for blacklisting',
 		duration='Duration (e.g., 7d, 12h, 30m). Leave empty for permanent.'
 	)
-	async def add(self, ctx: commands.Context, target_id: str, type: Literal['user', 'server'], reason: str, duration: Optional[str] = None):
+	async def add(self, ctx: commands.Context, type: Literal['user', 'server'], target_id: str, reason: str, duration: Optional[str] = None):
 		"""
-		Add a user or server to the blacklist.
-		Example: /dev blacklist add 123 user abuse 7d
+		Add a user or server to the blacklist, users won't be able to use the bot, and servers won't be able to invite it
+		Example: /dev blacklist add user 123 Abused bot powers 7d
 		"""
 		try:
 			tid = int(target_id)
@@ -77,10 +75,10 @@ class Blacklist(commands.Cog):
 		target_id='The ID of the user or server',
 		type='Whether this is a user or server'
 	)
-	async def remove(self, ctx: commands.Context, target_id: str, type: Literal['user', 'server']):
+	async def remove(self, ctx: commands.Context, type: Literal['user', 'server'], target_id: str):
 		"""
-		Remove a user or server from the blacklist.
-		Example: /dev blacklist remove 123 user
+		Remove an added user or server from the blacklist
+		Example: /dev blacklist remove user 123
 		"""
 		try:
 			tid = int(target_id)
@@ -104,10 +102,10 @@ class Blacklist(commands.Cog):
 		target_id='The ID of the user or server',
 		type='Whether this is a user or server'
 	)
-	async def show(self, ctx: commands.Context, target_id: str, type: Literal['user', 'server']):
+	async def show(self, ctx: commands.Context, type: Literal['user', 'server'], target_id: str):
 		"""
-		Show information of a blacklisted user or server.
-		Example: /dev blacklist show 123 user
+		Show information of a blacklisted user or server
+		Example: /dev blacklist show user 123
 		"""
 		try:
 			tid = int(target_id)
@@ -126,16 +124,10 @@ class Blacklist(commands.Cog):
 					user = await self.bot.fetch_user(tid)
 				except Exception:
 					user = None
-
 			if user: label = f"**{user.name}** ({user.id})"
 		else:
 			guild = self.bot.get_guild(tid)
 			if guild: label = f"**{guild.name}** ({guild.id})"
-
-		def format_dt(dt_obj):
-			if not dt_obj: return "Never"
-			ts = int(dt_obj.timestamp()) if hasattr(dt_obj, 'timestamp') else dt_obj
-			return f"<t:{ts}:F> (<t:{ts}:R>)"
 
 		await ctx.reply(view=Generic(
 			f"## Blacklisted {type.capitalize()}",
@@ -152,18 +144,18 @@ class Blacklist(commands.Cog):
 		aliases=['l'],
 		description='List all blacklisted entities.'
 	)
-	@app.describe(type='Filter by user or server')
+	@app.describe(
+		type='Filter by user or server'
+	)
 	async def list(self, ctx: commands.Context, type: Optional[Literal['user', 'server']] = None):
-		"""List all blacklisted users or servers."""
+		"""
+		List all blacklisted users and/or servers
+		Example: /dev blacklist list user
+		"""
 		entries = await blacklist.list_all(type)
 
 		if not entries:
 			return await ctx.reply(view=Generic("### Global Blacklist", "The blacklist is currently empty."))
-
-		def format_dt(dt_obj):
-			if not dt_obj: return "Never"
-			ts = int(dt_obj.timestamp()) if hasattr(dt_obj, 'timestamp') else dt_obj
-			return f"<t:{ts}:R>"
 
 		results = []
 		for e in entries:
@@ -192,15 +184,5 @@ class Blacklist(commands.Cog):
 			results.append(block)
 
 		header = f"## Blacklisted {type.capitalize() + 's' if type else ''}"
-		
-		view = Paginated(
-			header=header,
-			items=results,
-			user=ctx.author
-		)
-
+		view = Paginated(header=header, items=results, user=ctx.author)
 		await ctx.reply(view=view)
-
-
-async def setup(bot: commands.Bot):
-	await bot.add_cog(Blacklist(bot))

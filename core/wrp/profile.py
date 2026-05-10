@@ -3,9 +3,9 @@ import datetime
 import io
 import json
 import logging
-import os
 import shutil
 import zipfile
+from pathlib             import Path
 from typing              import Any, Union
 
 import discord
@@ -59,25 +59,25 @@ class BaseProfileManager:
 
 		async def exists(self, entity_id: int) -> bool:
 			eid = str(entity_id)
-			path = os.path.join(self.parent.active_dir, eid)
+			path = Path(self.parent.active_dir) / eid
 
-			return await asyncio.to_thread(os.path.exists, path)
+			return await asyncio.to_thread(path.exists)
 
 		async def delete(self, entity_id: int) -> bool:
 			eid = str(entity_id)
-			source = os.path.join(self.parent.active_dir, eid)
-			dest = os.path.join(sub.bin, eid)
+			source = Path(self.parent.active_dir) / eid
+			dest = Path(sub.trash) / eid
 
-			if not os.path.exists(source):
+			if not source.exists():
 				log.warning(f"Delete failed: Source path {source} does not exist")
 				return False
 
 			try:
 				log.info(f"Moving {self.parent.entity_type} data {eid} to bin")
 				def sync_io_ops():
-					if os.path.exists(dest):
+					if dest.exists():
 						shutil.rmtree(dest)
-					shutil.move(source, dest)
+					shutil.move(str(source), str(dest))
 
 				await asyncio.to_thread(sync_io_ops)
 
@@ -90,27 +90,27 @@ class BaseProfileManager:
 
 		async def restore(self, entity_id: int) -> bool:
 			eid = str(entity_id)
-			binned = os.path.join(sub.bin, eid)
-			active = os.path.join(self.parent.active_dir, eid)
+			binned = Path(sub.trash) / eid
+			active = Path(self.parent.active_dir) / eid
 
-			if not os.path.exists(binned):
+			if not binned.exists():
 				log.warning(f"Restore failed: Binned data for {eid} not found")
 				return False
 
-			temp_backup = f"{active}.bak"
+			temp_backup = active.with_suffix(".bak")
 			log.info(f"Restoring {self.parent.entity_type} data for {eid} from bin")
 
 			try:
 				def sync_restore_ops():
-					if os.path.exists(active):
-						os.rename(active, temp_backup)
-					shutil.move(binned, active)
-					if os.path.exists(temp_backup):
+					if active.exists():
+						active.rename(temp_backup)
+					shutil.move(str(binned), str(active))
+					if temp_backup.exists():
 						shutil.rmtree(temp_backup)
 
-					info_file = self.parent.file_routes.delete_time(eid)
-					if os.path.exists(info_file):
-						os.remove(info_file)
+					info_file = Path(self.parent.file_routes.delete_time(eid))
+					if info_file.exists():
+						info_file.unlink()
 
 				await asyncio.to_thread(sync_restore_ops)
 				log.info(f"Successfully restored {self.parent.entity_type} {eid}")
@@ -118,21 +118,19 @@ class BaseProfileManager:
 			except Exception:
 				log.error(f"Restore failed for '{eid}'", exc_info=True)
 				def rollback():
-					if os.path.exists(temp_backup):
+					if temp_backup.exists():
 						log.info(f"Rolling back restoration for {eid}")
-						os.rename(temp_backup, active)
+						temp_backup.rename(active)
 				await asyncio.to_thread(rollback)
 				return False
 
 		async def delete_permanent(self, entity_id: int) -> tuple[bool, str]:
 			eid = str(entity_id)
-			source = os.path.join(self.parent.active_dir, eid)
-			binned = os.path.join(sub.bin, eid)
+			source = Path(self.parent.active_dir) / eid
+			binned = Path(sub.trash) / eid
 
 			def sync_delete_logic():
-				if os.path.exists(binned): path = binned
-				elif os.path.exists(source): path = source
-				else: path = None
+				path = binned if binned.exists() else source if source.exists() else None
 
 				if not path:
 					log.warning(f"Permanent delete failed: {eid} not found in active or bin")
@@ -150,9 +148,9 @@ class BaseProfileManager:
 
 		async def get_zip(self, entity_id: int) -> tuple[bool, Union[io.BytesIO, str]]:
 			eid = str(entity_id)
-			source_dir = os.path.join(self.parent.active_dir, eid)
+			source_dir = Path(self.parent.active_dir) / eid
 
-			if not os.path.exists(source_dir):
+			if not source_dir.exists():
 				log.warning(f"Zip failed: Source path {source_dir} does not exist")
 				return False, "We could not find any data related to you in our storage."
 
@@ -196,25 +194,26 @@ class BaseProfileManager:
 						readme_content += "\n*Note: Original JSON data files have been formatted as readable Markdown lists for easier viewing.*"
 						zf.writestr("README.md", readme_content)
 
-						for root, _, files in os.walk(source_dir):
-							for file_name in files:
-								full_path = os.path.join(root, file_name)
-								rel_path = os.path.relpath(full_path, source_dir)
+						for file_path in source_dir.rglob('*'):
+							if not file_path.is_file():
+								continue
 
-								if file_name.endswith('.json'):
-									try:
-										with open(full_path, 'r', encoding='utf-8') as f:
-											json_data = json.load(f)
+							rel_path = file_path.relative_to(source_dir)
 
-										md_content = f"# {file_name.replace('.json', '').capitalize()} Data\n\n"
-										md_content += dict_to_markdown(json_data)
+							if file_path.suffix == '.json':
+								try:
+									with file_path.open('r', encoding='utf-8') as f:
+										json_data = json.load(f)
 
-										md_rel_path = rel_path[:-5] + ".md"
-										zf.writestr(md_rel_path, md_content)
-									except json.JSONDecodeError:
-										zf.write(full_path, rel_path)
-								else:
-									zf.write(full_path, rel_path)
+									md_content = f"# {file_path.stem.capitalize()} Data\n\n"
+									md_content += dict_to_markdown(json_data)
+
+									md_rel_path = rel_path.with_suffix(".md")
+									zf.writestr(str(md_rel_path).replace('\\', '/'), md_content)
+								except json.JSONDecodeError:
+									zf.write(file_path, str(rel_path).replace('\\', '/'))
+							else:
+								zf.write(file_path, str(rel_path).replace('\\', '/'))
 
 					buffer.seek(0)
 					return True, buffer

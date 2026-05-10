@@ -1,6 +1,6 @@
-from discord.ext       import commands
+from discord.ext            import commands
 
-from core.ui.template  import Fail
+from core.cog.ui_template   import Fail
 
 
 @commands.hybrid_group(

@@ -1,11 +1,11 @@
 import asyncio
 import random
-from collections import Counter
+from collections  import Counter
 
 import discord
-from discord import ui
+from discord      import ui
 
-from meta import emoji
+from meta         import emoji
 
 
 INTERFERENCE_TRACKER = Counter()
@@ -71,25 +71,60 @@ async def global_interaction_check(interaction: discord.Interaction, target_user
 
 
 class Generic(ui.LayoutView):
-	def __init__(self, *messages: str, accent_color: int = 0x00E9FE, sep: str = "\n") -> None:
+	def __init__(self, *messages: str | None, accent_color: int | None = 0x00E9FE, sep: str = "\n") -> None:
 		super().__init__()
-		self.add_item(ui.Container(
-			ui.TextDisplay(
-				sep.join(messages)
-			),
-			accent_color=accent_color
-		))
+		if accent_color:
+			container = ui.Container(accent_color=accent_color)
+		else:
+			container = ui.Container()
 
-def Success(*messages: str, sep: str = "\n") -> Generic:
+		text_buffer = []
+
+		def flush_buffer():
+			if text_buffer:
+				container.add_item(ui.TextDisplay(sep.join(text_buffer)))
+				text_buffer.clear()
+
+		for item in messages:
+			if item is None:
+				flush_buffer()
+				container.add_item(ui.Separator())
+			else:
+				text_buffer.append(item)
+
+		flush_buffer()
+		self.add_item(container)
+
+def Success(title: str, *messages: str | None, sep: str = "\n") -> Generic:
 	return Generic(
-		f"### {emoji.checkmark} {sep.join(messages)}",
-		accent_color=0x00FEBB
+		f"### {emoji.checkmark} {title}",
+		*messages,
+		accent_color=0x00FEBB,
+		sep=sep
 	)
 
-def Fail(*messages: str, sep: str = "\n") -> Generic:
+def Fail(title: str, *messages: str | None, sep: str = "\n") -> Generic:
 	return Generic(
-		f"### {emoji.crossmark} {sep.join(messages)}",
-		accent_color=0xFE0065
+		f"### {emoji.crossmark} {title}",
+		*messages,
+		accent_color=0xFE0065,
+		sep=sep
+	)
+
+def Warning(title: str, *messages: str | None, sep: str = "\n") -> Generic:
+	return Generic(
+		f"### {emoji.warning} {title}",
+		*messages,
+		accent_color=0xFFC967,
+		sep=sep
+	)
+
+def Info(title: str, *messages: str | None, sep: str = "\n") -> Generic:
+	return Generic(
+		f"### {emoji.info} {title}",
+		*messages,
+		accent_color=0x3498DB,
+		sep=sep
 	)
 
 
@@ -272,6 +307,66 @@ class Confirmation(ui.LayoutView):
 
 	async def wait_for_answer(self) -> bool:
 		return await self._view_finished
+
+class TextInputModal(ui.Modal):
+	def __init__(self, title: str, field_label: str, default_value: str | None, future: asyncio.Future):
+		super().__init__(title=title)
+		self.future = future
+		self.input_field = ui.TextInput(
+			label=field_label,
+			style=discord.TextStyle.paragraph,
+			default=default_value,
+			required=True,
+		)
+		self.add_item(self.input_field)
+
+	async def on_submit(self, interaction: discord.Interaction):
+		self.future.set_result(self.input_field.value)
+		await interaction.response.defer()
+
+class TextForm(Generic):
+	def __init__(
+		self,
+		message_content: str,
+		button_label: str,
+		modal_title: str,
+		field_label: str,
+		default_field_value: str | None = None,
+		user: discord.Member | discord.User = None,
+		accent_color: int = 0x00E9FE
+	) -> None:
+		super().__init__(message_content, accent_color=accent_color)
+		self.user = user
+		self.modal_title = modal_title
+		self.field_label = field_label
+		self.default_field_value = default_field_value
+
+		self.result_future = asyncio.Future()
+
+		container = self.children[0] 
+		btn = ui.Button(label=button_label, style=discord.ButtonStyle.primary)
+		btn.callback = self.open_modal
+		container.add_item(ui.ActionRow(btn))
+
+	async def interaction_check(self, interaction: discord.Interaction) -> bool:
+		if self.user:
+			return await global_interaction_check(interaction, self.user)
+		return True
+
+	async def open_modal(self, interaction: discord.Interaction):
+		modal = TextInputModal(
+			title=self.modal_title,
+			field_label=self.field_label,
+			default_value=self.default_field_value,
+			future=self.result_future
+		)
+		await interaction.response.send_modal(modal)
+
+	async def wait_for_input(self) -> str | None:
+		try:
+			return await self.result_future
+		except asyncio.CancelledError:
+			return None
 
 
 UnexpectedError = Fail(

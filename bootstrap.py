@@ -1,7 +1,7 @@
 import json
 import logging
-import os
 import time
+from pathlib           import Path
 from logging.handlers  import TimedRotatingFileHandler
 
 from rich.logging      import RichHandler
@@ -37,9 +37,10 @@ class JsonFormatter(logging.Formatter):
 
 
 # 1. Setup the log directory and dynamic naming
-os.makedirs(base.logs, exist_ok=True)
+log_dir = Path(base.logs)
+log_dir.mkdir(parents=True, exist_ok=True)
 log_date_format = f"%B-%-d-%Y.log"
-log_file_path = os.path.join(base.logs, time.strftime(log_date_format))
+log_file_path = str(log_dir / time.strftime(log_date_format))
 
 
 # 2. Configure the Root Logger
@@ -57,7 +58,7 @@ file_handler = TimedRotatingFileHandler(
 	encoding='utf-8'
 )
 
-def namer(_): return os.path.join(base.logs, time.strftime(log_date_format))
+def namer(_): return str(log_dir / time.strftime(log_date_format))
 
 file_handler.namer = namer
 file_handler.setLevel(logging.DEBUG)

@@ -1,44 +1,19 @@
 import random
-from typing            import Literal
+from typing                 import Literal
 
 import discord
-from discord           import app_commands as app
-from discord.ext       import commands
-from discord.utils import get
+from discord                import app_commands as app
+from discord.ext            import commands
 
-from core.lib.utils    import mt, is_admin
-from core.wrp.profile  import server, user
-from core.ui.template  import Fail, Success, Generic, Confirmation
-from meta              import config
+from core.lib.utils         import mt, is_admin
+from core.cog.cog_utils     import resolve_target, handle_missing_perms
+from core.cog._ui.template  import Fail, Success, Generic, Confirmation
+from meta                   import config
 
 
 class Data(commands.Cog):
 	def __init__(self, bot: commands.Bot):
 		self.bot = bot
-
-	@staticmethod
-	async def _check(ctx: commands.Context, type: str) -> bool:
-		if type not in ('server', 'user'):
-			await ctx.reply(view=Fail(
-				"Invalid Type",
-				f"Type must be either server or user, and not '{type}'..."
-			))
-		if type == 'server':
-			if not ctx.guild:
-				await ctx.reply(view=Fail(
-					"Invalid Scope",
-					"This command must be used in a server to request server data."
-				))
-				return False
-		return True
-
-	@staticmethod
-	async def _handle_missing_perms(ctx):
-		return await ctx.reply(view=Fail(
-			"Missing Required Permission",
-			"You need **Administrator** permissions for that."
-		))
-
 
 	@commands.hybrid_command(
 		name='get_my_data',
@@ -54,20 +29,19 @@ class Data(commands.Cog):
 		Gives you all your data we have stored.
 		Example: /get_my_data user
 		"""
-		manager = user if type == 'user' else server
-		target_id = ctx.author.id if type == 'user' else getattr(ctx.guild, 'id', None)
-
-		if not await self._check(ctx, type):
+		manager, target_id = await resolve_target(ctx, type)
+		if not manager:
 			return
 
-		await ctx.interaction.response.defer(ephemeral=True) if ctx.interaction else None
+		if ctx.interaction:
+			await ctx.interaction.response.defer(ephemeral=True)
 
 		success, result = await manager.data.get_zip(target_id)
 
 		if not success:
 			return await ctx.reply(view=Fail(
-				"Erorr",
-				result if isinstance(result, str) else "Failed to load data. please report this"
+				"Error",
+				result if isinstance(result, str) else "Failed to load data. Please report this."
 			), ephemeral=True)
 
 		try:
@@ -87,7 +61,7 @@ class Data(commands.Cog):
 	@get_my_data.error
 	async def get_my_data_error(self, ctx: commands.Context, error):
 		if isinstance(error, commands.CheckFailure):
-			await self._handle_missing_perms(ctx)
+			await handle_missing_perms(ctx)
 
 
 	@commands.hybrid_command(
@@ -104,16 +78,13 @@ class Data(commands.Cog):
 		Deletes all your data permanently from our storage. **This process cannot be undone.**
 		Example: /delete_my_data user
 		"""
-		manager = user if type == 'user' else server
-		target_id = ctx.author.id if type == 'user' else getattr(ctx.guild 'id', None)
-
-		if not await self._check(ctx, type):
+		manager, target_id = await resolve_target(ctx, type)
+		if not manager:
 			return
 
-		if not manager.data.exists(target_id):
-			await ctx.reply(view=Fail(
-				"We couldn't find any data to delete"
-			))
+		if not await manager.data.exists(target_id):
+			await ctx.reply(view=Fail("We couldn't find any data to delete."))
+			return
 
 		if type == 'user':
 			question = mt(
@@ -146,8 +117,4 @@ class Data(commands.Cog):
 	@delete_my_data.error
 	async def delete_my_data_error(self, ctx: commands.Context, error):
 		if isinstance(error, commands.CheckFailure):
-			await self._handle_missing_perms(ctx)
-
-
-async def setup(bot: commands.Bot):
-	await bot.add_cog(Data(bot))
+			await handle_missing_perms(ctx)

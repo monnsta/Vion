@@ -1,0 +1,16 @@
+services:
+  bot:
+    build: .
+    container_name: bot
+    restart: always
+    env_file:
+      - ./meta/.env
+    volumes:
+      - ./configure.yml:/app/configure.yml
+      - ./core:/app/core
+      - ./meta:/app/meta
+    logging:
+      driver: "json-file"
+      options:
+        max-size: "10mb"
+        max-file: "3"

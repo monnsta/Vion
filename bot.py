@@ -8,7 +8,7 @@ import discord
 from discord.ext         import commands
 
 from core.lib.bttrdict   import BD, Repr
-from core.wrp.profile    import server
+from core.wrp.profile    import server, user
 from core.wrp.extension  import extension
 from meta                import config
 
@@ -41,11 +41,11 @@ class Bot(commands.Bot):
 
 			if isinstance(command, discord.app_commands.Command):
 				command_data = BD(
-					name=name,
-					mention=mention_name,
-					description=command.description or "No description.",
-					root_id=root_id,
-					parameters=command.parameters
+					name        = name,
+					mention     = mention_name,
+					description = command.description or "No description.",
+					root_id     = root_id,
+					parameters  = command.parameters
 				)
 
 				config.cmd.set(
@@ -60,8 +60,6 @@ class Bot(commands.Bot):
 		for cmd in synced_commands:
 			walk(cmd)
 
-
-	# Setup & Lifecycle
 	async def setup_hook(self):
 		log.info("Starting Setup...")
 
@@ -88,30 +86,22 @@ class Bot(commands.Bot):
 
 		self._map_command_mentions(synced_global)
 
-	async def shutdown(self):
-		log.info("Shutdown signal received. Cleaning up...")
-		await self.close()
-		log.info("Bot closed successfully.")
-
-	# Logic & Utilities
 	async def determine_prefix(self, _, message):
-		if not message.guild:
-			return config.prefix
+		_, guild_settings = await server.settings.load(message.guild.id)
+		_, user_settings  = await user.settings.load(message.author.id) 
 
-		_, settings = await server.settings.load(message.guild.id)
-		server_prefixes = (
-			prefix
-			for prefix in settings.get("prefix", [])
-			if prefix not in config.prefix
-		)
-		return [*config.prefix, *server_prefixes]
+		return [
+			*config.prefix,
+			*guild_settings.get("prefix", []),
+			*user_settings.get("prefix", [])
+		]
 
 
 if __name__ == "__main__":
 	bot = Bot()
 
 	try:
-		log.info("Starting bot process...")
+		log.info("Starting bot...")
 		bot.run(config.secrets.discord_api_key)
 	except (KeyboardInterrupt, SystemExit):
 		log.info("Process terminated by user")

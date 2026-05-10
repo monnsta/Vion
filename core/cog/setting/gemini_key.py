@@ -1,62 +1,20 @@
+from typing                   import Literal
+
 import discord
-from typing            import Literal
+from discord                  import app_commands as app
+from discord.ext              import commands
 
-from discord           import app_commands as app
-from discord.ext       import commands
-
-from ._setting_group   import setting
-from core.lib.llm      import validate_key
-from core.lib.utils    import mt, is_admin
-from core.wrp.profile  import server, user
-from core.ui.template  import Fail, Success, Generic, Confirmation, UnexpectedError
-from meta              import config
+from core.lib.llm             import validate_key
+from core.lib.utils           import mt, is_admin
+from core.cog.setting._group  import setting
+from core.cog.cog_utils       import resolve_target, load_settings, handle_missing_perms
+from core.cog.ui_template     import Fail, Success, Generic, Confirmation, UnexpectedError
+from meta                     import config
 
 
 class GeminiKey(commands.Cog):
 	def __init__(self, bot: commands.Bot):
 		self.bot = bot
-
-	@staticmethod
-	async def _check(ctx: commands.Context, type: str, key: str | None = None) -> bool:
-		if type not in ('server', 'user'):
-			await ctx.reply(view=Fail(
-				"Invalid Type",
-				f"Type must be either server or user, and not '{type}'..."
-			))
-			return False
-
-		if type == 'server':
-			if not ctx.guild:
-				await ctx.reply(view=Fail(
-					"Invalid Scope",
-					"This command must be used in a server to add the key to a server...",
-					f"-# ... or do you want to add it in your own profile? in that case use {config.cmd.setting.gemini_key.add} ****** user"
-				))
-				return False
-
-		if key and not await validate_key(key):
-			await ctx.reply(view=Fail(
-				"Invalid Api Key",
-				"Are you sure thats the correct key and not just random characters?"
-			))
-			return False
-
-		return True
-
-	@staticmethod
-	async def _get_data(manager, target_id: str, type: str) -> dict:
-		success, data = await manager.settings.load(target_id)
-		if success:
-			return data
-		return config.settings.get(type)
-
-	@staticmethod
-	async def _handle_missing_perms(ctx):
-		return await ctx.reply(view=Fail(
-			"Missing Required Permission",
-			"You need **Administrator** permissions for that."
-		))
-
 
 	@setting.group(
 		name='gemini_key',
@@ -85,28 +43,31 @@ class GeminiKey(commands.Cog):
 		description='Add a gemini ai key to your personal profile or server.'
 	)
 	@app.describe(
-		key='The key from gemini api',
-		type='Whether you want to add the key to your personal profile or the current server'
+		type='Whether you want to add the key to your personal profile or the current server',
+		key='The key from gemini api'
 	)
 	@is_admin(config.dev_ids, ('type', 'user'))
-	async def add(self, ctx: commands.Context, *, key: str, type: Literal['server', 'user'] = 'user'):
+	async def add(self, ctx: commands.Context, type: Literal['server', 'user'] = 'user', *, key: str):
 		"""
-		Add a gemini api key to your personal profile or the current server.
-		Example: /setting gemini_key add ****** user
+		Add a gemini api key so the bot can use that when it talks to you, keeps it available to you always.
+		Example: /setting gemini_key add user ******
 		"""
-		if not await self._check(ctx, type, key):
+		manager, target_id = await resolve_target(ctx, type)
+		if not manager:
 			return
 
-		if type == 'server':
-			manager = server
-			target_id = getattr(ctx.guild, 'id', None)
-		else:
-			manager = user
-			target_id = ctx.author.id
-		if not target_id:
+		key_validity = await validate_key(key)
+		if key_validity == None:
+			await ctx.reply(view=UnexpectedError)
+			return
+		if not key_validity:
+			await ctx.reply(view=Fail(
+				"Invalid API Key",
+				"Are you sure that's the correct key and not just random characters?"
+			))
 			return
 
-		data = await self._get_data(manager, str(target_id), type)
+		data = await load_settings(manager, target_id, type)
 
 		if type == 'user': 
 			data["api_keys"].append(key)
@@ -117,8 +78,8 @@ class GeminiKey(commands.Cog):
 
 		if success:
 			await ctx.reply(view=Success(
-				"Api Key Added",
-				f"Your key has been successfully added to your {f'{type} profile' if type == 'user' else type}"
+				"API Key Added",
+				f"Your key has been successfully added to your {type} profile."
 			))
 			return
 		await ctx.reply(view=UnexpectedError)
@@ -126,7 +87,7 @@ class GeminiKey(commands.Cog):
 	@add.error
 	async def add_error(self, ctx: commands.Context, error):
 		if isinstance(error, commands.CheckFailure):
-			await self._handle_missing_perms(ctx)
+			await handle_missing_perms(ctx)
 
 
 	@gemini_key.command(
@@ -135,28 +96,20 @@ class GeminiKey(commands.Cog):
 		description='Remove an api key you added from your personal profile or the current server.'
 	)
 	@app.describe(
-		pos='The position of the key, (number showed when you use list)',
-		type='Whether you want to remove the key from your personal profile or the current server'
+		type='Whether you want to remove the key from your personal profile or the current server',
+		pos='The position of the key, (number showed when you use list)'
 	)
 	@is_admin(config.dev_ids, ('type', 'user'))
-	async def remove(self, ctx: commands.Context, pos: int, type: Literal['server', 'user'] = 'user'):
+	async def remove(self, ctx: commands.Context, type: Literal['server', 'user'] = 'user', pos: int):
 		"""
-		Remove an api key you added to your personal profile or server.
-		Example: /setting gemini_key remove 1 user
+		Remove an added api key from yout personal profile or current server
+		Example: /setting gemini_key remove user 1
 		"""
-		if not await self._check(ctx, type=type):
+		manager, target_id = await resolve_target(ctx, type)
+		if not manager:
 			return
 
-		if type == 'server':
-			manager = server
-			target_id = getattr(ctx.guild, 'id', None)
-		else:
-			manager = user
-			target_id = ctx.author.id
-		if not target_id:
-			return
-
-		data = await self._get_data(manager, str(target_id), type)
+		data = await load_settings(manager, target_id, type)
 		keys = data.get("api_keys", [])
 
 		idx = pos - 1
@@ -164,7 +117,7 @@ class GeminiKey(commands.Cog):
 		if not keys:
 			await ctx.reply(view=Fail(
 				"No Keys Found",
-				"You don't have any keys added, therefore can't remove any"
+				"You don't have any keys added, therefore can't remove any."
 			))
 			return
 
@@ -177,17 +130,17 @@ class GeminiKey(commands.Cog):
 
 		if type == 'server':
 			key_entry = keys[idx]
-			if key_entry.get("owner") != ctx.author.id or ctx.guild and ctx.author == ctx.guild.owner:
+			if key_entry.get("owner") != ctx.author.id and (ctx.guild and ctx.author != ctx.guild.owner):
 				await ctx.reply(view=Fail(
 					"Permission Denied",
-					"You can only remove keys that you added."
+					"You can only remove keys that you added, unless you're the server owner."
 				))
 				return
 
 		view = Confirmation(
 			"Are you sure you want to do this?",
 			mt(
-				"Api Key Removed",
+				"API Key Removed",
 				f"Successfully removed the key at position **{pos}** from the {type} settings."
 			),
 			"Action Aborted",
@@ -199,6 +152,7 @@ class GeminiKey(commands.Cog):
 
 		if confirmed:
 			keys.pop(idx)
+			data["api_keys"] = keys
 			success = await manager.settings.save(target_id, data)
 
 			if not success:
@@ -207,7 +161,7 @@ class GeminiKey(commands.Cog):
 	@remove.error
 	async def remove_error(self, ctx: commands.Context, error):
 		if isinstance(error, commands.CheckFailure):
-			await self._handle_missing_perms(ctx)
+			await handle_missing_perms(ctx)
 
 
 	@gemini_key.command(
@@ -221,22 +175,14 @@ class GeminiKey(commands.Cog):
 	@is_admin(config.dev_ids, ('type', 'user'))
 	async def list(self, ctx: commands.Context, type: Literal['server', 'user'] = 'user'):
 		"""
-		Lists the Api keys of your personal profile or server in dms (turn you dms on)
+		List all the api keys of your personal profile or current server, they keys are sent to dm, and censored if your not the one that added it
 		Example: /setting gemini_key list user
 		"""
-		if not await self._check(ctx, type=type):
+		manager, target_id = await resolve_target(ctx, type)
+		if not manager:
 			return
 
-		if type == 'server':
-			manager = server
-			target_id = gtattr(ctx.guild, 'id', None)
-		else:
-			manager = user
-			target_id = ctx.author.id
-		if not target_id:
-			return
-
-		data = await self._get_data(manager, str(target_id), type)
+		data = await load_settings(manager, target_id, type)
 		keys = data.get("api_keys", [])
 
 		if not keys:
@@ -280,9 +226,4 @@ class GeminiKey(commands.Cog):
 	@list.error
 	async def list_error(self, ctx: commands.Context, error):
 		if isinstance(error, commands.CheckFailure):
-			await self._handle_missing_perms(ctx)
-
-
-async def setup(bot: commands.Bot):
-	await bot.add_cog(GeminiKey(bot))
-
+			await handle_missing_perms(ctx)

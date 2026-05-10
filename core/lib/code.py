@@ -1,36 +1,40 @@
 import asyncio
+import builtins
 import inspect
 import io
 import logging
 import re
 import sys
 import traceback
+import types
 from contextlib         import redirect_stderr, redirect_stdout
 from typing             import Any, Callable, Optional
 
-from core.lib.bttrdict  import BD
+from core.lib.bttrdict  import BD, Repr
 from core.lib.utils     import create_id
+from meta               import config
 
 
 log = logging.getLogger(__name__)
 
+
 status = BD(
-	PENDING = "PENDING",
-	RUNNING = "RUNNING",
-	COMPLETED = "COMPLETED",
-	FAILED = "FAILED",
-	CANCELLED = "CANCELLED",
-	TIMED_OUT = "TIMED_OUT"
+	PENDING   = Repr("<PENDING  >", 1),
+	RUNNING   = Repr("<RUNNING  >", 2),
+	COMPLETED = Repr("<COMPLETED>", 3),
+	FAILED    = Repr("<FAILED   >", 4),
+	CANCELLED = Repr("<CANCELLED>", 5),
+	TIMED_OUT = Repr("<TIMED_OUT>", 6)
 )
 
 def extract(text: str) -> BD:
 	log.debug("Extracting code and monologue from text")
 	py = re.search(
-		r"<code>\s*(.*?)\s*</code>", 
+		r"<code>\s*(.*?)\s*</code>",
 		text, re.DOTALL
 	)
 	mo = re.search(
-		r"<monologue>\s*(.*?)\s*</monologue>", 
+		r"<monologue>\s*(.*?)\s*</monologue>",
 		text, re.DOTALL
 	)
 	log.debug(f"Extracted Code:\n{py}\n\nExtracted Monologue:\n{mo}")
@@ -86,7 +90,8 @@ class Code:
 		log.info(f"Starting execution for ID: {self.execution_id}")
 
 		user_module = types.ModuleType(self.execution_id)
-		setattr(user_module, "__builtins__", __builtins__)
+		safe_builtins = dict(config.sandbox.allowed_builtins)
+		setattr(user_module, "__builtins__", safe_builtins)
 
 		try:
 			exec(self.code_str, user_module.__dict__)
@@ -120,19 +125,16 @@ class Code:
 
 				except asyncio.TimeoutError:
 					log.warning(f"Execution timed out for ID: {self.execution_id}")
-					print(f"\n[{self.execution_id}] Execution timed out after {timeout}s.", file=sys.stderr)
 					self.data.error = f"Execution timed out after {timeout} seconds."
 					self.data.status = status.TIMED_OUT
 
 				except asyncio.CancelledError:
 					log.info(f"Execution cancelled for ID: {self.execution_id}")
-					print(f"\n[{self.execution_id}] Execution was cancelled.", file=sys.stderr)
 					self.data.status = status.CANCELLED
 
 				except Exception as e:
 					err_msg = traceback.format_exc()
 					log.error(f"Runtime error for ID {self.execution_id}:\n{err_msg}")
-					print(f"\n[{self.execution_id}] Runtime Error:\n{err_msg}", file=sys.stderr)
 					self.data.error = str(e)
 					self.data.status = status.FAILED
 
@@ -188,5 +190,6 @@ class Code:
 		self._stdout_buf.truncate(0)
 		self._stderr_buf.seek(0)
 		self._stderr_buf.truncate(0)
+
 
 __all__ = ('status', 'extract', 'Code')

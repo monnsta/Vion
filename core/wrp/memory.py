@@ -140,4 +140,5 @@ guild_response = Response(entity_type="guild")
 user_memory = Memory(entity_type="user")
 user_response = Response(entity_type="user")
 
+
 __all__ = ('guild_memory', 'guild_audit', 'guild_response', 'user_memory', 'user_response')
