@@ -4,31 +4,41 @@ import logging
 import os
 import time
 import threading
-from pathlib      import Path
 from abc          import ABC, abstractmethod
 from contextlib   import asynccontextmanager
+from pathlib      import Path
 from typing       import Any, AsyncIterator, Generic, TypeVar
 
 try:
 	import orjson
+
+	try:
+		import tomli
+		import tomli_w
+	except ImportError:
+		tomli = None
+		tomli_w = None
+
+	try:
+		import yaml
+		try:
+			from yaml import CSafeLoader as SafeLoader, CSafeDumper as SafeDumper
+		except ImportError:
+			from yaml import SafeLoader, SafeDumper
+	except ImportError:
+		yaml = None
+
+	try:
+		import ial
+	except ImportError:
+		ial = None
 except ImportError:
 	orjson = None
-
-try:
-	import tomli
-	import tomli_w
-except ImportError:
 	tomli = None
 	tomli_w = None
-
-try:
-	import yaml
-	try:
-		from yaml import CSafeLoader as SafeLoader, CSafeDumper as SafeDumper
-	except ImportError:
-		from yaml import SafeLoader, SafeDumper
-except ImportError:
 	yaml = None
+	ial = None
+
 
 
 log = logging.getLogger(__name__)
@@ -116,10 +126,9 @@ class SlidingTTLCache(Generic[T]):
 		finally:
 			log.debug("SlidingTTLCache _gc_loop_sync stopped.")
 
-	def start_background_gc(self, interval_seconds: int | None = None) -> None:
+	def start_gc(self, interval_seconds: int | None = None) -> None:
 		"""
 		Starts a background *system thread* to periodically clear expired items.
-		This method is synchronous and does not use `asyncio`.
 		"""
 		interval = interval_seconds or (self._ttl / 2.0)
 
@@ -138,7 +147,7 @@ class SlidingTTLCache(Generic[T]):
 		self._gc_thread.start()
 		log.info("SlidingTTLCache background GC thread started.")
 
-	def stop_background_gc(self) -> None:
+	def stop_gc(self) -> None:
 		"""Cancels the running background garbage collection thread."""
 		if self._gc_thread is not None and self._gc_thread.is_alive():
 			log.debug("Signaling SlidingTTLCache background GC thread to stop...")
@@ -166,30 +175,11 @@ class BaseFileIO(ABC, Generic[T]):
 	Supports atomic writes and concurrent-safe modifications via context managers.
 	"""
 	def __init__(self, cache_ttl_seconds: int = 60, cache_maxsize: int = 1000) -> None:
-		self._cache = SlidingTTLCache[T](ttl_seconds=cache_ttl_seconds, maxsize=cache_maxsize)
+		self.cache = SlidingTTLCache[T](ttl_seconds=cache_ttl_seconds, maxsize=cache_maxsize)
 		self._locks: dict[str, RefCountedLock] = {}
 
-	@abstractmethod
-	def _serialize(self, data: T) -> bytes:
-		"""Convert data to bytes for disk storage."""
-		...
 
-	@abstractmethod
-	def _deserialize(self, content: bytes) -> T:
-		"""Convert bytes from disk back into Python objects."""
-		...
-
-	@abstractmethod
-	def _clone(self, data: T) -> T:
-		"""Return a deep copy of the data to prevent accidental mutation of cache."""
-		...
-
-	@property
-	@abstractmethod
-	def _default_empty(self) -> T:
-		"""The default value to return if a file is missing or corrupted."""
-		...
-
+	# Internals
 	def _acquire_lock(self, path: str) -> RefCountedLock:
 		if path not in self._locks:
 			self._locks[path] = RefCountedLock()
@@ -207,17 +197,9 @@ class BaseFileIO(ABC, Generic[T]):
 			content = f.read()
 		if content.startswith(b'\x1f\x8b'):
 			content = gzip.decompress(content)
-		return self._deserialize(content)
+		return self.deserialize(content)
 
-	def _sync_write(
-		self, 
-		path: str, 
-		data: bytes, 
-		atomic: bool, 
-		mode: int | None, 
-		verify: bool, 
-		compress: bool
-	) -> None:
+	def _sync_write(self, path: str, data: bytes, atomic: bool, mode: int | None, verify: bool, compress: bool) -> None:
 		if compress:
 			data = gzip.compress(data)
 
@@ -253,31 +235,21 @@ class BaseFileIO(ABC, Generic[T]):
 		if atomic:
 			target_path.replace(final_path)
 
-	async def _save_internal(
-		self, 
-		path: str, 
-		data: T, 
-		update_cache: bool, 
-		atomic: bool, 
-		verify: bool, 
-		compress: bool, 
-		mode: int | None, 
-		skip_if_unchanged: bool
-	) -> bool:
+	async def _save_internal(self, path: str, data: T, update_cache: bool, atomic: bool, verify: bool, compress: bool, mode: int | None, skip_if_unchanged: bool) -> bool:
 		lock_obj = self._acquire_lock(path)
 		try:
 			async with lock_obj.lock:
 				if skip_if_unchanged:
-					cached = self._cache.get(path)
+					cached = self.cache.get(path)
 					if cached is not None and cached == data:
 						return True
 
-				serialized_data = self._serialize(data)
+				serialized_data = self.serialize(data)
 				await asyncio.to_thread(
 					self._sync_write, path, serialized_data, atomic, mode, verify, compress
 				)
 				if update_cache:
-					self._cache.set(path, self._clone(data))
+					self.cache.set(path, self.clone(data))
 				return True
 		except Exception:
 			log.error(f"Save failed for {path}", exc_info=True)
@@ -285,9 +257,34 @@ class BaseFileIO(ABC, Generic[T]):
 		finally:
 			self._release_lock(path, lock_obj)
 
+
+	# implementation
+	@abstractmethod
+	def serialize(self, data: T) -> bytes:
+		"""Convert data to bytes for disk storage."""
+		...
+
+	@abstractmethod
+	def deserialize(self, content: bytes) -> T:
+		"""Convert bytes from disk back into Python objects."""
+		...
+
+	@abstractmethod
+	def clone(self, data: T) -> T:
+		"""Return a deep copy of the data to prevent accidental mutation of cache."""
+		...
+
+	@property
+	@abstractmethod
+	def default_empty(self) -> T:
+		"""The default value to return if a file is missing or corrupted."""
+		...
+
+
+	# Public Methods
 	async def load(
 		self, 
-		path: str, 
+		path: str | Path, 
 		*,
 		use_cache: bool = True, 
 		read_only: bool = False,
@@ -303,34 +300,35 @@ class BaseFileIO(ABC, Generic[T]):
 		:param update_cache: If True, disk-read results will be stored in cache.
 		:return: Tuple of (Success Boolean, Data)
 		"""
+		path = os.path.abspath(os.fspath(path))
 		if use_cache:
-			cached = self._cache.get(path)
+			cached = self.cache.get(path)
 			if cached is not None:
-				return True, (cached if read_only else self._clone(cached))
+				return True, (cached if read_only else self.clone(cached))
 
 		lock_obj = self._acquire_lock(path)
 		try:
 			async with lock_obj.lock:
 				if use_cache:
-					cached = self._cache.get(path)
+					cached = self.cache.get(path)
 					if cached is not None:
-						return True, (cached if read_only else self._clone(cached))
+						return True, (cached if read_only else self.clone(cached))
 
 				try:
 					data = await asyncio.to_thread(self._sync_read, path)
 					if update_cache:
-						self._cache.set(path, self._clone(data))
+						self.cache.set(path, self.clone(data))
 					return True, data
 				except (FileNotFoundError, Exception) as e:
 					if not isinstance(e, FileNotFoundError):
 						log.error(f"Failed to load {path}", exc_info=True)
-					return False, self._default_empty
+					return False, self.default_empty
 		finally:
 			self._release_lock(path, lock_obj)
 
 	async def save(
 		self,
-		path: str,
+		path: str | Path,
 		data: T,
 		*,
 		update_cache: bool = True,
@@ -355,10 +353,11 @@ class BaseFileIO(ABC, Generic[T]):
 		:param skip_if_unchanged: If True, ignores the save if the data equals the cache.
 		:return: True if successful (or successfully dispatched to background), False otherwise.
 		"""
+		path = os.path.abspath(os.fspath(path))
 		if background:
 			asyncio.create_task(
 				self._save_internal(
-					path, self._clone(data), update_cache, atomic, 
+					path, self.clone(data), update_cache, atomic, 
 					verify, compress, mode, skip_if_unchanged
 				)
 			)
@@ -371,7 +370,7 @@ class BaseFileIO(ABC, Generic[T]):
 	@asynccontextmanager
 	async def edit(
 		self,
-		path: str,
+		path: str | Path,
 		*,
 		use_cache: bool = True,
 		auto_save: bool = True,
@@ -386,119 +385,120 @@ class BaseFileIO(ABC, Generic[T]):
 		The per-file lock is held for the duration of the 'with' block to ensure 
 		atomicity and prevent race conditions during the read-modify-write cycle.
 		"""
+		path = os.path.abspath(os.fspath(path))
 		lock_obj = self._acquire_lock(path)
 		try:
 			async with lock_obj.lock:
 				data = None
 				original_data = None
 				if use_cache:
-					cached = self._cache.get(path)
+					cached = self.cache.get(path)
 					if cached is not None:
-						data = self._clone(cached)
+						data = self.clone(cached)
 
 				if not data:
 					try:
 						data = await asyncio.to_thread(self._sync_read, path)
 					except FileNotFoundError:
-						data = self._clone(self._default_empty)
+						data = self.clone(self.default_empty)
 					except Exception as e:
 						log.error(f"Critical error reading {path} during edit. Falling back to default.", exc_info=e)
 						raise
 
 				if auto_save and skip_if_unchanged:
-					original_data = self._clone(data)
+					original_data = self.clone(data)
 
 				yield data
 
 				if auto_save:
 					if skip_if_unchanged and original_data == data:
 						return
-					
-					serialized = self._serialize(data)
+
+					serialized = self.serialize(data)
 					await asyncio.to_thread(
 						self._sync_write, path, serialized, atomic, mode, verify, compress
 					)
-					self._cache.set(path, self._clone(data))
+					self.cache.set(path, self.clone(data))
 		finally:
 			self._release_lock(path, lock_obj)
 
 
 class TEXT(BaseFileIO[str]):
 	"""Plain text implementation."""
-	def _serialize(self, data: str) -> bytes:
+	def serialize(self, data: str) -> bytes:
 		return data.encode("utf-8")
 
-	def _deserialize(self, content: bytes) -> str:
+	def deserialize(self, content: bytes) -> str:
 		return content.decode("utf-8")
 
-	def _clone(self, data: str) -> str:
+	def clone(self, data: str) -> str:
 		return data
 
 	@property
-	def _default_empty(self) -> str:
+	def default_empty(self) -> str:
 		return ""
 
 class JSON(BaseFileIO[dict]):
 	"""JSON implementation."""
-	def _serialize(self, data: dict) -> bytes:
+	def serialize(self, data: dict) -> bytes:
 		return orjson.dumps(data)
 
-	def _deserialize(self, content: bytes) -> dict:
+	def deserialize(self, content: bytes) -> dict:
 		return orjson.loads(content)
 
-	def _clone(self, data: dict) -> dict:
+	def clone(self, data: dict) -> dict:
 		if not data: return {}
 		return orjson.loads(orjson.dumps(data))
 
 	@property
-	def _default_empty(self) -> dict:
-		return {}
-
-class TOML(BaseFileIO[dict]):
-	"""TOML implementation."""
-	def _serialize(self, data: dict) -> bytes:
-		return tomli_w.dumps(data).encode("utf-8")
-
-	def _deserialize(self, content: bytes) -> dict:
-		return tomli.loads(content.decode("utf-8"))
-
-	def _clone(self, data: dict) -> dict:
-		if not data: return {}
-		return orjson.loads(orjson.dumps(data))
-
-	@property
-	def _default_empty(self) -> dict:
+	def default_empty(self) -> dict:
 		return {}
 
 class YAML(BaseFileIO[dict]):
 	"""YAML implementation."""
-	def _serialize(self, data: dict) -> bytes:
+	def serialize(self, data: dict) -> bytes:
 		return yaml.dump(data, Dumper=SafeDumper, sort_keys=False).encode("utf-8")
 
-	def _deserialize(self, content: bytes) -> dict:
+	def deserialize(self, content: bytes) -> dict:
 		return yaml.load(content.decode("utf-8"), Loader=SafeLoader) or {}
 
-	def _clone(self, data: dict) -> dict:
+	def clone(self, data: dict) -> dict:
 		if not data: return {}
 		return orjson.loads(orjson.dumps(data))
 
 	@property
-	def _default_empty(self) -> dict:
+	def default_empty(self) -> dict:
+		return {}
+
+class IAL(BaseFileIO[dict]):
+	"""IAL implementation. (new language)"""
+	def serialize(self, data: dict) -> bytes:
+		return ial.dumps(data, lazy=True).encode("utf-8")
+
+	def deserialize(self, content: bytes) -> dict:
+		return ial.loads(data.decode("utf-8"))
+
+	def clone(self, data: dict) -> dict:
+		if not data: return {}
+		return orjson.loads(orjson.dumps(data))
+
+	@property
+	def default_empty(self) -> dict:
 		return {}
 
 
-_default = {
-	"cache_ttl_seconds": 1800,
-	"cache_maxsize": 500
-}
+_default = (
+	1800, # cache_ttl_seconds
+	500   # cache_maxsize
+)
 
-text_file = TEXT(**_default)
-json_file = JSON(**_default) if orjson           else None
-toml_file = TOML(**_default) if tomli and orjson else None
-yaml_file = YAML(**_default) if yaml  and orjson else None
+text_file = TEXT(*_default)
+json_file = JSON(*_default) if orjson            else None
+yaml_file = YAML(*_default) if yaml   and orjson else None
+ial_file  =  IAL(*_default) if ial    and orjson else None
 
 
 __all__ = (
-	'text_file', 'json_file', 'toml_file', 'yaml_file',
-	'TEXT',      'JSON',      'TOML',      'YAML'
+	'text_file', 'json_file', 'yaml_file', 'ial_file',
+	'TEXT',      'JSON',      'YAML',      'IAL'
 )

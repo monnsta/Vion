@@ -30,7 +30,7 @@ class BaseProfileManager:
 		self.settings = self.Settings(self)
 		self.info = self.Info(self)
 
-	async def _setup(self, entity_id: int, entity_name: str, extra_paths: list[str] = []) -> bool:
+	async def _setup(self, entity_id: int, entity_name: str, extra_paths: list[str | tuple[str, bool]] = []) -> bool:
 		eid = str(entity_id)
 		log.info(f"Setting up new {self.entity_type} profile: {entity_name} ({eid})")
 		try:

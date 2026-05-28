@@ -8,53 +8,56 @@ from core.lib.bttrdict  import BD, Method
 
 log = logging.getLogger(__name__)
 
+root = Path(__file__).resolve().parent.parent
+
 
 base = BD(
-	data             = Path("data"),
-	logs             = Path("logs"),
-	meta             = Path("meta"),
-	core             = Path("core")
+	data	= root / "data",
+	logs	= root / "logs",
+	meta	= root / "meta",
+	core	= root / "core
+
 )
 
 sub = BD(
-	env              = base.meta / ".env",
-	trash            = base.data / "trash",
-	glob             = base.data / "global",
-	servers          = base.data / "servers",
-	users            = base.data / "users",
+	trash  	= base.data / "trash",
+	glob   	= base.data / "global",
+	servers	= base.data / "servers",
+	users  	= base.data / "users",
+	cog    	= base.core / "cog",
 
-	cog              = base.core / "cog",
-	custom_cogs      = Method(lambda self, i: self.servers / i / "custom_cogs")
+	custom_cogs	= Method(lambda self, i: self.servers / i / "cog")
 )
 
 file = BD(
 	server = BD(
-		settings     = lambda i: sub.servers / i / "settings.json",
-		ai_data      = lambda i: sub.servers / i / "ai_data.json",
-		delete_time  = lambda i: sub.trash   / i / "delete_time.json",
+		settings   	= lambda i: sub.servers / i / "settings.json",
+		ai_data    	= lambda i: sub.servers / i / "ai_data.json",
+		delete_time	= lambda i: sub.trash   / i / "delete_time.json",
 
-		commands     = lambda i: sub.custom_cogs(i) / "commands.py",
-		events       = lambda i: sub.custom_cogs(i) / "events.py",
-		data         = lambda i: sub.custom_cogs(i) / "data.json"
+		cog 	= lambda i: sub.custom_cogs(i) / "__init__.py",
+		data	= lambda i: sub.custom_cogs(i) / "data.json"
 	),
 
 	user = BD(
-		settings     = lambda i: sub.users / i / "settings.json",
-		ai_data      = lambda i: sub.users / i / "ai_data.json",
-		delete_time  = lambda i: sub.trash / i / "delete_time.json"
+		settings   	= lambda i: sub.users / i / "settings.json",
+		ai_data    	= lambda i: sub.users / i / "ai_data.json",
+		delete_time	= lambda i: sub.trash / i / "delete_time.json"
 	),
 
 	glob = BD(
-		blacklist    = sub.glob / "blacklist.json",
-		bot_obj      = sub.glob / "bot_info.json",
-		bot_activity = sub.glob / "bot_activity.json",
-		server_list  = sub.glob / "server_list.json"
-	)
+		blacklist   	= sub.glob / "blacklist.json",
+		bot_obj     	= sub.glob / "bot_info.json",
+		bot_activity	= sub.glob / "bot_activity.json"
+	),
+
+	env 	= root / ".env",
+	conf	= root / "configure.ial"
 )
 
 
 class CreatePath:
-	async def process_path(self, path: str, is_dir: bool = False) -> None:
+	async def process_path(self, path: str | Path, is_dir: bool = False) -> None:
 		path_obj = Path(path)
 
 		if is_dir:
@@ -73,7 +76,7 @@ class CreatePath:
 		except Exception:
 			log.error(f"An unexpected error occurred while processing {path}", exc_info=True)
 
-	async def __call__(self, *paths: tuple(str, bool) | str) -> None:
+	async def __call__(self, *paths: tuple[str | Path, bool] | str | Path) -> None:
 		log.debug(f"Starting path processing for {len(paths)} paths.")
 		tasks = []
 		for path in paths:
@@ -89,13 +92,12 @@ def setup_directory() -> None:
 	log.info("Initializing filesystem setup...")
 
 	asyncio.run(create_path(
-		(base.data,   True),
-		(base.logs,   True),
-
-		(sub.servers, True),
-		(sub.users,   True),
-		(sub.trash,   True),
-		(sub.glob,    True),
+		(base.data,  	True),
+		(base.logs,  	True),
+		(sub.servers,	True),
+		(sub.users,  	True),
+		(sub.trash,  	True),
+		(sub.glob,   	True),
 
 		file.glob.blacklist,
 		file.glob.bot_activity
@@ -103,9 +105,7 @@ def setup_directory() -> None:
 
 	log.info("Filesystem setup complete.")
 
-base.freeze()
-sub.freeze()
-file.freeze()
+for obj in (base, sub, file): obj.freeze()
 
 
 __all__ = (

@@ -1,5 +1,5 @@
 # Bot Documentation & Manual
-> This is the internal documentation and manual for the AI Discord Bot framework. It covers startup procedures, configuration requirements, and the underlying directory architecture.
+> An AI agent that is designed to be able to do ANYTHING within discord.
 
 ---
 
@@ -51,16 +51,16 @@ The repository is modularized to separate core logic, configuration, and runtime
 │       ├── memory.py       # Conversational and state memory
 │       └── profile.py      # Handles settings and info of users or servers
 ├── meta/                   # Configuration Setup
-│   ├── .env                # Environment variables (Credentials)
-│   ├── .env.template       # Template for .env file
 │   ├── __init__.py
 │   ├── paths.py            # File paths used everywhere
 │   └── settings.py         # Global settings variables
 ├── .dockerignore
+├── .env                    # Environment variables (Credentials)
+├── .env.template           # Template for .env file
 ├── .gitignore
 ├── bootstrap.py            # Initialization script (Logging, early setup)
 ├── bot.py                  # Main application entry point
-├── configure.yml           # Primary bot configuration and behavior settings
+├── configure.ial           # Primary bot configuration and behavior settings
 ├── docker-compose.yml
 ├── dockerfile
 ├── exec.sh                 # Process manager script (Keeps bot alive)

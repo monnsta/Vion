@@ -1,10 +1,11 @@
 import logging
-from pathlib      import Path
-from typing       import Dict, List, Tuple, Iterable
+from pathlib        import Path
+from typing         import Dict, List, Tuple, Iterable
 
-from discord.ext  import commands
+from discord.ext    import commands
 
-from meta         import config, sub
+from meta           import config, sub, file, create_path
+from core.lib.file  import text_file
 
 
 log = logging.getLogger(__name__)
@@ -42,6 +43,28 @@ class Extension:
 
 		return extensions
 
+	async def add(self, bot: commands.Bot, guild_id: int | str, code: str) -> Tuple[bool, str]:
+		guild_id = str(guild_id)
+		cog_path = file.server.commands(guild_id)
+
+		module_path = str(cog_path.with_suffix('')).replace('\\', '.').replace('/', '.')
+
+		try:
+			await create_path((cog_path, False))
+
+			await text_file.save(str(cog_path), code)
+
+			if module_path in bot.extensions:
+				return await self.reload(bot, module_path)
+			return await self.load(bot, module_path)
+
+		except SyntaxError as e:
+			log.error(f"Syntax error in custom cog for guild {guild_id}: {e}")
+			return False, f"Failed to load due to Syntax Error:\n```py\n{e}\n```"
+		except Exception as e:
+			log.error(f"Failed to create/load custom cog for {guild_id}", exc_info=True)
+			return False, f"Critical error during custom cog deployment:\n```py\n{e}\n```"
+
 	async def load(self, bot: commands.Bot, extension: str) -> Tuple[bool, str]:
 		try:
 			await bot.load_extension(extension)
@@ -50,6 +73,10 @@ class Extension:
 			return True, f"Successfully loaded `{extension}`."
 		except commands.ExtensionAlreadyLoaded:
 			return False, f"`{extension}` is already loaded."
+		except commands.NoEntryPointError:
+			return False, f"`{extension}` is missing a `setup` function."
+		except commands.ExtensionFailed as e:
+			return False, f"Extension failed to initialize:\n```py\n{e.original}\n```"
 		except Exception as e:
 			log.error(f"Failed to load {extension}", exc_info=True)
 			return False, f"Failed to load:\n```py\n{e}\n```"
@@ -71,7 +98,7 @@ class Extension:
 	async def reload(self, bot: commands.Bot, extension: str) -> Tuple[bool, str]:
 		try:
 			await bot.reload_extension(extension)
-			await self._handle_dev_guilds(bot, extension, config.dev_servers)
+			await self._handle_dev_guilds(bot, extension, config.dev_server_ids)
 			log.info(f"Reloaded cog: '{extension}'")
 			return True, f"Successfully reloaded `{extension}`."
 		except commands.ExtensionNotLoaded:
