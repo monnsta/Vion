@@ -1,12 +1,12 @@
-# Bot Documentation & Manual
-> An AI agent that is designed to be able to do ANYTHING within discord.
+# Vion: The Unrestricted AI Discord Agent
+> An advanced AI agent designed with robust modularity and sandbox execution capabilities, capable of doing *ANYTHING* within Discord.
 
 ---
 
 ## Table of Contents
- 1. [Getting Started](#getting-started)
- 2. [Configuration](#configuration)
- 3. [Project Architecture](#project-architecture)
+ 1. Getting Started
+ 2. Configuration
+ 3. Project Architecture
 
 ---
 
@@ -14,13 +14,14 @@
 The application is designed to run robustly with built-in fail-safes. There are two primary methods for starting the bot depending on your environment (Production vs. Development).
 
 ### Production Environment (Recommended)
-Execute the provided bash script. This acts as a lightweight process manager that installs dependencies, provides security over the process, automatically restarts the bot in the event of a crash, and detects crash loops to prevent system overload.
+Execute the provided bash script. This acts as a lightweight process manager that automatically installs dependencies, manages background crashes, limits loop crashing, and provides system security.
 ```bash
 ./exec.sh
 ```
+*(If you prefer to run this in Docker, you can seamlessly deploy it by using ./exec.sh --docker or running docker compose up -d)*
 
 ### Development Environment
-For testing or debugging, you can bypass the bash script and run the bot script directly.
+For testing or debugging, you can bypass the bash script and directly initialize the bot using Python.
 ```bash
 python bot.py
 ```
@@ -28,52 +29,24 @@ python bot.py
 ---
 
 ## Configuration
-The bot's identity, behavior, limits, and AI parameters are entirely driven by the configure.yml file located in the project root.
+The bot's identity, behavior, limits, and AI parameters are entirely driven by the configure.ial file located in the project root. This ensures code logic remains abstracted from AI instructions and deployment configurations.
+Make sure you copy .env.template into .env to input your API secrets (Discord, Gemini, AssemblyAI) before running the program for the first time.
 
 ---
 
 ## Project Architecture
-The repository is modularized to separate core logic, configuration, and runtime execution smoothly.
+The repository is highly modular, ensuring clear separation between core logic, UI generation, and runtime execution.
 ```
 .
 ├── core/                   # Core Application Logic
-│   ├── cog/                # Discord commands and events extensions
-│   ├── lib/                # Low-Level Utilities
-│   │   ├── bttrdict.py     # A dataclass-like utility helpfull for making structured objects with less code
-│   │   ├── code.py         # Code execution and sandbox managers
-│   │   ├── converter.py    # Object-to-JSON and type converters
-│   │   ├── file.py         # File system managers
-│   │   ├── llm.py          # LLM content generation
-│   │   └── utils.py        # Miscellaneous helpers
-│   └── wrp/                # High-Level Wrappers
-│       ├── blacklist.py    # Access control
-│       ├── extension.py    # Cog loading utilities
-│       ├── memory.py       # Conversational and state memory
-│       └── profile.py      # Handles settings and info of users or servers
-├── meta/                   # Configuration Setup
-│   ├── __init__.py
-│   ├── paths.py            # File paths used everywhere
-│   └── settings.py         # Global settings variables
-├── .dockerignore
-├── .env                    # Environment variables (Credentials)
-├── .env.template           # Template for .env file
-├── .gitignore
+│   ├── cog/                # Discord commands and event extensions
+│   ├── lib/                # Low-Level Utilities (Code Sandbox, File I/O, LLM Engine)
+│   └── wrp/                # High-Level Wrappers (Profile, Memory, Blacklist)
+├── meta/                   # Configuration Setup & Path Mapping
+├── data/                   # Dynamic User and Server runtime memory & configs
+├── logs/                   # System runtime logs and rotating archives
 ├── bootstrap.py            # Initialization script (Logging, early setup)
 ├── bot.py                  # Main application entry point
 ├── configure.ial           # Primary bot configuration and behavior settings
-├── docker-compose.yml
-├── dockerfile
-├── exec.sh                 # Process manager script (Keeps bot alive)
-├── LICENSE
-├── README.md               # You are here
-└── requirements.txt        # Python dependencies
+└── exec.sh                 # Process manager script (Keeps bot alive)
 ```
-
-### Directory Breakdown
- * **core/**: The brain of the bot. This holds all executable logic.
-   * **cog/**: The command and event handlers loaded into the bot instance.
-   * **lib/**: Foundational utilities handling file IO, isolated code execution, and data formatting.
-   * **ui/**: Pre-built interface structures (like embeds or views) used across commands.
-   * **wrp/**: Simple APIs built over complex systems (wrappers). This allows the cogs to easily interact with memory, data, and blacklists without writing boilerplate.
- * **meta/**: Handles the ingestion of environmental variables and parsing configure.yml upon initialization.
- * **Root Scripts (bot.py, bootstrap.py, exec.sh)**: The structural layers that boot up the logging environment, establish the Discord connection, and manage the operating system process.

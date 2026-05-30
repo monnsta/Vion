@@ -1,14 +1,16 @@
 services:
   bot:
     build: .
-    container_name: bot
-    restart: always
+    container_name: vion
+    restart: unless-stopped
     env_file:
-      - ./meta/.env
+      - ./.env
     volumes:
-      - ./configure.yml:/app/configure.yml
+      - ./configure.ial:/app/configure.ial
       - ./core:/app/core
       - ./meta:/app/meta
+      - ./data:/app/data
+      - ./logs:/app/logs
     logging:
       driver: "json-file"
       options:

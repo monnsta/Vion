@@ -1,4 +1,6 @@
 #!/bin/bash
+set -u # Treat unset variables as an error
+
 
 # --- 1. Configuration ---
 PYTHON_BIN="python3"
@@ -70,7 +72,9 @@ is_crash_looping() {
 	
 	local updated_ts=()
 	for ts in "${CRASH_TS[@]}"; do
-		[[ "$ts" -gt "$cutoff" ]] && updated_ts+=("$ts")
+		if [[ "$ts" -gt "$cutoff" ]]; then
+			updated_ts+=("$ts")
+		fi
 	done
 	
 	updated_ts+=("$now")
@@ -98,7 +102,7 @@ run_docker() {
 # --- 4. Main Execution ---
 trap "log 'Manual interruption detected. Exiting...'; exit 0" SIGINT SIGTERM
 
-if [[ "$1" == "--docker" ]]; then
+if [[ "${1:-}" == "--docker" ]]; then
 	run_docker
 fi
 

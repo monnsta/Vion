@@ -1,13 +1,14 @@
 import json
 import logging
 import time
-from pathlib           import Path
-from logging.handlers  import TimedRotatingFileHandler
+import atexit
+from pathlib import Path
+from logging.handlers import TimedRotatingFileHandler
 
-from rich.logging      import RichHandler
+from rich.logging import RichHandler
 
-from core.lib.file     import json_file
-from meta              import base, load_config, setup_directory
+from core.lib.file import json_file
+from meta import base, load_config, setup_directory
 
 
 class JsonFormatter(logging.Formatter):
@@ -39,15 +40,13 @@ class JsonFormatter(logging.Formatter):
 # 1. Setup the log directory and dynamic naming
 log_dir = Path(base.logs)
 log_dir.mkdir(parents=True, exist_ok=True)
-log_date_format = f"%B-%-d-%Y.log"
+log_date_format = "%B-%-d-%Y.log"
 log_file_path = str(log_dir / time.strftime(log_date_format))
-
 
 # 2. Configure the Root Logger
 root_logger = logging.getLogger()
 root_logger.setLevel(logging.DEBUG)
 root_logger.handlers.clear()
-
 
 # 3. Setup TimedRotatingFileHandler
 file_handler = TimedRotatingFileHandler(
@@ -58,13 +57,13 @@ file_handler = TimedRotatingFileHandler(
 	encoding='utf-8'
 )
 
-def namer(_): return str(log_dir / time.strftime(log_date_format))
+def namer(_): 
+	return str(log_dir / time.strftime(log_date_format))
 
 file_handler.namer = namer
 file_handler.setLevel(logging.DEBUG)
 file_handler.setFormatter(JsonFormatter())
 root_logger.addHandler(file_handler)
-
 
 # 4. Setup Console Handler
 console_handler = RichHandler(
@@ -75,12 +74,17 @@ console_handler = RichHandler(
 )
 root_logger.addHandler(console_handler)
 
+# 5. Core Environment Setup
+if json_file: 
+	json_file.cache.start_gc()
 
-# 5. Other setup
-if json_file: json_file.cache.start_gc()
 setup_directory()
 load_config()
 
+def cleanup():
+	log.info("Executing environment cleanup...")
+	if json_file: 
+		json_file.cache.stop_gc()
 
-def stop():
-	if json_file: json_file.cache.stop_gc()
+# Registers cleanup to run automatically when the script exits
+atexit.register(cleanup)
