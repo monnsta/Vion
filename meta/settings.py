@@ -1,4 +1,3 @@
-import asyncio
 import builtins
 import json
 import logging
@@ -7,10 +6,10 @@ import sys
 import discord
 import pytz
 
-from core.lib.bttrdict  import BD, Computed, Method
-from core.lib.utils     import F, mt
-from core.lib.file      import ial_file
-from meta.paths         import sub, file
+from core.lib.bttrdict import BD, Computed, Method, AntiFreeze
+from core.lib.utils import F, mt
+from core.lib.file import ial_file
+from meta.paths import sub, file
 
 
 log = logging.getLogger(__name__)
@@ -22,15 +21,13 @@ config = BD()
 emoji  = BD()
 
 
-def load_config():
+async def load_config():
 	global config, emoji
 	log.info("Setting up config...")
 	if ial_file == None:
 		log.critical("ial_file was None, please install the required dependencies")
 		sys.exit(10)
-	success, data = asyncio.run(
-		ial_file.load(file.conf, update_cache=False, use_cache=False)
-	)
+	success, data = await ial_file.load(file.conf, update_cache=False, use_cache=False)
 
 	if not success:
 		log.critical(f"Failed to load {file.conf}")
@@ -38,7 +35,6 @@ def load_config():
 
 	try:
 		config.update(BD.load(data))
-		log.debug(json.dumps(data, indent=4))
 	except Exception:
 		log.critical("An error occurred while parsing config into BD object", exc_info=True)
 		sys.exit(10)
@@ -69,7 +65,7 @@ def load_config():
 	config.status.range = tuple(config.status.range)
 	config.timezone = pytz.timezone(config.timezone)
 
-	_, secrets_data = asyncio.run(ial_file.load(file.env))
+	_, secrets_data = await ial_file.load(file.env)
 	config.secrets = BD.load(secrets_data)
 
 	config.sandbox.allowed_builtins = {name: getattr(builtins, name) for name in config.sandbox.allowed_builtins}

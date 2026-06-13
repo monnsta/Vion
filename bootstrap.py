@@ -1,3 +1,4 @@
+import asyncio
 import json
 import logging
 import time
@@ -43,7 +44,7 @@ log_dir.mkdir(parents=True, exist_ok=True)
 log_date_format = "%B-%-d-%Y.log"
 log_file_path = str(log_dir / time.strftime(log_date_format))
 
-# 2. Configure the Root Logger
+# 2. Configure the Root Logger (Set to INFO to suppress library spam)
 root_logger = logging.getLogger()
 root_logger.setLevel(logging.DEBUG)
 root_logger.handlers.clear()
@@ -74,17 +75,18 @@ console_handler = RichHandler(
 )
 root_logger.addHandler(console_handler)
 
+logging.getLogger("discord").setLevel(logging.WARNING)
+logging.getLogger("asyncio").setLevel(logging.WARNING)
+
 # 5. Core Environment Setup
 if json_file: 
 	json_file.cache.start_gc()
 
 setup_directory()
-load_config()
+asyncio.run(load_config())
 
 def cleanup():
-	log.info("Executing environment cleanup...")
 	if json_file: 
 		json_file.cache.stop_gc()
 
-# Registers cleanup to run automatically when the script exits
 atexit.register(cleanup)

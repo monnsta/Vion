@@ -7,24 +7,26 @@ import re
 import sys
 import traceback
 import types
-from contextlib         import redirect_stderr, redirect_stdout
-from typing             import Any, Callable, Optional
+from contextlib import redirect_stderr, redirect_stdout
+from typing import Any, Callable, Optional
 
-from core.lib.bttrdict  import BD, Repr
-from core.lib.utils     import create_id
-from meta               import config
+from core.lib.bttrdict import BD, Repr
+from core.lib.utils import create_id
+from meta import config
 
 
 log = logging.getLogger(__name__)
 
 
+ANSI_ESCAPE = re.compile(r'\x1B(?:[@-Z\\-_]|\[[0-?]*[ -/]*[@-~])')
+
 status = BD(
-	PENDING   = Repr("<PENDING  >", 1),
-	RUNNING   = Repr("<RUNNING  >", 2),
-	COMPLETED = Repr("<COMPLETED>", 3),
-	FAILED    = Repr("<FAILED   >", 4),
-	CANCELLED = Repr("<CANCELLED>", 5),
-	TIMED_OUT = Repr("<TIMED_OUT>", 6)
+	PENDING   = Repr("PENDING", 1),
+	RUNNING   = Repr("RUNNING", 2),
+	COMPLETED = Repr("COMPLETED", 3),
+	FAILED    = Repr("FAILED", 4),
+	CANCELLED = Repr("CANCELLED", 5),
+	TIMED_OUT = Repr("TIMED_OUT", 6)
 )
 
 def extract(text: str) -> BD:
@@ -109,37 +111,38 @@ class Code:
 			raise
 
 		async def task_wrapper():
-			with redirect_stdout(self._stdout_buf), redirect_stderr(self._stderr_buf):
-				try:
-					if timeout:
-						log.debug(f"Executing ID {self.execution_id} with {timeout}s timeout")
+			try:
+				if timeout:
+					log.debug(f"Executing ID {self.execution_id} with {timeout}s timeout")
+					with redirect_stdout(self._stdout_buf), redirect_stderr(self._stderr_buf):
 						self.data.result = await asyncio.wait_for(
 							main_func(**context_vars), 
 							timeout=timeout
 						)
-					else:
+				else:
+					with redirect_stdout(self._stdout_buf), redirect_stderr(self._stderr_buf):
 						self.data.result = await main_func(**context_vars)
 
-					self.data.status = status.COMPLETED
-					log.info(f"Execution completed for ID: {self.execution_id}")
+				self.data.status = status.COMPLETED
+				log.info(f"Execution completed for ID: {self.execution_id}")
 
-				except asyncio.TimeoutError:
-					log.warning(f"Execution timed out for ID: {self.execution_id}")
-					self.data.error = f"Execution timed out after {timeout} seconds."
-					self.data.status = status.TIMED_OUT
+			except asyncio.TimeoutError:
+				log.warning(f"Execution timed out for ID: {self.execution_id}")
+				self.data.error = f"Execution timed out after {timeout} seconds."
+				self.data.status = status.TIMED_OUT
 
-				except asyncio.CancelledError:
-					log.info(f"Execution cancelled for ID: {self.execution_id}")
-					self.data.status = status.CANCELLED
+			except asyncio.CancelledError:
+				log.info(f"Execution cancelled for ID: {self.execution_id}")
+				self.data.status = status.CANCELLED
 
-				except Exception as e:
-					err_msg = traceback.format_exc()
-					log.error(f"Runtime error for ID {self.execution_id}:\n{err_msg}")
-					self.data.error = str(e)
-					self.data.status = status.FAILED
+			except Exception as e:
+				err_msg = traceback.format_exc()
+				log.error(f"Runtime error for ID {self.execution_id}:\n{err_msg}")
+				self.data.error = str(e)
+				self.data.status = status.FAILED
 
-				finally:
-					self._sync_data()
+			finally:
+				self._sync_data()
 
 		self._task = asyncio.create_task(task_wrapper())
 		return self._task
@@ -173,8 +176,8 @@ class Code:
 		return self.data
 
 	def _sync_data(self):
-		self.data.stdout = self._stdout_buf.getvalue()
-		self.data.stderr = self._stderr_buf.getvalue()
+		self.data.stdout = ANSI_ESCAPE.sub('', self._stdout_buf.getvalue())
+		self.data.stderr = ANSI_ESCAPE.sub('', self._stderr_buf.getvalue())
 		log.debug(f"Synced buffers for ID: {self.execution_id} (stdout: {len(self.data.stdout)} bytes)")
 
 	def _reset_state(self):

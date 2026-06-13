@@ -2,8 +2,8 @@ import json
 import traceback
 import types
 import warnings
-from typing       import Any, Callable, Dict, List, Optional, Set, Union, Type, TypeVar, Iterator
-from types        import MappingProxyType
+from typing import Any, Callable, Dict, List, Optional, Set, Union, Type, TypeVar, Iterator
+from types import MappingProxyType
 
 
 T = TypeVar("T", bound="BD")

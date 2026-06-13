@@ -1,30 +1,17 @@
-from typing                   import Literal
+from typing import Literal
 
-from discord                  import app_commands as app
-from discord.ext              import commands
+from discord import app_commands as app
+from discord.ext import commands
 
-from core.lib.utils           import mt, em, is_admin
-from core.cog.setting._group  import setting
-from core.cog.cog_utils       import resolve_target, load_settings, handle_missing_perms
-from core.cog.ui_template     import Success, Fail, Generic, Confirmation, UnexpectedError
-from meta                     import config
+from core.lib.utils import mt, em, is_admin
+from meta import config
 
-
-class Prefix(commands.Cog):
-	def __init__(self, bot: commands.Bot):
-		self.bot = bot
+from core.cog.utils import resolve_target, load_settings, handle_common_errors, HybridGroup
+from core.cog.ui_template import Success, Fail, Generic, Confirmation, UnexpectedError
 
 
-	@setting.group(
-		name='prefix',
-		aliases=['p'],
-		description='Group for prefix commands.'
-	)
-	async def prefix(self, ctx: commands.Context):
-		"""Group for prefix commands."""
-		if ctx.invoked_subcommand is not None:
-			return
-
+async def callback(ctx: commands.Context):
+	if ctx.invoked_subcommand is None:
 		await ctx.reply(view=Fail(
 			"Subcommand Missing",
 			"Available subcommands:",
@@ -32,25 +19,80 @@ class Prefix(commands.Cog):
 			"add    (a)",
 			"remove (r)",
 			"list   (l)",
+			"help   (h)",
 			"```"
 		))
 
 
-	@prefix.command(
+class Prefix(HybridGroup):
+	def __init__(self, bot: commands.Bot):
+		super().__init__(
+			callback,
+			name='prefix',
+			aliases=['p'],
+			description='Group for prefix commands.'
+		)
+		self.bot = bot
+		self.p = config.default_prefix[0]
+
+
+	@commands.hybrid_command(
+		name='help',
+		aliases=['h'],
+		description='Get help for the prefix group.'
+	)
+	async def help(self, ctx: commands.Context):
+		await ctx.reply(view=Generic(
+			"# Prefix",
+			"This group is used to manage your personal prefixes or the server's.",
+			"personal ones can be used by you in any server, while server ones can be used by anyone within the server.",
+			None,
+			mt(
+				"## Add:",
+				"Add a prefix to your personal profile or current server.",
+				"Params:",
+				"* type: Whether to add the prefix to your personal profile or current server (user or server)",
+				"* char: The character to add as prefix (2 characters max)",
+				"Usage:",
+				f"* `{self.p}setting prefix add server !`",
+				f"* `{self.p}s p a server !`",
+				f"* {config.cmd.setting.prefix.add} `type:` server `char:` !"
+			), None,
+			mt(
+				"## Remove:",
+				"Remove a prefix from your personal profile or current server.",
+				"Params:",
+				"* type: Whether to delete the prefix from your personal profile or server (user or server)",
+				"* pos: The position of the prefix (shown in list command)",
+				"Usage:",
+				f"* `{self.p}setting prefix remove server 2`",
+				f"* `{self.p}s p r server 2`",
+				f"* {config.cmd.setting.prefix.remove} `type:` server `pos:` 2"
+			), None,
+			mt(
+				"## List:",
+				"List all the prefixes added to your personal profile or current server.",
+				"Params:",
+				"* type: Whether to list prefixes from your personal profile or current server (user or server)",
+				"Usage:",
+				f"* `{self.p}setting prefix list server`",
+				f"* `{self.p}s p l server`",
+				f"* {config.cmd.setting.prefix.list} `type:` server"
+			)
+		))
+
+
+	@commands.hybrid_command(
 		name='add',
 		aliases=['a'],
 		description='Add a prefix to your personal profile or current server.'
 	)
 	@app.describe(
 		type='Whether to add the prefix to your personal profile or current server',
-		char='The character to add as prefix'
+		char='The character to add as prefix (2 characters max)'
 	)
 	@is_admin(config.dev_ids, ('type', 'user'))
-	async def add(self, ctx: commands.Context, type: Literal['server', 'user'] = 'user', *, char: str):
-		"""
-		Add a prefix to your personal profile or current server, allows you to run commands by your own prefix
-		Example: /setting prefix add user !
-		"""
+	async def add(self, ctx: commands.Context, type: Literal['server', 'user'], *, char: str):
 		if len(char) > 2:
 			await ctx.reply(view=Fail(
 				"Prefix Too Long",
@@ -73,13 +115,13 @@ class Prefix(commands.Cog):
 		if char in data["prefix"]:
 			await ctx.reply(view=Fail(
 				"Prefix Already exists",
-				f"Prefix '{em(char)}' already in the settings, you don't need to add it twice."
+				f"Prefix '`{char}`' already in the settings, you don't need to add it twice."
 			))
 			return
 		if char in config.prefix:
 			await ctx.reply(view=Fail(
 				"Prefix Reserved By Bot",
-				f"Prefix '{em(char)}' is reserved by the bot and used globaly, you don't need to add it to use it."
+				f"Prefix '`{char}`' is reserved by the bot and used globaly, you don't need to add it to use it."
 			))
 			return
 
@@ -92,16 +134,15 @@ class Prefix(commands.Cog):
 
 		await ctx.reply(view=Success(
 			"Prefix Added",
-			f"Successfully added prefix: `{char}`"
+			f"{f'Successfully added prefix: `{char}`' if char != ':3' else f'suckess fukly added {char} as ur plefix >:3'}"
 		))
 
 	@add.error
 	async def add_error(self, ctx: commands.Context, error):
-		if isinstance(error, commands.CheckFailure):
-			await handle_missing_perms(ctx)
+		await handle_common_errors(ctx, error)
 
 
-	@prefix.command(
+	@commands.hybrid_command(
 		name='remove',
 		aliases=['r'],
 		description='Remove a prefix from your personal profile or current server.'
@@ -111,11 +152,7 @@ class Prefix(commands.Cog):
 		pos='The position of the prefix (shown in list command)'
 	)
 	@is_admin(config.dev_ids, ('type', 'user'))
-	async def remove(self, ctx: commands.Context, type: Literal['server', 'user'] = 'user', pos: int):
-		"""
-		Remove an added prefix from your personal profile or current server
-		Example: /setting prefix remove user 1
-		"""
+	async def remove(self, ctx: commands.Context, type: Literal['server', 'user'], pos: int):
 		manager, target_id = await resolve_target(ctx, type)
 		if not manager:
 			return
@@ -165,23 +202,18 @@ class Prefix(commands.Cog):
 
 	@remove.error
 	async def remove_error(self, ctx: commands.Context, error):
-		if isinstance(error, commands.CheckFailure):
-			await handle_missing_perms(ctx)
+		await handle_common_errors(ctx, error)
 
 
-	@prefix.command(
+	@commands.hybrid_command(
 		name='list',
 		aliases=['l'],
-		description='List all the prefixes added to your personal profile or current server'
+		description='List all the prefixes added to your personal profile or current server.'
 	)
 	@app.describe(
 		type='Whether to list prefixes from your personal profile or current server'
 	)
-	async def list(self, ctx: commands.Context, type: Literal['server', 'user'] = 'user'):
-		"""
-		List all prefix from your personal profile or current server
-		Example: /setting prefix list
-		"""
+	async def list(self, ctx: commands.Context, type: Literal['server', 'user']):
 		manager, target_id = await resolve_target(ctx, type)
 		if not manager:
 			return
@@ -190,21 +222,18 @@ class Prefix(commands.Cog):
 		prefixes = data.get("prefix", [])
 
 		if not prefixes:
+			default_list = [f"{i}. `{p}`" for i, p in enumerate(config.default_prefix, 1)]
 			await ctx.reply(view=Generic(
 				"No prefixes found, but there are these you can use:",
-				f"* {f'{chr(10)}* '.join([f'`{p}`' for p in config.default_prefix])}"
+				f"{chr(10)}.join(default_list)"
 			))
 			return
 
+		prefix_list = [f"{i}. `{p}`" for i, p in enumerate(prefixes, 1)]
 		await ctx.reply(view=Generic(
-			f"Prefix List for {f'This {type.title()}' if type == 'server' else ctx.author.display_name}",
-			f"* {f'{chr(10)}* '.join([f'`{p}`' for p in prefixes])}"
+			f"Prefix List for {f'This {type.title()}' if type == 'server' else em(ctx.author.display_name)}",
+			f"{chr(10).join(prefix_list)}"
 		))
-
-	@list.error
-	async def list_error(self, ctx: commands.Context, error):
-		if isinstance(error, commands.CheckFailure):
-			await handle_missing_perms(ctx)
 
 
 async def setup(bot: commands.Bot):

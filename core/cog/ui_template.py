@@ -1,11 +1,11 @@
 import asyncio
 import random
-from collections  import Counter
+from collections import Counter
 
 import discord
-from discord      import ui
+from discord import ui
 
-from meta         import emoji
+from meta import emoji
 
 
 INTERFERENCE_TRACKER = Counter()
@@ -131,9 +131,9 @@ def Info(title: str, *messages: str | None, sep: str = "\n") -> Generic:
 class Paginated(ui.LayoutView):
 	def __init__(self, header: str, items: list[str | list[str]], user: discord.Member | discord.User, accent_color: int = 0xb3e7df, per_page: int = 5, char_limit: int = 1800) -> None:
 		super().__init__()
-		self.user = user
 		self.header = header
 		self.raw_items = items
+		self.user = user
 		self.accent_color = accent_color
 		self.per_page = per_page
 		self.char_limit = char_limit
@@ -196,11 +196,16 @@ class Paginated(ui.LayoutView):
 
 		page_items = self.pages[self.current_page]
 
-		container = ui.Container(
-			ui.TextDisplay(self.header),
-			ui.Separator(),
-			accent_color=self.accent_color
-		)
+		if self.header != "":
+			container = ui.Container(
+				ui.TextDisplay(self.header),
+				ui.Separator(),
+				accent_color=self.accent_color
+			)
+		else:
+			container = ui.Container(
+				accent_color=self.accent_color
+			)
 
 		for text in page_items:
 			if isinstance(text, list):

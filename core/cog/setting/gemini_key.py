@@ -1,31 +1,19 @@
-from typing                   import Literal
+from typing import Literal
 
 import discord
-from discord                  import app_commands as app
-from discord.ext              import commands
+from discord import app_commands as app
+from discord.ext import commands
 
-from core.lib.llm             import validate_key
-from core.lib.utils           import mt, is_admin
-from core.cog.setting._group  import setting
-from core.cog.cog_utils       import resolve_target, load_settings, handle_missing_perms
-from core.cog.ui_template     import Fail, Success, Generic, Confirmation, UnexpectedError
-from meta                     import config
+from core.lib.llm import validate_key
+from core.lib.utils import mt, em
+from meta import config, emoji
+
+from core.cog.utils import resolve_target, load_settings, HybridGroup
+from core.cog.ui_template import Fail, Success, Generic, Confirmation, UnexpectedError
 
 
-class GeminiKey(commands.Cog):
-	def __init__(self, bot: commands.Bot):
-		self.bot = bot
-
-	@setting.group(
-		name='gemini_key',
-		aliases=['g'],
-		description='Group for key commands.'
-	)
-	async def gemini_key(self, ctx: commands.Context):
-		"""Group for api key handling."""
-		if ctx.invoked_subcommand is not None:
-			return
-
+async def callback(ctx: commands.Context):
+	if ctx.invoked_subcommand is None:
 		await ctx.reply(view=Fail(
 			"Subcommand Missing",
 			"Available subcommands:",
@@ -33,25 +21,74 @@ class GeminiKey(commands.Cog):
 			"* add    (a)",
 			"* remove (r)",
 			"* list   (l)",
+			"* help   (h)",
 			"```"
 		))
 
 
-	@gemini_key.command(
+class GeminiKey(HybridGroup):
+	def __init__(self, bot: commands.Bot):
+		super().__init__(
+			callback,
+			name='gemini_key',
+			aliases=['g'],
+			description='Group for key commands.'
+		)
+		self.bot = bot
+		self.p = config.default_prefix[0]
+
+
+	@commands.hybrid_command(
+		name='help',
+		aliases=['h'],
+		description='Get help for the gemini_key group.'
+	)
+	async def help(self, ctx: commands.Context):
+		await ctx.reply(view=Generic(
+			"# Gemini Key",
+			"This group is used to manage your gemini api keys.",
+			"The bot uses these keys when talking to you",
+			None,
+			mt(
+				"## Add:",
+				"Add a gemini api key to your personal profile.",
+				"Params:",
+				"* key: The key from the gemini api",
+				"Usage:",
+				f"{emoji.warning} **Recommend to use in dms or use as slash commands to keep your key private.**",
+				f"* `{self.p}setting gemini_key add *******`",
+				f"* `{self.p}s g a *******`",
+				f"* {config.cmd.setting.gemini_key.add} `key:` {em('*******')}"
+			), None,
+			mt(
+				"## Remove:",
+				"Remove an api key you added from your personal profile.",
+				"Params:",
+				"* pos: The position of the key, (number showed when you use list command)",
+				"Usage:",
+				f"* `{self.p}setting gemini_key remove 2`",
+				f"* `{self.p}s g r 2`",
+				f"* {config.cmd.setting.gemini_key.remove} `pos:` 2"
+			), None,
+			mt(
+				"## List:",
+				"List all the api keys of your personal profile.",
+				"Usage:",
+				f"* `{self.p}setting gemini_key list`",
+				f"* `{self.p}s g l`",
+				f"* {config.cmd.setting.gemini_key.list}"
+			)
+		))
+
+
+	@commands.hybrid_command(
 		name='add',
 		aliases=['a'],
-		description='Add a gemini ai key to your personal profile or server.'
+		description='Add a gemini api key to your personal profile.'
 	)
-	@app.describe(
-		type='Whether you want to add the key to your personal profile or the current server',
-		key='The key from gemini api'
-	)
-	@is_admin(config.dev_ids, ('type', 'user'))
-	async def add(self, ctx: commands.Context, type: Literal['server', 'user'] = 'user', *, key: str):
-		"""
-		Add a gemini api key so the bot can use that when it talks to you, keeps it available to you always.
-		Example: /setting gemini_key add user ******
-		"""
+	@app.describe(key='The key from the gemini api')
+	async def add(self, ctx: commands.Context, *, key: str):
+		type: Literal['server', 'user'] = 'user'
 		manager, target_id = await resolve_target(ctx, type)
 		if not manager:
 			return
@@ -84,27 +121,15 @@ class GeminiKey(commands.Cog):
 			return
 		await ctx.reply(view=UnexpectedError)
 
-	@add.error
-	async def add_error(self, ctx: commands.Context, error):
-		if isinstance(error, commands.CheckFailure):
-			await handle_missing_perms(ctx)
 
-
-	@gemini_key.command(
+	@commands.hybrid_command(
 		name='remove',
 		aliases=['r'],
-		description='Remove an api key you added from your personal profile or the current server.'
+		description='Remove an api key you added from your personal profile.'
 	)
-	@app.describe(
-		type='Whether you want to remove the key from your personal profile or the current server',
-		pos='The position of the key, (number showed when you use list)'
-	)
-	@is_admin(config.dev_ids, ('type', 'user'))
-	async def remove(self, ctx: commands.Context, type: Literal['server', 'user'] = 'user', pos: int):
-		"""
-		Remove an added api key from yout personal profile or current server
-		Example: /setting gemini_key remove user 1
-		"""
+	@app.describe(pos='The position of the key, (number showed when you use list command)')
+	async def remove(self, ctx: commands.Context, pos: int):
+		type: Literal['server', 'user'] = 'user'
 		manager, target_id = await resolve_target(ctx, type)
 		if not manager:
 			return
@@ -158,26 +183,14 @@ class GeminiKey(commands.Cog):
 			if not success:
 				await message.edit(view=UnexpectedError)
 
-	@remove.error
-	async def remove_error(self, ctx: commands.Context, error):
-		if isinstance(error, commands.CheckFailure):
-			await handle_missing_perms(ctx)
 
-
-	@gemini_key.command(
+	@commands.hybrid_command(
 		name='list',
 		aliases=['l'],
-		description='List all the api keys of your personal profile or server'
+		description='List all the api keys of your personal profile.'
 	)
-	@app.describe(
-		type='Whether you want to list the keys from your personal profile or the current server'
-	)
-	@is_admin(config.dev_ids, ('type', 'user'))
-	async def list(self, ctx: commands.Context, type: Literal['server', 'user'] = 'user'):
-		"""
-		List all the api keys of your personal profile or current server, they keys are sent to dm, and censored if your not the one that added it
-		Example: /setting gemini_key list user
-		"""
+	async def list(self, ctx: commands.Context):
+		type: Literal['server', 'user'] = 'user'
 		manager, target_id = await resolve_target(ctx, type)
 		if not manager:
 			return
@@ -210,20 +223,17 @@ class GeminiKey(commands.Cog):
 			f"-# Total keys: {len(keys)}"
 		)
 
-		try:
-			await ctx.author.send(view=view)
-			if ctx.guild:
-				await ctx.reply(view=Success(
+		if ctx.interaction:
+			await ctx.reply(view=view, ephemeral=True)
+		else:
+			try:
+				await ctx.author.send(view=view)
+				if ctx.guild: await ctx.reply(view=Success(
 					"List Sent",
-					"I've sent the list of API keys to your DMs to keep the keys and owners private."
+					"I've sent the list of API keys to your DMs to keep the keys private."
 				))
-		except discord.Forbidden:
-			await ctx.reply(view=Fail(
-				"User Error",
-				"I couldn't send you a DM. Please open your privacy settings."
-			))
-
-	@list.error
-	async def list_error(self, ctx: commands.Context, error):
-		if isinstance(error, commands.CheckFailure):
-			await handle_missing_perms(ctx)
+			except discord.Forbidden:
+				await ctx.reply(view=Fail(
+					"User Error",
+					"I couldn't send you a DM. Please change your privacy settings."
+				))

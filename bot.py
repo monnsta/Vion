@@ -3,15 +3,14 @@ import bootstrap
 import asyncio
 import logging
 import signal
-import sys
 
 import discord
-from discord.ext         import commands
+from discord.ext import commands
 
-from core.lib.bttrdict   import BD, Repr
-from core.wrp.profile    import server, user
-from core.wrp.extension  import extension
-from meta                import config
+from core.lib.bttrdict import BD, Repr
+from core.wrp.profile import server, user
+from core.wrp.extension import extension
+from meta import config
 
 
 log = logging.getLogger(__name__)
@@ -33,28 +32,34 @@ class Bot(commands.Bot):
 
 	@staticmethod
 	def _map_command_mentions(synced_commands):
+		log.debug(f"Synced commands count: {len(synced_commands)}")
 		def walk(command, prefix="", root_id=None):
 			root_id = root_id or command.id
 			name = f"{prefix} {command.name}".strip()
 			var_name = name.replace(" ", ".")
 			mention_name = f"</{name}:{root_id}>"
 
-			if isinstance(command, discord.app_commands.Command):
+			options = getattr(command, "options", [])
+			has_subcommands = False
+
+			for opt in options:
+				if opt.type in (discord.AppCommandOptionType.subcommand, discord.AppCommandOptionType.subcommand_group):
+					has_subcommands = True
+					walk(opt, prefix=name, root_id=root_id)
+
+			if not has_subcommands:
 				command_data = BD(
 					name=name,
 					mention=mention_name,
 					description=command.description or "No description.",
 					root_id=root_id,
-					parameters=command.parameters
+					parameters=options
 				)
 				config.cmd.set(var_name, Repr(mention_name, command_data))
 
-			elif isinstance(command, discord.app_commands.Group):
-				for sub_item in command.commands:
-					walk(sub_item, prefix=name, root_id=root_id)
-
 		for cmd in synced_commands:
 			walk(cmd)
+		log.debug(config.cmd)
 
 	async def setup_hook(self):
 		log.info("Starting Setup...")

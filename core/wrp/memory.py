@@ -1,9 +1,9 @@
 import logging
-from typing              import Any
+from typing import Any
 
-from core.lib.converter  import convert_message
-from core.lib.file       import json_file
-from meta                import config, file
+from core.lib.converter import convert_message
+from core.lib.file import json_file
+from meta import config, file
 
 
 

@@ -4,9 +4,9 @@
 ---
 
 ## Table of Contents
- 1. Getting Started
- 2. Configuration
- 3. Project Architecture
+ 1. [Getting Started](#getting-started)
+ 2. [Configuration](#configuration)
+ 3. [Project Architecture](#project-architecture)
 
 ---
 
@@ -15,13 +15,16 @@ The application is designed to run robustly with built-in fail-safes. There are 
 
 ### Production Environment (Recommended)
 Execute the provided bash script. This acts as a lightweight process manager that automatically installs dependencies, manages background crashes, limits loop crashing, and provides system security.
+
 ```bash
 ./exec.sh
 ```
+
 *(If you prefer to run this in Docker, you can seamlessly deploy it by using ./exec.sh --docker or running docker compose up -d)*
 
 ### Development Environment
 For testing or debugging, you can bypass the bash script and directly initialize the bot using Python.
+
 ```bash
 python bot.py
 ```
@@ -36,17 +39,19 @@ Make sure you copy .env.template into .env to input your API secrets (Discord, G
 
 ## Project Architecture
 The repository is highly modular, ensuring clear separation between core logic, UI generation, and runtime execution.
+
 ```
 .
-├── core/                   # Core Application Logic
-│   ├── cog/                # Discord commands and event extensions
-│   ├── lib/                # Low-Level Utilities (Code Sandbox, File I/O, LLM Engine)
-│   └── wrp/                # High-Level Wrappers (Profile, Memory, Blacklist)
-├── meta/                   # Configuration Setup & Path Mapping
-├── data/                   # Dynamic User and Server runtime memory & configs
-├── logs/                   # System runtime logs and rotating archives
-├── bootstrap.py            # Initialization script (Logging, early setup)
-├── bot.py                  # Main application entry point
-├── configure.ial           # Primary bot configuration and behavior settings
-└── exec.sh                 # Process manager script (Keeps bot alive)
+├── core/          # Core Application Logic
+│   ├── cog/       # Discord commands and event extensions
+│   ├── lib/       # Low-Level Utilities (Code Sandbox, File I/O, LLM Engine)
+│   └── wrp/       # High-Level Wrappers (Profile, Memory, Blacklist)
+├── meta/          # Configuration Setup & Path Mapping
+├── data/          # Dynamic User and Server runtime memory & configs
+├── logs/          # System runtime logs and rotating archives
+├── bootstrap.py   # Initialization script (Logging, early setup)
+├── bot.py         # Main application entry point
+├── configure.ial  # Primary bot configuration and behavior settings
+└── exec.sh        # Process manager script (Keeps bot alive)
 ```
+

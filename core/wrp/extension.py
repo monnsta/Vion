@@ -1,57 +1,74 @@
 import logging
-from pathlib        import Path
-from typing         import Dict, List, Tuple, Iterable
+from pathlib import Path
+from typing import Dict, List, Tuple, Iterable
 
-from discord.ext    import commands
+import discord
+from discord.ext import commands
 
-from meta           import config, sub, file, create_path
-from core.lib.file  import text_file
+from core.lib.file import text_file
+from meta import config, sub, file, create_path
 
 
 log = logging.getLogger(__name__)
 
 
 class Extension:
-	@staticmethod
-	def _get_cog_name(extension: str) -> str:
-		return extension.split('.')[-1].capitalize()
-
 	async def _handle_dev_guilds(self, bot: commands.Bot, extension: str, dev_guilds: Iterable | None = None) -> None:
 		if not dev_guilds:
 			return
 
-		cog_name = self._get_cog_name(extension)
-		cog = bot.get_cog(cog_name)
+		for cog_name, cog in bot.cogs.items():
+			if getattr(cog, '__module__', '').startswith(extension):
+				if getattr(cog, 'dev_only', False):
+					for command in cog.get_app_commands():
+						for guild_id in dev_guilds:
+							guild_obj = discord.Object(id=int(guild_id))
+							bot.tree.add_command(command, guild=guild_obj, override=True)
 
-		if cog and getattr(cog, 'dev_only', False):
-			for command in cog.get_app_commands():
-				for guild in dev_guilds:
-					bot.tree.add_command(command, guild=guild, override=True)
-					bot.tree.remove_command(command.name)
-			log.debug(f"Registered app commands for {extension} in dev guilds.")
+						bot.tree.remove_command(command.name)
+
+					log.debug(f"Registered app commands for cog '{cog_name}' ({extension}) in dev guilds.")
 
 	async def get_all(self) -> List[str]:
 		extensions = []
-		cog_dir = Path(sub.cog)
 
-		for path in cog_dir.rglob('*.py'):
-			if any(part.startswith('_') for part in path.parts):
+		cog_dir = Path(sub.cog).resolve()
+		cwd = Path.cwd().resolve()
+
+		for init_path in cog_dir.rglob('__init__.py'):
+			try:
+				rel_to_cog = init_path.relative_to(cog_dir)
+			except ValueError:
 				continue
 
-			extension_path = str(path.with_suffix('')).replace('\\', '.').replace('/', '.')
+			if any(part.startswith('_') for part in rel_to_cog.parts[:-1]):
+				continue
+
+			package_dir = init_path.parent.resolve()
+
+			try:
+				relative_path = package_dir.relative_to(cwd)
+				extension_path = ".".join(relative_path.parts)
+			except ValueError:
+				extension_path = ".".join(package_dir.parts)
+
 			extensions.append(extension_path)
 
+		log.debug("Valid extensions found:\n" + "\n".join(f" * {ext}" for ext in extensions))
 		return extensions
 
 	async def add(self, bot: commands.Bot, guild_id: int | str, code: str) -> Tuple[bool, str]:
 		guild_id = str(guild_id)
 		cog_path = file.server.commands(guild_id)
 
-		module_path = str(cog_path.with_suffix('')).replace('\\', '.').replace('/', '.')
+		try:
+			relative_path = cog_path.with_suffix('').relative_to(Path.cwd().resolve())
+			module_path = ".".join(relative_path.parts)
+		except ValueError:
+			module_path = ".".join(cog_path.with_suffix('').parts)
 
 		try:
 			await create_path((cog_path, False))
-
 			await text_file.save(str(cog_path), code)
 
 			if module_path in bot.extensions:
@@ -69,13 +86,15 @@ class Extension:
 		try:
 			await bot.load_extension(extension)
 			await self._handle_dev_guilds(bot, extension, config.dev_server_ids)
-			log.info(f"Loaded cog: '{extension}'")
+			log.info(f"Loaded extension: '{extension}'")
 			return True, f"Successfully loaded `{extension}`."
 		except commands.ExtensionAlreadyLoaded:
 			return False, f"`{extension}` is already loaded."
 		except commands.NoEntryPointError:
+			log.error(f"Extension '{extension}' has no setup()")
 			return False, f"`{extension}` is missing a `setup` function."
 		except commands.ExtensionFailed as e:
+			log.error(f"Extension '{extension}' failed", exc_info=e.original)
 			return False, f"Extension failed to initialize:\n```py\n{e.original}\n```"
 		except Exception as e:
 			log.error(f"Failed to load {extension}", exc_info=True)
@@ -87,7 +106,7 @@ class Extension:
 
 		try:
 			await bot.unload_extension(extension)
-			log.info(f"Unloaded cog: '{extension}'")
+			log.info(f"Unloaded extension: '{extension}'")
 			return True, f"Successfully unloaded `{extension}`."
 		except commands.ExtensionNotLoaded:
 			return False, f"`{extension}` is not loaded."
@@ -99,7 +118,7 @@ class Extension:
 		try:
 			await bot.reload_extension(extension)
 			await self._handle_dev_guilds(bot, extension, config.dev_server_ids)
-			log.info(f"Reloaded cog: '{extension}'")
+			log.info(f"Reloaded extension: '{extension}'")
 			return True, f"Successfully reloaded `{extension}`."
 		except commands.ExtensionNotLoaded:
 			return await self.load(bot, extension)
@@ -118,8 +137,7 @@ class Extension:
 		loaded_exts = list(bot.extensions.keys())
 
 		for ext in loaded_exts:
-			if "cog_manager" not in ext:
-				results[ext] = await self.unload(bot, ext)
+			results[ext] = await self.unload(bot, ext)
 		return results
 
 	async def reload_all(self, bot: commands.Bot) -> Dict[str, Tuple[bool, str]]:
@@ -134,4 +152,4 @@ class Extension:
 extension = Extension()
 
 
-__all__ = ('extension')
+__all__ = ('extension',)

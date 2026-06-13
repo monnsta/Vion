@@ -1,12 +1,13 @@
 import asyncio
 import logging
 import tempfile
-from pathlib          import Path
-from typing           import Tuple, List, Optional, Union, Any
+from pathlib import Path
+from typing import Tuple, List, Optional, Union, Any
 
 import httpx
-from google           import generativeai as genai
-from google.api_core  import exceptions
+from google import genai
+from google.genai import types
+from google.genai.errors import APIError
 
 
 log = logging.getLogger(__name__)
@@ -14,15 +15,18 @@ log = logging.getLogger(__name__)
 
 async def validate_key(api_key: str) -> bool | None:
 	try:
-		genai.configure(api_key=api_key)
-		await asyncio.to_thread(genai.list_models)
+		client = genai.Client(api_key=api_key)
+		await client.aio.models.list()
 		return True
-	except (exceptions.InvalidArgument, exceptions.Unauthenticated, exceptions.PermissionDenied) as e:
-		log.error(f"API key validation failed: {e}")
+	except APIError as e:
+		if e.code in (400, 401, 403):
+			log.error(f"API key validation failed: {e}")
+			return False
+		elif e.code in (500, 503, 504):
+			log.warning(f"Validation inconclusive due to network/service error: {e}")
+			return None
+		log.error(f"API key validation failed with unexpected API status: {e}")
 		return False
-	except (exceptions.RetryError, exceptions.InternalServerError, exceptions.ServiceUnavailable) as e:
-		log.warning(f"Validation inconclusive due to network/service error: {e}")
-		return None
 	except Exception:
 		log.error("An unexpected error occurred during API key validation", exc_info=True)
 		return None
@@ -38,29 +42,27 @@ class GenerateContent:
 		top_k: int = 45
 	):
 		log.debug(f"Initializing GenerateContent with model: {model_name}")
-		genai.configure(api_key=api_key)
-		self.model = genai.GenerativeModel(
-			model_name=model_name,
-			generation_config={
-				"temperature": temperature,
-				"top_p": top_p,
-				"top_k": top_k,
-			},
+		self.client = genai.Client(api_key=api_key)
+		self.model_name = model_name
+
+		self.config = types.GenerateContentConfig(
+			temperature=temperature,
+			top_p=top_p,
+			top_k=top_k,
 			system_instruction=system_instruction
 		)
 
-	@staticmethod
-	async def _upload_and_wait(path: str) -> Any:
+	async def _upload_and_wait(self, path: str) -> Any:
 		log.info(f"Uploading file: {path}")
-		file_obj = await asyncio.to_thread(genai.upload_file, path=path)
-		log.debug(f"File uploaded, initial state: {file_obj.state.name}")
+		file_obj = await self.client.aio.files.upload(file=Path(path))
+		log.debug(f"File uploaded, initial state: {file_obj.state}")
 
-		while file_obj.state.name == "PROCESSING":
+		while file_obj.state == "PROCESSING":
 			log.debug(f"Waiting for file {file_obj.name} to process...")
 			await asyncio.sleep(1)
-			file_obj = await asyncio.to_thread(genai.get_file, file_obj.name)
+			file_obj = await self.client.aio.files.get(name=file_obj.name)
 
-		if file_obj.state.name == "FAILED":
+		if file_obj.state == "FAILED":
 			log.error(f"File processing failed for: {file_obj.name}")
 			raise RuntimeError(f"File {file_obj.name} failed to process.")
 
@@ -96,7 +98,7 @@ class GenerateContent:
 
 		if isinstance(item, bytes):
 			log.debug("Detected raw bytes input")
-			return {"mime_type": "application/octet-stream", "data": item}
+			return types.Part.from_bytes(data=item, mime_type="application/octet-stream")
 
 		return item
 
@@ -112,7 +114,12 @@ class GenerateContent:
 
 			payload = processed_parts + [prompt]
 			log.debug("Sending payload to Gemini API")
-			response = await self.model.generate_content_async(payload)
+
+			response = await self.client.aio.models.generate_content(
+				model=self.model_name,
+				contents=payload,
+				config=self.config
+			)
 
 			if response.candidates and len(response.candidates) > 0:
 				log.info("Content generation successful")

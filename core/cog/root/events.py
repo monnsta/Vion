@@ -3,16 +3,18 @@ import difflib
 import logging
 import random
 import shutil
-from datetime               import datetime, timedelta
-from pathlib                import Path
+from datetime import datetime, timedelta
+from pathlib import Path
 
 import discord
-from discord.ext            import commands, tasks
+from discord.ext import commands, tasks
 
-from core.lib.file          import json_file
-from core.wrp.profile       import server
-from core.cog.ui_template   import Fail, Generic
-from meta                   import config, file, sub
+from core.lib.file import json_file
+from core.wrp.profile import server
+from core.wrp.blacklist import blacklist
+from meta import config, file, sub
+
+from core.cog.ui_template import Fail, Generic
 
 
 log = logging.getLogger(__name__)
@@ -25,12 +27,27 @@ class Events(commands.Cog):
 		self.random_status_task = self.bot.loop.create_task(self.random_status_change())
 		log.debug("General Cog initialized.")
 
+	async def cog_load(self):
+		self.random_status_task = asyncio.create_task(self.random_status_change())
+		self.bot.before_invoke(self.verify_subcommand)
+		log.debug("Random status background task dispatched.")
+
 	def cog_unload(self):
-		self.cleanup_old_data.cancel()
+		self.bot.remove_before_invoke_hook(self.verify_subcommand)
+		if self.cleanup_old_data.is_running():
+			self.cleanup_old_data.cancel()
 		if self.random_status_task:
 			self.random_status_task.cancel()
 		log.info("General Cog unloaded and tasks cancelled.")
 		return super().cog_unload()
+
+	async def verify_subcommand(self, ctx: commands.Context):
+		if isinstance(ctx.command, commands.Group):
+			if ctx.subcommand_passed is None:
+				return
+
+			if ctx.invoked_subcommand is None:
+				raise commands.CommandNotFound()
 
 	async def random_status_change(self):
 		await self.bot.wait_until_ready()
@@ -39,7 +56,7 @@ class Events(commands.Cog):
 		while not self.bot.is_closed():
 			try:
 				if not self.status_queue:
-					self.status_queue = config.status.list
+					self.status_queue = list(config.status.list)
 					random.shuffle(self.status_queue)
 
 				new_status = self.status_queue.pop()
@@ -59,25 +76,27 @@ class Events(commands.Cog):
 				log.debug("Random status task cancelled.")
 				return
 			except Exception:
-				log.error(f"An unexpected error occurred in random_status_change", exc_info=True)
+				log.error("An unexpected error occurred in random_status_change", exc_info=True)
 				await asyncio.sleep(10)
 
-	@staticmethod
-	async def safe_send(guild: discord.Guild, view):
+	async def safe_send(self, guild: discord.Guild, view):
 		if (
 			guild.system_channel
 			and isinstance(guild.system_channel, discord.TextChannel)
-			and guild.system_channel.permissions_for(guild.me).send_messages
+			and guild.system_channel.permissions_for(
+				guild.me or guild.get_member(self.bot.user.id)
+			).send_messages
 		):
 			try:
 				await guild.system_channel.send(view=view)
 				return
 			except discord.Forbidden:
 				log.warning(f"Forbidden to send in system channel of {guild.id}")
-				pass
 
 		for channel in sorted(guild.text_channels, key=lambda c: c.position):
-			if channel.permissions_for(guild.me).send_messages:
+			if channel.permissions_for(
+				guild.me or guild.get_member(self.bot.user.id)
+			).send_messages:
 				if (
 					channel == channel.guild.system_channel or
 					channel.type == discord.ChannelType.news or
@@ -121,6 +140,10 @@ class Events(commands.Cog):
 						moved_at_str = info.get("moved_at")
 						if moved_at_str:
 							moved_at_time = datetime.fromisoformat(moved_at_str)
+
+							if moved_at_time.tzinfo is None:
+								moved_at_time = moved_at_time.replace(tzinfo=config.timezone)
+
 							if current_time - moved_at_time > timedelta(days=config.cleanup_days):
 								shutil.rmtree(folder)
 								log.info(f"Permanently deleted data for guild {folder.name} from bin.")
@@ -141,23 +164,17 @@ class Events(commands.Cog):
 	@commands.Cog.listener()
 	async def on_ready(self):
 		log.info(f"Bot is ready. Logged in as {getattr(self.bot, 'user', 'Unknown')}")
-		status = random.choice(config.status.list)
-		await self.bot.change_presence(
-			activity=discord.Activity(
-				type=config.status.type,
-				name=status
-			),
-			status=discord.Status.dnd
-		)
 		log.info("Updating Guilds...")
 		for guild in self.bot.guilds:
 			if await blacklist.is_blacklisted(guild.id, "server"):
 				log.warning(f"Found blacklisted guild {guild.name} ({guild.id}). Leaving...")
 				await guild.leave()
+			if not await server.is_setup(guild.id):
+				await server.setup(guild)
 			await server.info.save(guild)
-			log.debug(f"Updated guild: '{getattr(guild, 'id', 'Could not retrieve id... somehow')}'")
 
-		self.cleanup_old_data.start()
+		if not self.cleanup_old_data.is_running():
+			self.cleanup_old_data.start()
 		log.info("Initialization tasks completed.")
 
 
@@ -194,7 +211,7 @@ class Events(commands.Cog):
 				legal
 			)
 
-		await self.safe_send(guild, message)
+		await self.safe_send(guild, view)
 
 
 	@commands.Cog.listener()
@@ -211,15 +228,18 @@ class Events(commands.Cog):
 		error = getattr(error, 'original', error)
 
 		if isinstance(error, commands.CommandNotFound):
-			invoked_with = ctx.invoked_with
-			all_commands = list(self.bot.command_mentions.keys())
-			matches = difflib.get_close_matches(invoked_with, all_commands, n=1, cutoff=0.6)
+			content = ctx.message.content[len(ctx.prefix):].strip()
+			attempted = content.replace(" ", ".")
+			display_attempt = content.replace(" ", " ")
+			
+			all_commands = list(config.cmd.keys())
+			matches = difflib.get_close_matches(attempted, all_commands, n=1, cutoff=0.6)
 
 			if matches:
 				suggestion_name = matches[0]
-				suggestion_mention = self.bot.command_mentions.get(suggestion_name)
-				description = f"The command `{invoked_with}` does not exist. Did you mean {suggestion_mention}?"
-			else:
+				suggestion_mention = config.cmd.get(suggestion_name)
+				description = f"The command `{display_attempt}` does not exist. Did you mean {suggestion_mention}?"
+			else: 
 				description = "The command you entered does not exist."
 
 			await ctx.reply(view=Fail("Invalid Command", description))
@@ -227,7 +247,7 @@ class Events(commands.Cog):
 		elif isinstance(error, commands.MissingRequiredArgument):
 			await ctx.reply(view=Fail(
 				"Missing Argument", 
-				f"You missed the `{error.param.name}` parameter. Use {config.cmd.help.command} {ctx.command} for details."
+				f"You missed the `{error.param.name}` parameter."
 			))
 
 		elif isinstance(error, commands.CommandOnCooldown):
@@ -237,7 +257,11 @@ class Events(commands.Cog):
 			))
 
 		elif isinstance(error, commands.MissingPermissions):
-			perms = ", ".join([f"`{p.replace('_', ' ').title()}`" for p in error.missing_permissions])
+			perms = ", ".join(
+				f"`{p.replace('_', ' ').title()}`"
+				for p in error.missing_permissions
+			)
+
 			await ctx.reply(view=Fail(
 				"Missing Permissions", 
 				f"You need the following permission(s) to do that: {perms}"
@@ -253,7 +277,7 @@ class Events(commands.Cog):
 		elif isinstance(error, (commands.CheckFailure, commands.BadArgument)):
 			await ctx.reply(view=Fail(
 				"Command Error",
-				f"```{error}```"
+				f"<block>{error}<block>"
 			))
 
 		else:

@@ -25,3 +25,4 @@ RUN chown -R botuser:botuser /app
 USER botuser
 
 CMD ["python", "bot.py"]
+

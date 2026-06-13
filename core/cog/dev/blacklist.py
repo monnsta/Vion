@@ -1,133 +1,260 @@
-from typing                 import Optional, Literal
+import re
+from typing import Optional, Literal
 
-from discord                import app_commands as app
-from discord.ext            import commands
+from discord import app_commands as app
+from discord.ext import commands
 
-from core.lib.utils         import mt
-from core.wrp.blacklist     import blacklist
-from core.cog.dev._group    import dev
-from core.cog.cog_utils     import format_dt
-from core.cog.ui_template   import Fail, Success, Generic, Paginated
+from core.lib.utils import mt, em
+from core.wrp.blacklist import blacklist
+from meta import config
 
-
-class Blacklist(commands.Cog):
-	def __init__(self, bot: commands.Bot):
-		self.bot = bot
+from core.cog.utils import format_dt, HybridGroup
+from core.cog.ui_template import Fail, Success, Generic, Paginated
 
 
-	@dev.group(
-		name='blacklist',
-		aliases=['b'],
-		description='Manage the global bot blacklist.'
-	)
-	async def blacklist(self, ctx: commands.Context):
-		"""Group for all the blacklist commands. blacklisted users or servers cannot access the bot."""
-		if ctx.invoked_subcommand is not None:
-			return
-
+async def callback(ctx: commands.Context):
+	if ctx.invoked_subcommand is None:
 		await ctx.reply(view=Fail(
 			"Subcommand Missing",
 			"Available subcommands:",
 			"```",
 			"* add    (a)",
 			"* remove (r)",
-			"* show   (s)",
+			"* edit   (e)",
+			"* view   (v)",
 			"* list   (l)",
+			"* help   (h)",
 			"```"
 		))
 
 
-	@blacklist.command(
+class Blacklist(HybridGroup):
+	def __init__(self, bot: commands.Bot):
+		super().__init__(
+			callback,
+			name='blacklist',
+			aliases=['b'],
+			description='Manage the global bot blacklist.'
+		)
+		self.bot = bot
+		self.p = config.default_prefix[0]
+
+	async def _validate_args(self, ctx: commands.Context, entity_type: str, target_id: str) -> Optional[int]:
+		if entity_type not in ('user', 'server'):
+			await ctx.reply(view=Fail(
+				"Invalid Scope",
+				f"Scope must be either 'server' or 'user', not '{scope}'."
+			))
+			return None
+
+		cleaned = re.sub(r'\D', '', target_id)
+		if not cleaned:
+			await ctx.reply(view=Fail(
+				"Invalid Scope",
+				"Target ID must be a valid integer or mention."
+			))
+			return None
+
+		return int(cleaned)
+
+	async def _get_entity_info(self, entity_type: str, tid: int) -> tuple[str, Optional[str]]:
+		label = f"Unknown {entity_type.capitalize()}"
+		icon = None
+
+		if entity_type == 'user':
+			u = self.bot.get_user(tid)
+			if not u:
+				try:
+					u = await self.bot.fetch_user(tid)
+				except Exception:
+					pass
+			if u:
+				label = f"**{em(u.name)}** (`{u.id}`)"
+				icon = u.avatar.url if u.avatar else None
+		else:
+			g = self.bot.get_guild(tid)
+			if g:
+				label = f"**{em(g.name)}** (`{g.id}`)"
+				icon = g.icon.url if g.icon else None
+
+		return label, icon
+
+
+	@commands.hybrid_command(
+		name='help',
+		aliases=['h'],
+		description='Get help for the blacklist group.'
+	)
+	async def help(self, ctx: commands.Context):
+		await ctx.reply(view=Generic(
+			"# Blacklist",
+			"This group is used to manage the global blacklist for users and servers.",
+			None,
+			mt(
+				"## Add:",
+				"Add a user or server to the blacklist.",
+				"Params:",
+				"* type: Whether this is a user or server",
+				"* target_id: The ID or mention of the user/server",
+				"* reason: Reason for blacklisting",
+				"* duration: Duration (e.g., 7d, 12h, 30m). 0 for permanent",
+				"Usage:",
+				f"* `{self.p}dev blacklist add user 123456789 \"Spamming\" 7d`",
+				f"* `{self.p}d b a user 123456789 \"Spamming\" 7d`",
+				f"* {config.cmd.dev.blacklist.add} `type:` user `target_id:` 123456789 `reason:` Spamming `duration:` 7d"
+			), None,
+			mt(
+				"## Remove:",
+				"Remove a user or server from the blacklist.",
+				"Params:",
+				"* type: Whether this is a user or server",
+				"* target_id: The ID or mention of the user/server",
+				"Usage:",
+				f"* `{self.p}dev blacklist remove user 123456789`",
+				f"* `{self.p}d b r user 123456789`",
+				f"* {config.cmd.dev.blacklist.remove} `type:` user `target_id:` 123456789"
+			), None,
+			mt(
+				"## Edit:",
+				"Edit an existing blacklist entry.",
+				"Params:",
+				"* type: Whether this is a user or server",
+				"* target_id: The ID or mention of the user/server",
+				"Usage:",
+				f"* `{self.p}dev blacklist edit user 123456789 \"Spamming + Arguing with mods\" 8d`",
+				f"* `{self.p}d b e user 123456789 \"Spamming + Arguing with mods\" 8d`",
+				f"* {config.cmd.dev.blacklist.edit} `type:` user `target_id:` 123456789 `new_reason:` Spamming + Arguing with mods `new_duration:` 8d"
+			), None,
+			mt(
+				"## View:",
+				"View detailed info about a specific blacklist entry.",
+				"Params:",
+				"* type: Whether this is a user or server",
+				"* target_id: The ID or mention of the user/server",
+				"Usage:",
+				f"* `{self.p}dev blacklist view user 123456789`",
+				f"* `{self.p}d b v user 123456789`",
+				f"* {config.cmd.dev.blacklist.view} `type:` user `target_id:` 123456789"
+			), None,
+			mt(
+				"## List:",
+				"List all blacklisted entities.",
+				"Params:",
+				"* type: Filter by user or server",
+				"Usage:",
+				f"* `{self.p}dev blacklist list`",
+				f"* `{self.p}d b l`",
+				f"* {config.cmd.dev.blacklist.list}"
+			)
+		))
+
+
+	@commands.hybrid_command(
 		name='add',
 		aliases=['a'],
 		description='Add a user or server to the blacklist.'
 	)
 	@app.describe(
 		type='Whether this is a user or server',
-		target_id='The ID of the user or server',
+		target_id='The ID or mention of the user or server',
 		reason='Reason for blacklisting',
-		duration='Duration (e.g., 7d, 12h, 30m). Leave empty for permanent.'
+		duration='Duration (e.g., 7d, 12h, 30m). 0 for permanent'
 	)
 	async def add(self, ctx: commands.Context, type: Literal['user', 'server'], target_id: str, reason: str, duration: Optional[str] = None):
-		"""
-		Add a user or server to the blacklist, users won't be able to use the bot, and servers won't be able to invite it
-		Example: /dev blacklist add user 123 Abused bot powers 7d
-		"""
-		try:
-			tid = int(target_id)
-		except ValueError:
-			return await ctx.reply(view=Fail("Target ID must be a valid integer."))
+		tid = await self._validate_args(ctx, type, target_id)
+		if not tid: return
 
 		success, msg = await blacklist.add(tid, type, ctx.author.id, reason, duration)
 
 		if success:
-			await ctx.reply(view=Success(f"**{type.capitalize()} {tid}** has been blacklisted.\n**Reason:** {reason}"))
+			label, _ = await self._get_entity_info(type, tid)
+			await ctx.reply(view=Success(
+				"Success",
+				f"{label} has been added to the blacklist.\n**Reason:** {reason}"
+			))
 		else:
-			await ctx.reply(view=Fail(msg))
+			await ctx.reply(view=Fail("Failed", msg))
 
 
-	@blacklist.command(
+	@commands.hybrid_command(
 		name='remove',
 		aliases=['r'],
 		description='Remove a user or server from the blacklist.'
 	)
 	@app.describe(
-		target_id='The ID of the user or server',
-		type='Whether this is a user or server'
+		type='Whether this is a user or server',
+		target_id='The ID or mention of the user or server'
 	)
 	async def remove(self, ctx: commands.Context, type: Literal['user', 'server'], target_id: str):
-		"""
-		Remove an added user or server from the blacklist
-		Example: /dev blacklist remove user 123
-		"""
-		try:
-			tid = int(target_id)
-		except ValueError:
-			return await ctx.reply(view=Fail("Target ID must be a valid integer."))
+		tid = await self._validate_args(ctx, type, target_id)
+		if not tid: return
 
 		success, msg = await blacklist.remove(tid, type)
 
 		if success:
-			await ctx.reply(view=Success(msg))
+			label, _ = await self._get_entity_info(type, tid)
+			await ctx.reply(view=Success("Success", f"{label} has been removed from the blacklist."))
 		else:
-			await ctx.reply(view=Fail(msg))
+			await ctx.reply(view=Fail("Failed", msg))
 
 
-	@blacklist.command(
-		name='show',
-		aliases=['s'],
+	@commands.hybrid_command(
+		name='edit',
+		aliases=['e'],
+		description='Edit an already existing blacklisted user or server.'
+	)
+	@app.describe(
+		type='Whether this is a user or server',
+		target_id='The ID or mention of the user or server',
+		new_reason='The modified reason for the blacklist',
+		new_duration='The modified duration (e.g., 7d, 12h, 30m). 0 for permanent'
+	)
+	async def edit(self, ctx: commands.Context, type: Literal['user', 'server'], target_id: str, new_reason: Optional[str] = None, new_duration: Optional[str] = None):
+		if not new_reason and not new_duration:
+			return await ctx.reply(view=Fail(
+				"Error",
+				"You must specify a new reason, a new duration, or both to make edits."
+			))
+
+		tid = await self._validate_args(ctx, type, target_id)
+		if not tid: return
+
+		success, msg = await blacklist.edit(
+			entity_id=tid,
+			entity_type=type,
+			mod_id=ctx.author.id,
+			reason=new_reason,
+			duration=new_duration
+		)
+
+		if success:
+			label, _ = await self._get_entity_info(type, tid)
+			await ctx.reply(view=Success(
+				"Success",
+				f"Updated blacklist entry for {label}."
+			))
+		else:
+			await ctx.reply(view=Fail("Failed", msg))
+
+
+	@commands.hybrid_command(
+		name='view',
+		aliases=['v'],
 		description='Show detailed info about a specific blacklist entry.'
 	)
 	@app.describe(
-		target_id='The ID of the user or server',
-		type='Whether this is a user or server'
+		type='Whether this is a user or server',
+		target_id='The ID or mention of the user or server'
 	)
-	async def show(self, ctx: commands.Context, type: Literal['user', 'server'], target_id: str):
-		"""
-		Show information of a blacklisted user or server
-		Example: /dev blacklist show user 123
-		"""
-		try:
-			tid = int(target_id)
-		except ValueError:
-			return await ctx.reply(view=Fail("Target ID must be a valid integer."))
+	async def view(self, ctx: commands.Context, type: Literal['user', 'server'], target_id: str):
+		tid = await self._validate_args(ctx, type, target_id)
+		if not tid: return
 
 		success, data = await blacklist.get(tid, type)
 		if not success:
 			return await ctx.reply(view=Fail(data))
 
-		label = f"Unknown {type.capitalize()}"
-		if type == 'user':
-			user = self.bot.get_user(tid)
-			if not user:
-				try:
-					user = await self.bot.fetch_user(tid)
-				except Exception:
-					user = None
-			if user: label = f"**{user.name}** ({user.id})"
-		else:
-			guild = self.bot.get_guild(tid)
-			if guild: label = f"**{guild.name}** ({guild.id})"
+		label, _ = await self._get_entity_info(type, tid)
 
 		await ctx.reply(view=Generic(
 			f"## Blacklisted {type.capitalize()}",
@@ -139,7 +266,7 @@ class Blacklist(commands.Cog):
 		))
 
 
-	@blacklist.command(
+	@commands.hybrid_command(
 		name='list',
 		aliases=['l'],
 		description='List all blacklisted entities.'
@@ -148,10 +275,9 @@ class Blacklist(commands.Cog):
 		type='Filter by user or server'
 	)
 	async def list(self, ctx: commands.Context, type: Optional[Literal['user', 'server']] = None):
-		"""
-		List all blacklisted users and/or servers
-		Example: /dev blacklist list user
-		"""
+		if type and type not in ('user', 'server'):
+			return await ctx.reply(view=Fail("Filter type must be 'user' or 'server'."))
+
 		entries = await blacklist.list_all(type)
 
 		if not entries:
@@ -160,21 +286,10 @@ class Blacklist(commands.Cog):
 		results = []
 		for e in entries:
 			e_type = e['type'].capitalize()
-			e_id = e['id']
-			
-			icon = None
-			label = f"Unknown {e_type}"
-			if e['type'] == 'user':
-				u = self.bot.get_user(e_id)
-				if u: label = f"**{u.name}**"
-				if u and u.avatar: icon = u.avatar.url
-			elif e['type'] == 'server':
-				g = self.bot.get_guild(e_id)
-				if g: label = f"**{g.name}**"
-				if g and g.icon: icon = g.icon.url
+			label, icon = await self._get_entity_info(e['type'], e['id'])
 
 			block = mt(
-				f"**{e_type}:** {label} (`{e_id}`)",
+				f"**{e_type}:** {label}",
 				f"* **Moderator:** <@{e['mod_id']}>",
 				f"* **Reason:** {e['reason']}",
 				f"* **Created:** {format_dt(e.get('created_at'))}",

@@ -5,14 +5,14 @@ import json
 import logging
 import shutil
 import zipfile
-from pathlib             import Path
-from typing              import Any, Union
+from pathlib import Path
+from typing import Any, Union
 
 import discord
 
-from core.lib.converter  import convert_guild, convert_user
-from core.lib.file       import json_file, text_file
-from meta                import config, create_path, file, sub
+from core.lib.converter import convert_guild, convert_user
+from core.lib.file import json_file, text_file
+from meta import config, create_path, file, sub
 
 
 log = logging.getLogger(__name__)
@@ -29,6 +29,9 @@ class BaseProfileManager:
 		self.data = self.Data(self)
 		self.settings = self.Settings(self)
 		self.info = self.Info(self)
+
+	async def is_setup(self, entity_id: int) -> bool:
+		return await self.data.exists(entity_id)
 
 	async def _setup(self, entity_id: int, entity_name: str, extra_paths: list[str | tuple[str, bool]] = []) -> bool:
 		eid = str(entity_id)
@@ -235,7 +238,7 @@ class BaseProfileManager:
 			return success, data
 
 		async def save(self, entity_id: int, data: dict[str, Any]) -> bool:
-			log.info(f"Saving settings for {self.parent.entity_type} {entity_id}")
+			log.debug(f"Saving settings for {self.parent.entity_type} {entity_id}")
 			path = self.parent.file_routes.settings(str(entity_id))
 			return await json_file.save(path, data)
 
@@ -247,10 +250,10 @@ class BaseProfileManager:
 			log.debug(f"Loading AI info for {self.parent.entity_type} {entity_id}")
 			path = self.parent.file_routes.ai_data(str(entity_id))
 			success, data = await json_file.load(path)
-			return success, data.get(self.parent.entity_type, {})
+			return success, data.get(self.parent.entity_type, {}) if success else (False, {})
 
 		async def save(self, entity: Union[discord.Guild, discord.User, discord.Member]) -> bool:
-			log.info(f"Updating cached info for {self.parent.entity_type} {entity.id}")
+			log.debug(f"Updating cached info for {self.parent.entity_type} {entity.id}")
 			path = self.parent.file_routes.ai_data(str(entity.id))
 			success, data = await json_file.load(path)
 
@@ -275,18 +278,16 @@ class Server(BaseProfileManager):
 
 	async def setup(self, guild: discord.Guild) -> bool:
 		eid = str(guild.id)
-		commands_path = self.file_routes.commands(eid)
-		events_path = self.file_routes.events(eid)
+		cog = self.file_routes.cog(eid)
 
 		success = await super()._setup(
 			entity_id=guild.id, 
 			entity_name=guild.name, 
-			extra_paths=[commands_path, events_path]
+			extra_paths=[cog]
 		)
 
 		if success:
-			await text_file.save(commands_path, "")
-			await text_file.save(events_path, "")
+			await text_file.save(cog, "")
 
 		return success
 

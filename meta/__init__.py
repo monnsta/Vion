@@ -1,2 +1,2 @@
-from meta.settings  import *
-from meta.paths     import *
+from meta.settings import *
+from meta.paths import *

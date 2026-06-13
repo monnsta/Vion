@@ -1,9 +1,9 @@
 import asyncio
 import logging
 import os
-from pathlib            import Path
+from pathlib import Path
 
-from core.lib.bttrdict  import BD, Method
+from core.lib.bttrdict import BD, Method
 
 
 log = logging.getLogger(__name__)
@@ -15,7 +15,7 @@ base = BD(
 	data	= root / "data",
 	logs	= root / "logs",
 	meta	= root / "meta",
-	core	= root / "core
+	core	= root / "core"
 
 )
 
@@ -92,12 +92,12 @@ def setup_directory() -> None:
 	log.info("Initializing filesystem setup...")
 
 	asyncio.run(create_path(
-		(base.data,  	True),
-		(base.logs,  	True),
-		(sub.servers,	True),
-		(sub.users,  	True),
-		(sub.trash,  	True),
-		(sub.glob,   	True),
+		(base.data,   True),
+		(base.logs,   True),
+		(sub.servers, True),
+		(sub.users,   True),
+		(sub.trash,   True),
+		(sub.glob,    True),
 
 		file.glob.blacklist,
 		file.glob.bot_activity

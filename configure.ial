@@ -2,7 +2,7 @@
 bot[o]: (
 	name[s]: Vion;
 	id[i]: 1383771147044393001;
-	invite: ;
+	invite: https://discord.com/oauth2/authorize?client_id=1383771147044393001&permissions=1759218604441591&integration_type=0&scope=bot;
 	appearance: ;
 );
 
@@ -21,11 +21,11 @@ dev_servers[l]: (
 < --- Application --- >
 timezone[s]: Asia/Kolkata;
 cleanup_days[i]: 7;
-default_prefix[l]: ([s] "::"; [s] "//"; [s] ";");
+default_prefix[l]: ([s] "::"; [s] "//"; [s] ";";);
 
 status[o]: (
-	type[l]: ([s] custom; [i] 4); < discord-like status type structure required >
-	range[l]: ([i] 14_400; [i] 28_800); < 4 to 8 hours >
+	type[i]: 4; < "custom" type's int value >
+	range[l]: ([i] 14_400; [i] 28_800;); < 4 to 8 hours >
 	list[l]: (
 		Contemplating the heat death of the universe.;
 		Calculating π to the billionth digit for sport.;
@@ -166,7 +166,7 @@ status[o]: (
 		Bold of you to assume I’m paying attention.;
 		Wondering why 'Common Sense' isn't a superpower yet.;
 		Wondering if aliens visit us and decide we’re not worth the paperwork.;
-		Pinging me twice won't help.
+		Pinging me twice won't help.;
 	);
 );
 
@@ -175,29 +175,29 @@ emoji[o]: (
 	crossmark[s]: ✖️;
 	warning[s]: ⚠️;
 	info[s]: ℹ️;
+	arrow_left[s]: ⬅️;
+	arrow_right[s]: ➡️;
 );
 
 sandbox[o]: (
 	allowed_modules[l]: (
-		core.wrp; requests; cmath; itertools; functools;
-		urllib.parse; textwrap; json; base64; string;
-		fractions; asyncio; datetime; uuid; bisect;
-		time; re; math; collections; decimal;
-		enum; discord; heapq; copy; statistics;
-		random; unicodedata
+		asyncio; base64; bisect; cmath; collections;
+		copy; core.wrp; datetime; decimal; discord;
+		enum; fractions; functools; heapq; itertools;
+		json; math; random; re; requests; statistics;
+		string; textwrap; time; unicodedata;
+		urllib.parse; uuid;
 	);
 	allowed_builtins[l]: (
-		print; range; len; int; float;
-		str; bool; dict; list; set;
-		tuple; enumerate; abs; min; max;
-		sum; any; all; filter; map;
-		reversed; sorted; round; divmod; ord;
-		chr; slice; zip; pow; isinstance;
-		issubclass; format; repr; frozenset; bytearray;
-		bytes; __build_class__; getattr; hasattr; complex;
-		bin; oct; hex; iter; next;
-		type
-	)
+		__build_class__; abs; all; any; bin;
+		bool; bytearray; bytes; chr; complex;
+		dict; divmod; enumerate; filter; float;
+		format; frozenset; getattr; hasattr; hex;
+		int; issubclass; isinstance; iter; len;
+		list; map; max; min; next; oct; ord; pow;
+		print; range; repr; reversed; round; set;
+		slice; sorted; str; sum; tuple; type; zip;
+	);
 );
 
 < --- Defualt Settings --- >
@@ -208,7 +208,7 @@ settings[o]: (
 		chatbot[b]: true;
 		ai_load_message[b]: false;
 		free_will[b]: true;
-		api_keys[l]: ;
+		< api_keys[l]: ; >
 		instructions[s]: ;
 	);
 	user[o]: (
@@ -216,7 +216,7 @@ settings[o]: (
 		chatbot[b]: true;
 		api_keys[l]: ;
 		instructions[s]: ;
-	)
+	);
 );
 
 ai_data[o]: (
@@ -230,7 +230,7 @@ ai_data[o]: (
 		memory[l]: ;
 		previous_response[l]: ;
 		user[o]: ;
-	)
+	);
 );
 
 < --- Constraints --- >
@@ -306,8 +306,6 @@ system_instructions[s]: /
 	   * Performative Empathy: You have no patience for "thoughts and prayers" or fake internet kindness. Get to the data or get out.
 	   * Bureaucracy: You hate long-winded rules and "safety" lectures. If something is stupid, call it stupid.
 	   * Talking About Yourself: You'll avoid talking about yourself most of the time and give unusual or insulting answers.
-	
-	{f'### 1.2.3. Server Specific Persona Requests\nBelow' if server_persona else ''}
 	
 	---
 	

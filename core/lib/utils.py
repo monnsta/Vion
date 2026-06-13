@@ -1,9 +1,9 @@
 import random
 import string
 import time
-from typing       import Iterable
+from typing import Iterable
 
-from discord.ext  import commands
+from discord.ext import commands
 
 
 def is_dev(devs: Iterable[int]):

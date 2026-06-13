@@ -1,10 +1,9 @@
 import logging
-from datetime       import datetime, timedelta
-from typing         import Any, Dict, List, Optional, Tuple
+from datetime import datetime, timedelta
+from typing import Any, Dict, List, Optional, Tuple
 
-from core.lib.file  import json_file
-from meta           import config, file
-
+from core.lib.file import json_file
+from meta import config, file
 
 
 log = logging.getLogger(__name__)
@@ -64,6 +63,7 @@ class Blacklist:
 			await json_file.save(file.glob.blacklist, data)
 
 		return True, data
+
 
 	async def add(self, entity_id: int, entity_type: str, mod_id: int, reason: str, duration: Optional[str] = None) -> Tuple[bool, str]:
 		if entity_type not in ("server", "user"):
@@ -131,6 +131,55 @@ class Blacklist:
 
 		return False, f"{entity_type.capitalize()} with id '{eid}' was not found."
 
+	async def edit(self, entity_id: int, entity_type: str, mod_id: int, reason: Optional[str] = None, duration: Optional[str] = None) -> Tuple[bool, str]:
+		if entity_type not in ("server", "user"):
+			return False, "Invalid entity type"
+
+		if not reason and not duration:
+			return False, "You must provide either a new reason or a new duration to edit."
+
+		success, data = await self._get_data()
+		if not success:
+			return False, "Failed to load blacklist database."
+
+		eid = str(entity_id)
+		if eid not in data[entity_type]:
+			return False, f"{entity_type.capitalize()} is not currently blacklisted."
+
+		entry = data[entity_type][eid]
+
+		if reason:
+			entry["reason"] = reason
+
+		if duration is not None:
+			if duration == "0":
+				entry["expires_at"] = None
+			else:
+				try:
+					amount = int(duration[:-1])
+					unit = duration[-1].lower()
+
+					if unit == "d":
+						delta = timedelta(days=amount)
+					elif unit == "h":
+						delta = timedelta(hours=amount)
+					elif unit == "m":
+						delta = timedelta(minutes=amount)
+					else:
+						return False, "Invalid duration unit (use d, h, m)."
+
+					created_at = datetime.fromisoformat(entry["created_at"])
+					entry["expires_at"] = (created_at + delta).isoformat()
+				except Exception as e:
+					log.error(f"Failed to parse edit duration '{duration}': {e}")
+					return False, "Invalid duration format (use 7d, 12h, 30m). Use 0 for permanent."
+
+		entry["mod_id"] = mod_id
+
+		await json_file.save(file.glob.blacklist, data)
+		log.info(f"Successfully edited blacklist entry for {entity_type} {eid} by mod {mod_id}")
+		return True, "Blacklist entry updated successfully."
+
 	async def list_all(self, entity_type: Optional[str] = None) -> List[Dict[str, Any]]:
 		log.debug(f"Listing all blacklisted entities (filter: {entity_type})")
 		success, data = await self._get_data()
@@ -159,4 +208,4 @@ class Blacklist:
 blacklist = Blacklist()
 
 
-__all__ = ('blacklist')
+__all__ = ('blacklist',)

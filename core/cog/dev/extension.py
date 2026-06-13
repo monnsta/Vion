@@ -1,36 +1,62 @@
 import discord
-from discord                import app_commands as app
-from discord.ext            import commands
+from discord import app_commands as app
+from discord.ext import commands
 
-from core.wrp.extension     import extension
-from core.cog.dev._group    import dev
-from core.cog.ui_template   import Fail, Success, Generic
-from meta                   import emoji
+from core.lib.utils import mt
+from core.wrp.extension import extension
+from meta import emoji, config
+
+from core.cog.utils import HybridGroup
+from core.cog.ui_template import Fail, Success, Generic
 
 
-class Extension(commands.Cog):
+async def autocomplete(interaction: discord.Interaction, current: str):
+	all_extensions = await extension.get_all()
+	choices = []
+
+	loaded_exts = [ext.lower() for ext in interaction.client.extensions.keys()]
+
+	for ext_path in all_extensions:
+		if current.lower() in ext_path.lower():
+			prefix = "[+]" if ext_path.lower() in loaded_exts else "[-]"
+			choices.append(app.Choice(name=f"{prefix} {ext_path}", value=ext_path))
+
+	return choices[:25]
+
+async def callback(ctx: commands.Context):
+	if ctx.invoked_subcommand is None:
+		await ctx.reply(view=Fail(
+			"Subcommand Missing",
+			"Available subcommands:",
+			"<block>",
+			"* load       (l )",
+			"* unload     (u )",
+			"* reload     (r )",
+			"* load_all   (la)",
+			"* unload_all (ua)",
+			"* reload_all (ra)",
+			"* list       (li)",
+			"* help       (h )",
+			"<block>"
+		))
+
+
+class Extension(HybridGroup):
 	def __init__(self, bot: commands.Bot):
+		super().__init__(
+			callback,
+			name='extension',
+			aliases=['e'],
+			description='Manage bot extensions and cogs.'
+		)
 		self.bot = bot
-
-	@staticmethod
-	async def autocomplete(interaction: discord.Interaction, current: str):
-		all_extensions = await extension.get_all()
-		choices = []
-
-		loaded_exts = [ext.lower() for ext in interaction.bot.extensions.keys()]
-
-		for ext_path in all_extensions:
-			if current.lower() in ext_path.lower():
-				prefix = "[+]" if ext_path.lower() in loaded_exts else "[-]"
-				choices.append(app.Choice(name=f"{prefix} {ext_path}", value=ext_path))
-
-		return choices[:25]
+		self.p = config.default_prefix[0]
 
 	async def _single_handle(self, ctx, module, path):
 		is_success, msg = await module(self.bot, path)
 
-		if is_success: view = Success(msg)
-		else: view = Fail(msg)
+		if is_success: view = Success("Success", msg)
+		else: view = Fail("Failed", msg)
 
 		await ctx.reply(view=view)
 
@@ -39,38 +65,53 @@ class Extension(commands.Cog):
 		results_list = [f"{emoji.checkmark if success else emoji.crossmark} {ext}: {msg}" for ext, (success, msg) in results.items()]
 
 		view = Generic(
-			"### Results:"
+			"### Results:",
 			f"* {'\n* '.join(results_list)}"
 		)
 
 		await ctx.reply(view=view)
 
 
-	@dev.group(
-		name='extension', 
-		aliases=['ex'],
-		description='Manage bot extensions and cogs.'
+	@commands.hybrid_command(
+		name='help',
+		aliases=['h'],
+		description='Get help for the extension group.'
 	)
-	async def extension(self, ctx: commands.Context):
-		"""Group for all the extension commands."""
-		if ctx.invoked_subcommand is not None:
-			return
-
-		await ctx.reply(view=Fail(
-			"Subcommand Missing",
-			"Available subcommands:",
-			"```",
-			"* load       (l )",
-			"* unload     (u )",
-			"* reload     (r )",
-			"* load_all   (la)",
-			"* unload_all (ua)",
-			"* reload_all (ra)",
-			"```"
+	async def help(self, ctx: commands.Context):
+		await ctx.reply(view=Generic(
+			"# Extension",
+			"This group is used to load, unload, and reload bot cogs/extensions.",
+			None,
+			mt(
+				"## Load / Unload / Reload:",
+				"Manage a specific extension.",
+				"Params:",
+				"* path: The extension path to act on",
+				"Usage:",
+				f"* `{self.p}dev extension load core.cog.dev.root`",
+				f"* `{self.p}d e l core.cog.dev.root`",
+				f"* {config.cmd.dev.extension.load} `path:` core.cog.dev.root"
+			), None,
+			mt(
+				"## Load All / Unload All / Reload All:",
+				"Manage all extensions at once.",
+				"Usage:",
+				f"* `{self.p}dev extension reload_all`",
+				f"* `{self.p}d e ra`",
+				f"* {config.cmd.dev.extension.reload_all}"
+			), None,
+			mt(
+				"## List:",
+				"List all available extensions and their statuses.",
+				"Usage:",
+				f"* `{self.p}dev extension list`",
+				f"* `{self.p}d e li`",
+				f"* {config.cmd.dev.extension.list}"
+			)
 		))
 
 
-	@extension.command(
+	@commands.hybrid_command(
 		name='load',
 		aliases=['l'],
 		description='Load a specific cog file.'
@@ -78,14 +119,10 @@ class Extension(commands.Cog):
 	@app.describe(path='The extension path to load')
 	@app.autocomplete(path=autocomplete)
 	async def load(self, ctx: commands.Context, *, path: str):
-		"""
-		Load an extension to the bot, all extensions are loaded by default.
-		Example: /dev extension load core.cog.commands.help
-		"""
 		await self._single_handle(ctx, extension.load, path)
 
 
-	@extension.command(
+	@commands.hybrid_command(
 		name='unload',
 		aliases=['u'],
 		description='Unload a specific cog file.'
@@ -93,14 +130,10 @@ class Extension(commands.Cog):
 	@app.describe(path='The extension path to unload')
 	@app.autocomplete(path=autocomplete)
 	async def unload(self, ctx: commands.Context, *, path: str):
-		"""
-		Unload an extension, all the commands or events of that extension will stop working.
-		Example: /dev extension unload core.cog.commands.help
-		"""
 		await self._single_handle(ctx, extension.unload, path)
 
 
-	@extension.command(
+	@commands.hybrid_command(
 		name='reload',
 		aliases=['r'],
 		description='Reload a specific cog file.'
@@ -108,53 +141,45 @@ class Extension(commands.Cog):
 	@app.describe(path='The extension path to reload')
 	@app.autocomplete(path=autocomplete)
 	async def reload(self, ctx: commands.Context, *, path: str):
-		"""
-		Reload an extension, if there are any errors in this process, it'll keep using the extension loaded in memory.
-		Example: /dev extension unload core.cog.commands.help
-		"""
 		await self._single_handle(ctx, extension.reload, path)
 
 
-	@extension.command(
+	@commands.hybrid_command(
 		name='load_all',
 		aliases=['la'],
 		description='Load all cog files found in defined directories.'
 	)
 	async def load_all(self, ctx: commands.Context):
-		"""Loads all the extensions."""
 		await self._multi_handle(ctx, extension.load_all)
 
 
-	@extension.command(
+	@commands.hybrid_command(
 		name='unload_all',
 		aliases=['ua'],
 		description='Unload all loaded cogs except core managers.'
 	)
 	async def unload_all(self, ctx: commands.Context):
-		"""Unloads all the extensions."""
 		await self._multi_handle(ctx, extension.unload_all)
 
 
-	@extension.command(
+	@commands.hybrid_command(
 		name='reload_all',
 		aliases=['ra'],
 		description='Reload all currently loaded cogs.'
 	)
 	async def reload_all(self, ctx: commands.Context):
-		"""Reloads all the extensions."""
 		await self._multi_handle(ctx, extension.reload_all)
 
 
-	@extension.command(
+	@commands.hybrid_command(
 		name='list',
 		aliases=['li'],
 		description='List all available cogs.'
 	)
 	async def list(self, ctx: commands.Context):
-		"""Get a list of all the cogs."""
 		all_extensions = await extension.get_all()
 		loaded_exts = [ext.lower() for ext in self.bot.extensions.keys()]
-		
+
 		results = []
 		for ext in all_extensions:
 			is_loaded = ext.lower() in loaded_exts

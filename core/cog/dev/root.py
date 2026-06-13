@@ -1,59 +1,280 @@
+import asyncio
 import traceback
 
-from discord                import app_commands as app
-from discord.ext            import commands
+import discord
+from discord import app_commands as app
+from discord.ext import commands
 
-from core.lib.code          import Code, status
-from core.cog.dev._group    import dev
-from core.cog.ui_template   import Fail, Success
-from meta                   import load_config, config, emoji
+from core.lib.code import Code, status
+from core.lib.utils import is_dev, mt
+from meta import load_config, config, emoji
+
+from core.cog.ui_template import Fail, Success, Paginated
+from core.cog.dev.blacklist import Blacklist
+from core.cog.dev.extension import Extension
 
 
-class Root(commands.Cog):
+class DevRoot(commands.Cog):
 	def __init__(self, bot: commands.Bot):
 		self.bot = bot
+		self.p = config.default_prefix[0]
+
+		self.dev.add_command(Blacklist(self.bot))
+		self.dev.add_command(Extension(self.bot))
+
+
+	@commands.hybrid_group(
+		name='dev',
+		aliases=['d'],
+		description='Dev commands.'
+	)
+	@is_dev(config.dev_ids)
+	async def dev(self, ctx: commands.Context):
+		if ctx.invoked_subcommand is None:
+			await ctx.reply(view=Fail(
+				"Subcommand Missing",
+				"Available subcommands:",
+				"```",
+				"* send          (s)",
+				"* code          (c)",
+				"* reload_config (r)",
+				"",
+				"* extension     (e)",
+				"* blacklist     (b)",
+				"* help          (h)",
+				"```"
+			))
+
+	@dev.error
+	async def dev_error(self, ctx: commands.Context, error):
+		if isinstance(error, commands.CheckFailure):
+			await ctx.reply(view=Fail(f"Only developers can use this command."))
+
+	@dev.command(
+		name='help',
+		aliases=['h'],
+		description='Get help for the dev group.'
+	)
+	async def help(self, ctx: commands.Context):
+		await ctx.reply(view=Paginated(
+			"",
+			[
+				mt(
+					"# Dev",
+					"This group contains developer-only commands for bot maintenance and testing."
+				),
+				mt(
+					"## Send:",
+					"Send a message to the current channel as the bot.",
+					"Params:",
+					"* message: The message you want to send",
+					"Usage:",
+					f"* `{self.p}dev send Hello.`",
+					f"* `{self.p}d s Hello.`",
+					f"* {config.cmd.dev.send} `message:` Hello."
+				),
+				mt(
+					"## Code:",
+					"Execute python code safely in a restricted environment.",
+					"Params:",
+					"* code: The python code to execute",
+					"Usage:",
+					f"* `{self.p}dev code async def main(**kwargs): print('test')`",
+					f"* `{self.p}d c async def main(**kwargs): print('test')`",
+					f"* {config.cmd.dev.code} `code:` `async def main(**kwargs): print('test')`"
+				),
+				mt(
+					"## Reload Config:",
+					"Reload the bot's configuration files.",
+					"Usage:",
+					f"* `{self.p}dev reload_config`",
+					f"* `{self.p}d r`",
+					f"* {config.cmd.dev.reload_config}"
+				),
+				mt(
+					"## Extension:",
+					"Manage bot extensions (cogs).",
+					f"Use `{self.p}dev extension help` | `{self.p}d e h` | {config.cmd.dev.extension.help} to know more.",
+					"Command List:",
+					"```",
+					"load       (l )",
+					"unload     (u )",
+					"reload     (r )",
+					"load_all   (la)",
+					"unload_all (ua)",
+					"reload_all (ra)",
+					"list       (li)",
+					"help       (h )",
+					"```",
+					"Usage:",
+					f"* `{self.p}dev extension load core.cog.root`",
+					f"* `{self.p}d e l core.cog.root`",
+					f"* {config.cmd.dev.extension.load} `path:` core.cog.root"
+				),
+				mt(
+					"## Blacklist:",
+					"Manage the global bot blacklist for users and servers.",
+					f"Use `{self.p}dev blacklist help` | `{self.p}d b h` | {config.cmd.dev.blacklist.help} to know more.",
+					"Command List:",
+					"```",
+					"add        (a )",
+					"remove     (r )",
+					"edit       (e )",
+					"view       (v )",
+					"list       (l )",
+					"help       (h )",
+					"```",
+					"Usage:",
+					f"* `{self.p}dev blacklist add user 123456789 \"Spamming\" 7d`",
+					f"* `{self.p}d b a user 123456789 \"Spamming\" 7d`",
+					f"* {config.cmd.dev.blacklist.add} `type:` user `target_id:` 123456789 `reason:` Spamming `duration:` 7d"
+				)
+			],
+			ctx.author
+		))
+
+
+	@dev.command(
+		name='send',
+		aliases=['s'],
+		description='Send a message to the channel.'
+	)
+	@app.describe(
+		message='The message you want to send'
+	)
+	@app.user_install()
+	@app.allowed_contexts(
+		guilds=True, dms=True,
+		private_channels=True
+	)
+	async def send(self, ctx: commands.Context, *, message: str):
+		initial_message = None
+		if ctx.interaction:
+			initial_message = await ctx.reply(view=Success(
+				"Message sent."
+			), ephemeral=True)
+		else:
+			try:
+				await ctx.message.delete()
+			except (discord.Forbidden, discord.HTTPException):
+				pass
+
+		if initial_message and not (ctx.guild and ctx.guild.get_member(self.bot.user.id)):
+			await initial_message.reply(message)
+		else:
+			await ctx.send(message)
 
 
 	@dev.command(
 		name='code',
 		aliases=['c'],
-		description='Execute python code'
+		description='Execute python code.'
 	)
 	@app.describe(code='The code to execute')
 	async def code(self, ctx: commands.Context, *, code: str):
-		"""
-		Execute python code. you are required to define an asynchronios main function as entry point, accepting message and bot object.
-		Example: /dev execute async def main(message, bot): await message.channel.send("Hello there.")
-		"""
 		await ctx.defer(ephemeral=False)
 
+		initial_view = Paginated(
+			header="**Execution Initializing**",
+			items=["**Status:** Preparing execution..."],
+			user=ctx.author,
+			accent_color=0x7289da
+		)
+		msg = await ctx.reply(view=initial_view)
+
 		runner = Code(code)
+
+		def format_live_block(text: str, limit: int = 800) -> str:
+			if not text:
+				return ""
+			text = str(text)
+			if len(text) > limit:
+				text = f"... (earlier output truncated)\n{text[-(limit - 35):]}"
+			return f"```py\n{text}\n```"
+
+		def chunk_for_pagination(title: str, text: str, chunk_size: int = 1500) -> list[str]:
+			if not text:
+				return []
+			text = str(text)
+
+			if len(text) <= chunk_size:
+				return [f"**{title}:**\n```py\n{text}\n```"]
+
+			chunks = [text[i:i + chunk_size] for i in range(0, len(text), chunk_size)]
+			return [f"**{title} ({i+1}/{len(chunks)}):**\n```py\n{chunk}\n```" for i, chunk in enumerate(chunks)]
 
 		try:
 			await runner.execute(timeout=30.0, message=ctx.message, bot=self.bot)
 
+			async def update_live_output():
+				last_content = ""
+				try:
+					while runner.data.status in (status.PENDING, status.RUNNING):
+						data = runner.get_output()
+
+						output_parts = []
+						if data.stdout:
+							output_parts.append(f"**Stdout:**\n{format_live_block(data.stdout, 500)}")
+						if data.stderr:
+							output_parts.append(f"**Stderr:**\n{format_live_block(data.stderr, 500)}")
+
+						content = "\n".join(output_parts) if output_parts else "Executing..."
+
+						if content != last_content:
+							try:
+								live_view = Paginated(
+									header=f"**Execution Status: {data.status}**",
+									items=[content],
+									user=ctx.author,
+									accent_color=0x7289da
+								)
+								await msg.edit(view=live_view)
+								last_content = content
+							except Exception:
+								pass
+
+						await asyncio.sleep(2.0)
+				except asyncio.CancelledError:
+					pass
+
+			updater_task = asyncio.create_task(update_live_output())
+
 			data = await runner.wait()
+			updater_task.cancel()
 
-			output_parts = []
+			items = []
+			items.extend(chunk_for_pagination("Stdout", data.stdout))
+			items.extend(chunk_for_pagination("Stderr", data.stderr))
 
-			if data.stdout:
-				output_parts.append(f"**Stdout:**\n```py\n{data.stdout}\n```")
-			if data.stderr:
-				output_parts.append(f"**Stderr:**\n```py\n{data.stderr}\n```")
 			if data.error:
-				output_parts.append(f"**Error:**\n```py\n{data.error}\n```")
+				items.extend(chunk_for_pagination("Error", data.error))
 			if data.result is not None:
-				output_parts.append(f"**Result:** `{data.result}`")
+				items.extend(chunk_for_pagination("Result", data.result))
 
-			final_content = "\n".join(output_parts) if output_parts else "Code executed with no output."
+			if not items:
+				items.append("**Result:**\n```py\nCode executed silently with no output.\n```")
 
-			if data.status == status.COMPLETED:
-				await ctx.reply(view=Success(f"**Execution {runner.execution_id} Successful**\n\n{final_content}"))
-			else:
-				await ctx.reply(view=Fail(f"**Execution {runner.execution_id} {data.status}**\n\n{final_content}"))
+			is_success = data.status == status.COMPLETED
+			header = f"**Execution {runner.execution_id} {'Successful' if is_success else data.status}**"
+			color = 0x43b581 if is_success else 0xf04747
+
+			view = Paginated(
+				header=header,
+				items=items,
+				user=ctx.author,
+				accent_color=color
+			)
+
+			await msg.edit(view=view)
 
 		except Exception as e:
-			await ctx.reply(view=Fail(f"An unexpected error occurred during execution setup: {str(e)}"))
+			view = Paginated(
+				header="**Execution Setup Failed**",
+				items=[f"**Error:**\n```py\n{str(e)}\n```"],
+				user=ctx.author,
+				accent_color=0xf04747
+			)
+			await msg.edit(view=view)
 
 
 	@dev.command(
@@ -62,13 +283,13 @@ class Root(commands.Cog):
 		description='Reload the config file'
 	)
 	async def reload_config(self, ctx: commands.Context):
-		"""Reloads the internal config file, usefull when you've edited the config file but can't restart the bot."""
 		original_config = config.to_dict()
 		original_emoji = emoji.to_dict()
 		try:
 			config.clear()
 			emoji.clear()
-			load_config()
+			await load_config()
+			await asyncio.sleep(10)
 			await ctx.reply(view=Success("Successfully reloaded config"))
 		except Exception:
 			config.load(original_config)

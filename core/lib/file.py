@@ -4,10 +4,10 @@ import logging
 import os
 import time
 import threading
-from abc          import ABC, abstractmethod
-from contextlib   import asynccontextmanager
-from pathlib      import Path
-from typing       import Any, AsyncIterator, Generic, TypeVar
+from abc import ABC, abstractmethod
+from contextlib import asynccontextmanager
+from pathlib import Path
+from typing import Any, AsyncIterator, Generic, TypeVar
 
 try:
 	import orjson
@@ -426,13 +426,13 @@ class BaseFileIO(ABC, Generic[T]):
 class TEXT(BaseFileIO[str]):
 	"""Plain text implementation."""
 	def serialize(self, data: str) -> bytes:
-		return data.encode("utf-8")
+		return (data or "").encode("utf-8")
 
 	def deserialize(self, content: bytes) -> str:
-		return content.decode("utf-8")
+		return content.decode("utf-8") if content else ""
 
 	def clone(self, data: str) -> str:
-		return data
+		return data or ""
 
 	@property
 	def default_empty(self) -> str:
@@ -441,9 +441,11 @@ class TEXT(BaseFileIO[str]):
 class JSON(BaseFileIO[dict]):
 	"""JSON implementation."""
 	def serialize(self, data: dict) -> bytes:
-		return orjson.dumps(data)
+		return orjson.dumps(data if data is not None else {})
 
 	def deserialize(self, content: bytes) -> dict:
+		if not content or content.strip() == b"": 
+			return self.default_empty
 		return orjson.loads(content)
 
 	def clone(self, data: dict) -> dict:
@@ -457,9 +459,11 @@ class JSON(BaseFileIO[dict]):
 class YAML(BaseFileIO[dict]):
 	"""YAML implementation."""
 	def serialize(self, data: dict) -> bytes:
-		return yaml.dump(data, Dumper=SafeDumper, sort_keys=False).encode("utf-8")
+		return yaml.dump(data if data is not None else {}, Dumper=SafeDumper, sort_keys=False).encode("utf-8")
 
 	def deserialize(self, content: bytes) -> dict:
+		if not content or content.strip() == b"":
+			return self.default_empty
 		return yaml.load(content.decode("utf-8"), Loader=SafeLoader) or {}
 
 	def clone(self, data: dict) -> dict:
@@ -473,10 +477,12 @@ class YAML(BaseFileIO[dict]):
 class IAL(BaseFileIO[dict]):
 	"""IAL implementation. (new language)"""
 	def serialize(self, data: dict) -> bytes:
-		return ial.dumps(data, lazy=True).encode("utf-8")
+		return ial.dumps(data if data is not None else {}, lazy=True).encode("utf-8")
 
 	def deserialize(self, content: bytes) -> dict:
-		return ial.loads(data.decode("utf-8"))
+		if not content or content.strip() == b"":
+			return self.default_empty
+		return ial.loads(content.decode("utf-8"))
 
 	def clone(self, data: dict) -> dict:
 		if not data: return {}
