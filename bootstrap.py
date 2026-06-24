@@ -206,7 +206,9 @@ def setup_file_logging():
 	os.makedirs(log_dir, exist_ok=True)
 
 	ext = ".json" if config.logging.use_json else ".html"
-	log_file_path = os.path.join(log_dir, f"current{ext}")
+
+	date_str = time.strftime("%Y-%m-%d", time.localtime())
+	log_file_path = os.path.join(log_dir, f"{date_str}{ext}")
 
 	root_logger = logging.getLogger()
 
@@ -218,7 +220,7 @@ def setup_file_logging():
 		encoding='utf-8'
 	)
 
-	file_handler.namer = lambda name: os.path.join(log_dir, time.strftime("%Y-%m-%d", time.localtime()) + ext)
+	file_handler.namer = lambda name: (name if name.endswith(ext) else f"{name.split(ext)[0]}{ext}")
 
 	file_handler.setLevel(logging.DEBUG)
 	file_handler.setFormatter(

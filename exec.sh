@@ -20,6 +20,11 @@ CHECK_ENV=false
 APP_DIR=$(cd -- "$(dirname -- "${BASH_SOURCE[0]}")" &> /dev/null && pwd)
 BOT_PATH="$APP_DIR/$BOT_FILE"
 REQ_PATH="$APP_DIR/$REQUIREMENTS"
+# Copyright (C) 2026 monnsta
+# This software is proprietary and confidential.
+# Unauthorized copying, modification, or distribution
+# is strictly prohibited.
+
 CRASH_TS=()
 
 RED='\e[1;31m'
