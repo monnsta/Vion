@@ -6,7 +6,7 @@ from discord import app_commands as app
 from discord.ext import commands
 
 from core.lib.utils import mt, is_admin
-from meta import config
+from meta import config, emoji
 
 from core.cog.utils import resolve_target, handle_common_errors
 from core.cog.ui_template import Generic, Fail, Success, Confirmation
@@ -32,7 +32,7 @@ class Root(commands.Cog):
 				"Owners and Administrators, while verifying specific "
 				"permissions for other users (e.g., a user must have "
 				"'Timeout Members' permissions to request a timeout).\n\n"
-				"## Disclaimer:\n"
+				f"## {emoji.warn} Disclaimer:\n"
 				"While robust security measures are in place, AI can be "
 				"unpredictable. Use at your own discretion and consider "
 				"restricting high-level permissions like 'Administrator'.\n"
@@ -91,7 +91,7 @@ class Root(commands.Cog):
 				if level == 2:
 					components.append(None)
 
-		groups = [c for c in self.bot.commands if isinstance(c, commands.Group) and not c.hidden]
+		groups = [c for c in self.bot.commands if isinstance(c, commands.Group) and not c.hidden and c.name != 'dev']
 		walk_groups(groups)
 
 		components.append(f"-# By using this bot, you agree to our [Terms of Service]( <https://{config.domain}/terms> ) & [Privacy Policy]( <https://{config.domain}/privacy> )")
@@ -174,10 +174,6 @@ class Root(commands.Cog):
 	)
 	@is_admin(config.dev_ids, ('type', 'user'))
 	async def get_my_data(self, ctx: commands.Context, type: Literal['server', 'user']):
-		"""
-		Gives you all your data we have stored.
-		Example: /get_my_data user
-		"""
 		manager, target_id = await resolve_target(ctx, type)
 		if not manager:
 			return
@@ -195,9 +191,7 @@ class Root(commands.Cog):
 
 		try:
 			file = discord.File(result, filename=f"{type}_{target_id}_data.zip")
-			await ctx.author.send(view=Generic(
-				f"Here is the requested **{type}** data export."
-			), file=file)
+			await ctx.author.send(file=file)
 			await ctx.reply(view=Success(
 				"I've sent your data export to your DMs."
 			), ephemeral=True)
@@ -222,10 +216,6 @@ class Root(commands.Cog):
 	)
 	@is_admin(config.dev_ids, ('type', 'user'))
 	async def delete_my_data(self, ctx: commands.Context, type: Literal['server', 'user']):
-		"""
-		Deletes all your data permanently from our storage. **This process cannot be undone.**
-		Example: /delete_my_data user
-		"""
 		manager, target_id = await resolve_target(ctx, type)
 		if not manager:
 			return

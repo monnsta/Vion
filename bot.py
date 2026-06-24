@@ -3,11 +3,12 @@ import bootstrap
 import asyncio
 import logging
 import signal
+import sys
 
 import discord
 from discord.ext import commands
 
-from core.lib.bttrdict import BD, Repr
+from core.lib.dataclass import Data, Repr
 from core.wrp.profile import server, user
 from core.wrp.extension import extension
 from meta import config
@@ -48,7 +49,7 @@ class Bot(commands.Bot):
 					walk(opt, prefix=name, root_id=root_id)
 
 			if not has_subcommands:
-				command_data = BD(
+				command_data = Data(
 					name=name,
 					mention=mention_name,
 					description=command.description or "No description.",
@@ -60,6 +61,13 @@ class Bot(commands.Bot):
 		for cmd in synced_commands:
 			walk(cmd)
 		log.debug(config.cmd)
+
+	async def on_error(self, event_method, *args, **kwargs):
+		exc_type, exc_val, exc_tb = sys.exc_info()
+		if isinstance(exc_val, aiohttp.ClientConnectorDNSError):
+			log.error("DNS Resolution failed.")
+			return
+		await super().on_error(event_method, *args, **kwargs)
 
 	async def setup_hook(self):
 		log.info("Starting Setup...")
@@ -112,5 +120,7 @@ if __name__ == "__main__":
 		bot.run(config.secrets.discord_api_key, log_handler=None)
 	except (KeyboardInterrupt, SystemExit):
 		log.info("Process terminated by user")
+	except discord.aiohttp.ClientConnectorDNSError as e:
+		log.error(f"Connection failed: Unable to resolve Discord API hostname ({e.host}). Check your internet connection or DNS.")
 	except Exception:
 		log.critical("Fatal error during bot startup", exc_info=True)

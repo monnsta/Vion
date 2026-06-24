@@ -55,7 +55,7 @@ class GeminiKey(HybridGroup):
 				"Params:",
 				"* key: The key from the gemini api",
 				"Usage:",
-				f"{emoji.warning} **Recommend to use in dms or use as slash commands to keep your key private.**",
+				f"{emoji.warn} **Recommend to use in dms or use as slash commands to keep your key private.**",
 				f"* `{self.p}setting gemini_key add *******`",
 				f"* `{self.p}s g a *******`",
 				f"* {config.cmd.setting.gemini_key.add} `key:` {em('*******')}"

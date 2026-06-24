@@ -89,7 +89,7 @@ class SettingRoot(commands.Cog):
 		description='Get help for the setting group.'
 	)
 	async def help(self, ctx: commands.Context):
-		await ctx.reply(view=Paginated(
+		view = Paginated(
 			"",
 			[
 				mt(
@@ -108,7 +108,7 @@ class SettingRoot(commands.Cog):
 				),
 				mt(
 					"## Freewill:",
-					"Toggle free will for the current server. Makes the bot be able to talk, or do any action on it's own without a 'trigger'.",
+					"Toggle free will for the current server. Makes the bot able to talk, or do any action on it's own without a 'trigger'.",
 					"Params:",
 					"* value: Whether to turn free will on or off (True or False)",
 					"Usage:",
@@ -164,7 +164,7 @@ class SettingRoot(commands.Cog):
 					"help   (h)",
 					"```",
 					"Usage:",
-					f"{emoji.warning} **Recommend to use in dms or use as slash commands to keep your key private.**",
+					f"{emoji.warn} **Recommend to use in dms or use as slash commands to keep your key private.**",
 					f"* `{self.p}setting gemini_key add *******`",
 					f"* `{self.p}s g a *******`",
 					f"* {config.cmd.setting.gemini_key.add} `key:` {em('*******')}"
@@ -187,7 +187,9 @@ class SettingRoot(commands.Cog):
 				)
 			],
 			ctx.author
-		))
+		)
+		message = await ctx.reply(view=view)
+		view.message = message
 
 
 	@setting.command(

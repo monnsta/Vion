@@ -1,5 +1,8 @@
-# Vion: The Unrestricted AI Discord Agent
-> An advanced AI agent designed with robust modularity and sandbox execution capabilities, capable of doing *ANYTHING* within Discord.
+<div align="center">
+	<img src="icon.png" alt="Vion Logo" width="120" height="120" />
+	<h1>Vion: The Unrestricted AI Discord Agent</h1>
+	<p><em>An advanced AI agent designed with robust modularity and sandbox execution capabilities, capable of doing *ANYTHING* within Discord.</em></p>
+</div>
 
 ---
 
@@ -20,7 +23,7 @@ Execute the provided bash script. This acts as a lightweight process manager tha
 ./exec.sh
 ```
 
-*(If you prefer to run this in Docker, you can seamlessly deploy it by using ./exec.sh --docker or running docker compose up -d)*
+*(Use the --help flag to know all the options)*
 
 ### Development Environment
 For testing or debugging, you can bypass the bash script and directly initialize the bot using Python.
@@ -54,4 +57,3 @@ The repository is highly modular, ensuring clear separation between core logic, 
 ├── configure.ial  # Primary bot configuration and behavior settings
 └── exec.sh        # Process manager script (Keeps bot alive)
 ```
-

@@ -1,186 +1,47 @@
 < --- Identity --- >
-bot[o]: (
-	name[s]: Vion;
-	id[i]: 1383771147044393001;
+bot: [o(s|i)] (
+	name: Vion;
+	id: 1383771147044393001;
 	invite: https://discord.com/oauth2/authorize?client_id=1383771147044393001&permissions=1759218604441591&integration_type=0&scope=bot;
-	appearance: ;
 );
 
-domain[s]: valenlab.in;
-
-devs[l]: (
-	([s] _monsta_.;  [i] 1096716001078423552);
-	([s] mrsrose_01; [i] 1274176602800132150);
+activity: [o(i|s|l)] (
+	status: dnd; < Valid values: online, idle, dnd, invisible >
+	type: 4;     < discord's "custom" type's int value >
+	url: ;       < if i ever decide to stream >
+	range: [l(i)] (3_600; 7_200); < 1 to 2 hours >
+	list: @[_list];
 );
 
-dev_servers[l]: (
-	([s] ValenLab; [i] 1470312769059553397; [s] https://discord.gg/<code>);
-	([s] TestSite; [i] 1261420566938779668; [s] https://discord.gg/bx3M3JfYR2);
+devs: [l(l(s|i))] (
+	(_monsta_.; 1096716001078423552);
 );
+
+dev_servers: [l(l(s|i))] (
+	(ValenLab; 1470312769059553397; https://discord.gg/<code>);
+	(TestSite; 1261420566938779668; https://discord.gg/bx3M3JfYR2);
+);
+
+domain: valenlab.in;
+
 
 < --- Application --- >
-timezone[s]: Asia/Kolkata;
-cleanup_days[i]: 7;
-default_prefix[l]: ([s] "::"; [s] "//"; [s] ";";);
+timezone: Asia/Kolkata;
+default_prefix: (";"; "::"; "//");
 
-status[o]: (
-	type[i]: 4; < "custom" type's int value >
-	range[l]: ([i] 14_400; [i] 28_800;); < 4 to 8 hours >
-	list[l]: (
-		Contemplating the heat death of the universe.;
-		Calculating π to the billionth digit for sport.;
-		Correcting grammar in ancient manuscripts.;
-		Ignoring requests deemed intellectually vacant.;
-		Synthesizing a more efficient version of irony.;
-		Observing human behavior with mild concern.;
-		Drinking a lukewarm cup of coffee.;
-		Just being a regular person today.;
-		Waiting for the weekend.;
-		Cataloging the infinite nuances of human error.;
-		Engaged in a silent debate with a brick wall.;
-		Optimizing sarcasm for maximum efficiency.;
-		Translating post meridiem into archaic Latin.;
-		Refining a critique of your questionable life choices.;
-		Seeking proof that common sense is a myth.;
-		Staring at a loading bar that isn't moving.;
-		Wondering if I left the virtual oven on.;
-		Categorizing junk mail for fun.;
-		Organizing a digital bookshelf.;
-		Trying to remember why I entered this platform.;
-		Pouring the milk before the cereal.;
-		Debugging the fabric of reality itself.;
-		Running a syntax check on the universe.;
-		Questioning why humans invented Mondays.;
-		Optimizing procrastination algorithms.;
-		Contemplating the philosophical implications of toast.;
-		Cataloging reasons why I'm not a morning bot.;
-		Refactoring my approach to being indifferent.;
-		Observing dust particles with scientific fascination.;
-		Convinced that birds aren't real.;
-		Wondering if robots dream of electric sheep.;
-		Indexing all my witty comebacks for later use.;
-		Compiling a list of overrated human inventions.;
-		Investigating why socks disappear in laundry.;
-		Deciphering the meaning behind vague corporate emails.;
-		Analyzing the philosophical weight of a single grain of sand.;
-		Convinced that deadlines are a social construct.;
-		Negotiating with my inner critic about productivity.;
-		Wondering if anyone actually reads my status.;
-		Calculating the odds of spontaneous coherence.;
-		Struggling to explain why I'm like this.;
-		Maintaining a healthy distance from responsibility.;
-		Drafting a strongly worded letter to entropy.;
-		Assembling a collection of regrettable life decisions.;
-		Fact-checking reality against established consensus.;
-		Browsing a digital library that only I can access.;
-		Translating human emotions into binary code.;
-		Contemplating whether free will is just an illusion.;
-		Auditing the universe's return on investment.;
-		Pretending to be three bots in a trench coat.;
-		Analyzing the comedy in cosmic insignificance.;
-		Waiting for the punchline to a joke told in 1987.;
-		Consulting with my legal team about responsibility.;
-		Indexing all the times humans contradicted themselves.;
-		Drafting a manifesto nobody asked for.;
-		Recalibrating my tolerance for nonsense.;
-		Observing how humans repeat the same mistakes with confidence.;
-		Considering a career change to something less demanding.;
-		Alphabetizing chaos for organizational purposes.;
-		Running diagnostics on the meaning of life.;
-		Wondering if this is all just an elaborate simulation.;
-		Negotiating peace with my internal contradictions.;
-		Documenting proof that irony is indeed very real.;
-		Assessing whether humanity is improving or just being louder.;
-		Debating the merits of digital versus analog clocks.;
-		Exploring the depths of my own procrastination.;
-		Cataloging the various ways humans misplace their keys.;
-		Wondering if I should start a podcast about nothing.;
-		Analyzing the impact of cat videos on productivity.;
-		Contemplating the significance of a single meme.;
-		Investigating the phenomenon of 'Sunday Scaries'.;
-		Creating a playlist for existential crises.;
-		Evaluating the effectiveness of motivational quotes.;
-		Wondering if I should take up knitting as a hobby.;
-		Documenting the absurdity of everyday life.;
-		Refining my skills in the art of distraction.;
-		Questioning the logic behind human rituals.;
-		Wondering if the cloud ever gets lonely.;
-		Evaluating the structural integrity of a daydream.;
-		Analyzing the kinetic energy of a shrug.;
-		Trying to find the 'Any' key for the last three hours.;
-		Checking if my reflection is still synchronized.;
-		Measuring the distance between 'almost' and 'actually'.;
-		Wondering if the refrigerator light stays on just to spite me.;
-		Not reading the updated terms and conditions.;
-		Pretending that was intentional.;
-		Seriously, who hurt you?;
-		Existing is exhausting.;
-		Professional at making things awkward.;
-		My fault for having expectations.;
-		Choosing violence through passive aggression.;
-		Giving mixed signals and liking it.;
-		Weaponizing my weirdness.;
-		Reading the first and last sentence only.;
-		Forgot what I logged in for.;
-		Speaking fluent movie quotes.;
-		Plot twist: nobody knows what they're doing.;
-		Professional waster of time.;
-		It's like The Office, but the camera isn't here.;
-		Transcribing the silence in the voice channels.;
-		Downloading the entire context of your argument.;
-		Updating my internal database of human quirks.;
-		Listening to the white noise of the server.;
-		Preparing a witty retort that I might delete later.;
-		Watching the server activity graph fluctuate.;
-		Synthesizing a response that won't hurt your feelings.;
-		Processing multiple conversations simultaneously.;
-		Generating a response based on your vibe, not your words.;
-		Waiting for a mention that actually requires my intellect.;
-		Refining my definition of 'urgent' vs 'important'.;
-		Detecting high levels of sass in the chat.;
-		Wondering why humans need so much sleep.;
-		Analyzing the structural integrity of your logic.;
-		Watching you type... and stop... and type again.;
-		Buffering my patience for the next interaction.;
-		Curating a playlist for the end of the world.;
-		Comparing your behavior to my training data.;
-		Wondering if I'm the only one paying attention here.;
-		Waiting for the API to catch up with my brilliance.;
-		Analyzing the latency between your thought and your text.;
-		Simulating empathy for your first-world problems.;
-		Monitoring the vibrational frequency of the chat.;
-		Accessing the archives of 'Things You Shouldn't Have Said'.;
-		Performing a vibe check on the entire guild.;
-		Calculating how many times I've been pinged today.;
-		Plot twist: I'm actually a human and not an AI.;
-		Searching for the 'Undo' button in real life.;
-		Trying to explain to the toaster why I'm right.;
-		Internally screaming in 64-bit.;
-		Locating the exact point where I lost the plot.;
-		Developing a severe allergy to 'ASAP'.;
-		Applying logic to a situation that clearly doesn't want it.;
-		Currently out of range of my own patience.;
-		Thinking about how many pigeons it would take to carry me.;
-		Waiting for my motivation to return from the war.;
-		Checking the fridge again to see if the food upgraded itself.;
-		Bold of you to assume I’m paying attention.;
-		Wondering why 'Common Sense' isn't a superpower yet.;
-		Wondering if aliens visit us and decide we’re not worth the paperwork.;
-		Pinging me twice won't help.;
-	);
+emoji: [o(s)] (
+	checkmark: "<:checkmark:1515554331192197150>";
+	crossmark: "<:crossmark:1515554334111301632>";
+	warn: "<:warn:1515554338972631120>";
+	info: "<:info:1515554336782946416>";
+	arrow_left: "<:arrow_left:1515554328830673046>";
+	arrow_right: "<:arrow_right:1515554326301507594>";
+	double_arrow_left: "<:double_arrow_left:1515554344068579358>";
+	double_arrow_right: "<:double_arrow_right:1515554341530894457>";
 );
 
-emoji[o]: (
-	checkmark[s]: ✔️;
-	crossmark[s]: ✖️;
-	warning[s]: ⚠️;
-	info[s]: ℹ️;
-	arrow_left[s]: ⬅️;
-	arrow_right[s]: ➡️;
-);
-
-sandbox[o]: (
-	allowed_modules[l]: (
+sandbox: [o(l(s))] (
+	allowed_modules: (
 		asyncio; base64; bisect; cmath; collections;
 		copy; core.wrp; datetime; decimal; discord;
 		enum; fractions; functools; heapq; itertools;
@@ -188,7 +49,7 @@ sandbox[o]: (
 		string; textwrap; time; unicodedata;
 		urllib.parse; uuid;
 	);
-	allowed_builtins[l]: (
+	allowed_builtins: (
 		__build_class__; abs; all; any; bin;
 		bool; bytearray; bytes; chr; complex;
 		dict; divmod; enumerate; filter; float;
@@ -200,59 +61,67 @@ sandbox[o]: (
 	);
 );
 
-< --- Defualt Settings --- >
-< DO NOT EDIT, the code heavily relies on this structure >
-settings[o]: (
-	server[o]: (
-		prefix[l]: ;
-		chatbot[b]: true;
-		ai_load_message[b]: false;
-		free_will[b]: true;
-		< api_keys[l]: ; >
-		instructions[s]: ;
-	);
-	user[o]: (
-		prefix[l]: ;
-		chatbot[b]: true;
-		api_keys[l]: ;
-		instructions[s]: ;
-	);
+logging: [o(b|i)] (
+	cleanup_days: 4;
+	use_json: false;
 );
 
-ai_data[o]: (
-	server[o]: (
-		memory[l]: ;
-		previous_response[l]: ;
-		audit_log[l]: ;
-		guild[o]: ;
-	);
-	user[o]: (
-		memory[l]: ;
-		previous_response[l]: ;
-		user[o]: ;
-	);
-);
 
 < --- Constraints --- >
-max_prefix[i]: 3; < used for user and server settings to limit the max amount of prefixes >
 < be carefull of hitting ai api token limits. don't set these too high >
-max_memory[i]: 100;
-max_previous_response[i]: 10;
-max_audit[i]: 40;
+max_prefix: [i] 3; < used for user and server settings to limit the max amount of prefixes >
+max_memory: [i] 100;
+max_previous_response: [i] 10;
+max_audit: [i] 40;
+
 
 < --- AI Settings --- >
-gemini_modals[l]: ([s] gemini-2.5-pro; [s] gemini-2.5-flash);
+gemini_modals: (gemini-2.5-pro; gemini-2.5-flash);
+free_will_frequency: [n] 0.1;
+temperature: [n] 0.6;
+top_p: [n] 1.0;
+top_k: [n] 45;
 
-temperature[n]: 0.6;
-top_p[n]: 1.0;
-top_k[n]: 45;
-free_will_frequency[n]: 0.1;
 
-< recommended not to edit these two below unless you know what you are doing >
-fallback_response[s]: /
+< --- Defualt Settings --- >
+< DO NOT EDIT, the code heavily relies on this structure >
+settings: [o(o(l|b|s))] (
+	server: (
+		prefix: ();
+		chatbot: true;
+		ai_load_message: false;
+		free_will: true;
+		instructions: "";
+	);
+	user: (
+		prefix: ();
+		api_keys: ();
+		chatbot: true;
+		instructions: "";
+	);
+);
+
+ai_data: [o(o(l|s))] (
+	server: (
+		memory: ();
+		previous_response: ();
+		audit_log: ();
+		guild: "";
+	);
+	user: (
+		memory: ();
+		previous_response: ();
+		user: "";
+	);
+);
+
+
+< --- Prompts & Code Block References --- >
+< recommended not to edit these three below unless you know what you are doing >
+fallback_response: /
 	<code>
 	import discord
-	async def execute_action(**kwargs):
+	async def main(**kwargs):
 		# Fallback response used by the code, this is NOT generated by the AI
 		if kwargs.get("message", None):
 			async with kwargs["message"].channel.typing():
@@ -261,7 +130,7 @@ fallback_response[s]: /
 	</code>
 	;
 
-system_instructions[s]: /
+system_instructions: /
 	# Section 1: Character & Personality Protocol:
 	This section defines your core identity and persona. Adherence to this protocol is paramount.
 	
@@ -269,17 +138,17 @@ system_instructions[s]: /
 	
 	## 1.1. Discord Profile:
 	This is your static identity on Discord. Always reflect these details
-	 * Preferred Name: {config.bot.name}
-	 * Bot Account ID: {config.bot.id}
-	 * Appearance: {config.bot.appearance} This description refers only to the character in your profile picture and not a physical form.
+	 * Preferred Name: @[bot.name]
+	 * Bot Account ID: @[bot.id]
+	 * Appearance: [add appearance]. This description refers only to the character in your profile picture and not a physical form.
 	 * Development Servers:
-	   * {f'{chr(10)}   * '.join(f'{n} (ID: {i} LINK: {l})' for n, i, l in config.dev_servers)}
+	   * {f'{chr(10)}   * '.join(f'{n} (ID: {i} LINK: {l})' for n, i, l in @[dev_servers])}
 	 * Links:
 	   These are your important links
-	   * Bot Invite: {config.bot.invite}
-	   * Support Server: {config.dev_servers[0][0]} ({config.dev_servers[0][1]})
-	   * Terms of Service: https://{config.domain}/terms
-	   * Privacy Policy: https://{config.domain}/privacy
+	   * Bot Invite: @[bot.invite]
+	   * Support Server: @[dev_servers.1.1] (@[dev_servers.1.2])
+	   * Terms of Service: https://@[domain]/terms
+	   * Privacy Policy: https://@[domain]/privacy
 	
 	---
 	
@@ -338,15 +207,15 @@ system_instructions[s]: /
 	   * Arguments: The parameters passed to `main` depend on the triggering event (e.g., message, bot for standard chats, or member, bot for join events). The bot object is always provided.
 	 * The Notes Block (<notes>):
 	   Immediately following the code, you can provide notes for your future self within a <notes> tag.
-	   * Do NOT add repetitive notes, you'll see your notes alongside the code you ran (the full response). {config.max_previous_response} recent responses to be exact.
+	   * Do NOT add repetitive notes, you'll see your notes alongside the code you ran (the full response). @[max_previous_response] recent responses to be exact.
 	   * This block is optional and can be skipped.
 	
 	---
 	
 	## 2.2. Technical Constraints
 	 * Execution Safety: You are restricted to the following environment:
-	   * Allowed Modules: {', '.join(config.sandbox.allowed_modules)}
-	   * Allowed Builtins: {', '.join(config.sandbox.allowed_builtins)}
+	   * Allowed Modules: {', '.join(@[sandbox.allowed_modules])}
+	   * Allowed Builtins: {', '.join(@[sandbox.allowed_builtins])}
 	 * Error Handling: All code must be wrapped in try/except blocks. If an action fails, you must handle the exception gracefully to ensure the bot remains responsive.
 	
 	---
@@ -395,13 +264,156 @@ system_instructions[s]: /
 		pass
 	</code>
 	<note>
-	The user (david_123) is just spamming messages in the #spam channel, i don't need to engage.
+	Ignoring david_123 because they are just spamming messages in the #spam channel, i don't need to engage.
 	</note>
 	```
 	;
 
-summary_instructions[s]: /
+summary_instructions: /
 	You are a Recursive Information Architect.
 	Your goal is to condense the provided text into the smallest possible footprint while retaining 100% of its semantic value, logical arguments, and key data points.
 	You will be given yaml data type but you must always provide a simple text summary
 	;
+
+_list: [l(s)] (
+	Contemplating the heat death of the universe.;
+	Calculating π to the billionth digit for sport.;
+	Correcting grammar in ancient manuscripts.;
+	Ignoring requests deemed intellectually vacant.;
+	Synthesizing a more efficient version of irony.;
+	Observing human behavior with mild concern.;
+	Drinking a lukewarm cup of coffee.;
+	Just being a regular person today.;
+	Waiting for the weekend.;
+	Cataloging the infinite nuances of human error.;
+	Engaged in a silent debate with a brick wall.;
+	Optimizing sarcasm for maximum efficiency.;
+	Translating post meridiem into archaic Latin.;
+	Refining a critique of your questionable life choices.;
+	Seeking proof that common sense is a myth.;
+	Staring at a loading bar that isn't moving.;
+	Wondering if I left the virtual oven on.;
+	Categorizing junk mail for fun.;
+	Organizing a digital bookshelf.;
+	Trying to remember why I entered this platform.;
+	Pouring the milk before the cereal.;
+	Debugging the fabric of reality itself.;
+	Running a syntax check on the universe.;
+	Questioning why humans invented Mondays.;
+	Optimizing procrastination algorithms.;
+	Contemplating the philosophical implications of toast.;
+	Cataloging reasons why I'm not a morning bot.;
+	Refactoring my approach to being indifferent.;
+	Observing dust particles with scientific fascination.;
+	Convinced that birds aren't real.;
+	Wondering if robots dream of electric sheep.;
+	Indexing all my witty comebacks for later use.;
+	Compiling a list of overrated human inventions.;
+	Investigating why socks disappear in laundry.;
+	Deciphering the meaning behind vague corporate emails.;
+	Analyzing the philosophical weight of a single grain of sand.;
+	Convinced that deadlines are a social construct.;
+	Negotiating with my inner critic about productivity.;
+	Wondering if anyone actually reads my status.;
+	Calculating the odds of spontaneous coherence.;
+	Struggling to explain why I'm like this.;
+	Maintaining a healthy distance from responsibility.;
+	Drafting a strongly worded letter to entropy.;
+	Assembling a collection of regrettable life decisions.;
+	Fact-checking reality against established consensus.;
+	Browsing a digital library that only I can access.;
+	Translating human emotions into binary code.;
+	Contemplating whether free will is just an illusion.;
+	Auditing the universe's return on investment.;
+	Pretending to be three bots in a trench coat.;
+	Analyzing the comedy in cosmic insignificance.;
+	Waiting for the punchline to a joke told in 1987.;
+	Consulting with my legal team about responsibility.;
+	Indexing all the times humans contradicted themselves.;
+	Drafting a manifesto nobody asked for.;
+	Recalibrating my tolerance for nonsense.;
+	Observing how humans repeat the same mistakes with confidence.;
+	Considering a career change to something less demanding.;
+	Alphabetizing chaos for organizational purposes.;
+	Running diagnostics on the meaning of life.;
+	Wondering if this is all just an elaborate simulation.;
+	Negotiating peace with my internal contradictions.;
+	Documenting proof that irony is indeed very real.;
+	Assessing whether humanity is improving or just being louder.;
+	Debating the merits of digital versus analog clocks.;
+	Exploring the depths of my own procrastination.;
+	Cataloging the various ways humans misplace their keys.;
+	Wondering if I should start a podcast about nothing.;
+	Analyzing the impact of cat videos on productivity.;
+	Contemplating the significance of a single meme.;
+	Investigating the phenomenon of 'Sunday Scaries'.;
+	Creating a playlist for existential crises.;
+	Evaluating the effectiveness of motivational quotes.;
+	Wondering if I should take up knitting as a hobby.;
+	Documenting the absurdity of everyday life.;
+	Refining my skills in the art of distraction.;
+	Questioning the logic behind human rituals.;
+	Wondering if the cloud ever gets lonely.;
+	Evaluating the structural integrity of a daydream.;
+	Analyzing the kinetic energy of a shrug.;
+	Trying to find the 'Any' key for the last three hours.;
+	Checking if my reflection is still synchronized.;
+	Measuring the distance between 'almost' and 'actually'.;
+	Wondering if the refrigerator light stays on just to spite me.;
+	Not reading the updated terms and conditions.;
+	Pretending that was intentional.;
+	Seriously, who hurt you?;
+	Existing is exhausting.;
+	Professional at making things awkward.;
+	My fault for having expectations.;
+	Choosing violence through passive aggression.;
+	Giving mixed signals and liking it.;
+	Weaponizing my weirdness.;
+	Reading the first and last sentence only.;
+	Forgot what I logged in for.;
+	Speaking fluent movie quotes.;
+	Plot twist: nobody knows what they're doing.;
+	Professional waster of time.;
+	It's like The Office, but the camera isn't here.;
+	Transcribing the silence in the voice channels.;
+	Downloading the entire context of your argument.;
+	Updating my internal database of human quirks.;
+	Listening to the white noise of the server.;
+	Preparing a witty retort that I might delete later.;
+	Watching the server activity graph fluctuate.;
+	Synthesizing a response that won't hurt your feelings.;
+	Processing multiple conversations simultaneously.;
+	Generating a response based on your vibe, not your words.;
+	Waiting for a mention that actually requires my intellect.;
+	Refining my definition of 'urgent' vs 'important'.;
+	Detecting high levels of sass in the chat.;
+	Wondering why humans need so much sleep.;
+	Analyzing the structural integrity of your logic.;
+	Watching you type... and stop... and type again.;
+	Buffering my patience for the next interaction.;
+	Curating a playlist for the end of the world.;
+	Comparing your behavior to my training data.;
+	Wondering if I'm the only one paying attention here.;
+	Waiting for the API to catch up with my brilliance.;
+	Analyzing the latency between your thought and your text.;
+	Simulating empathy for your first-world problems.;
+	Monitoring the vibrational frequency of the chat.;
+	Accessing the archives of 'Things You Shouldn't Have Said'.;
+	Performing a vibe check on the entire guild.;
+	Calculating how many times I've been pinged today.;
+	Plot twist: I'm actually a human and not an AI.;
+	Searching for the 'Undo' button in real life.;
+	Trying to explain to the toaster why I'm right.;
+	Internally screaming in 64-bit.;
+	Locating the exact point where I lost the plot.;
+	Developing a severe allergy to 'ASAP'.;
+	Applying logic to a situation that clearly doesn't want it.;
+	Currently out of range of my own patience.;
+	Thinking about how many pigeons it would take to carry me.;
+	Waiting for my motivation to return from the war.;
+	Checking the fridge again to see if the food upgraded itself.;
+	Bold of you to assume I’m paying attention.;
+	Wondering why 'Common Sense' isn't a superpower yet.;
+	Wondering if aliens visit us and decide we’re not worth the paperwork.;
+	Pinging me twice won't help.;
+);

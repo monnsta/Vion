@@ -28,7 +28,7 @@ async def callback(ctx: commands.Context):
 		await ctx.reply(view=Fail(
 			"Subcommand Missing",
 			"Available subcommands:",
-			"<block>",
+			"```",
 			"* load       (l )",
 			"* unload     (u )",
 			"* reload     (r )",
@@ -37,7 +37,7 @@ async def callback(ctx: commands.Context):
 			"* reload_all (ra)",
 			"* list       (li)",
 			"* help       (h )",
-			"<block>"
+			"```"
 		))
 
 
@@ -62,7 +62,7 @@ class Extension(HybridGroup):
 
 	async def _multi_handle(self, ctx, module):
 		results = await module(self.bot)
-		results_list = [f"{emoji.checkmark if success else emoji.crossmark} {ext}: {msg}" for ext, (success, msg) in results.items()]
+		results_list = [f"{emoji.checkmark if success else emoji.crossmark} {msg}" for _, (success, msg) in results.items()]
 
 		view = Generic(
 			"### Results:",

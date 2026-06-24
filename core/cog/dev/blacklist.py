@@ -300,4 +300,5 @@ class Blacklist(HybridGroup):
 
 		header = f"## Blacklisted {type.capitalize() + 's' if type else ''}"
 		view = Paginated(header=header, items=results, user=ctx.author)
-		await ctx.reply(view=view)
+		message = await ctx.reply(view=view)
+		view.message = message

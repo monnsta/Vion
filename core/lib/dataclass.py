@@ -6,12 +6,12 @@ from typing import Any, Callable, Dict, List, Optional, Set, Union, Type, TypeVa
 from types import MappingProxyType
 
 
-T = TypeVar("T", bound="BD")
+T = TypeVar("T", bound="Data")
 
 
 # Error Classes
 class DataError(Exception):
-	"""Base exception for BD data operations."""
+	"""Base exception for Data data operations."""
 	pass
 
 class ComputationError(DataError):
@@ -19,7 +19,7 @@ class ComputationError(DataError):
 	pass
 
 class ImmutableError(DataError):
-	"""Raised when attempting to modify a frozen BD object."""
+	"""Raised when attempting to modify a frozen Data object."""
 	pass
 
 
@@ -79,9 +79,9 @@ class Method:
 		self.fn = fn
 
 class Computed:
-	"""Wrapper for values calculated dynamically from the BD state."""
+	"""Wrapper for values calculated dynamically from the Data state."""
 	__slots__ = ("fn", "lazy")
-	def __init__(self, fn: Callable[["BD"], Any], lazy: bool = False):
+	def __init__(self, fn: Callable[["Data"], Any], lazy: bool = False):
 		if not callable(fn):
 			raise TypeError("Computed expects a callable function.")
 		self.fn = fn
@@ -109,7 +109,7 @@ class Validated:
 		self.value = value
 
 class Alias:
-	"""Wrapper that redirects access to another path in the BD tree."""
+	"""Wrapper that redirects access to another path in the Data tree."""
 	__slots__ = ("path",)
 	def __init__(self, path: str):
 		self.path = path
@@ -123,9 +123,9 @@ class Observed:
 
 
 # Core Data Object
-class BD:
+class Data:
 	"""
-	BttrDict (BD): A nested, observable, and freezable data container
+	BttrDict (Data): A nested, observable, and freezable data container
 	supporting dot-notation, computed properties, and custom representations.
 	"""
 	__slots__ = ("_data", "_watchers", "_frozen", "_anti_freeze")
@@ -141,7 +141,7 @@ class BD:
 
 	@classmethod
 	def load(cls: Type[T], data: Union[str, Dict[str, Any]]) -> T:
-		"""Loads a dictionary or JSON string, recursively converting nested dicts to BD instances."""
+		"""Loads a dictionary or JSON string, recursively converting nested dicts to Data instances."""
 		if isinstance(data, str):
 			try:
 				parsed_data = json.loads(data)
@@ -170,7 +170,7 @@ class BD:
 
 	def __repr__(self) -> str:
 		def _format_val(val: Any) -> str:
-			if isinstance(val, (BD, Repr)):
+			if isinstance(val, (Data, Repr)):
 				return repr(val)
 			if isinstance(val, (dict, MappingProxyType)):
 				inner = ", ".join(f"{repr(k)}: {_format_val(v)}" for k, v in val.items())
@@ -198,7 +198,7 @@ class BD:
 		return key in self._data
 
 	def __eq__(self, other: Any) -> bool:
-		if isinstance(other, BD):
+		if isinstance(other, Data):
 			return self.to_dict() == other.to_dict()
 		if isinstance(other, dict):
 			return self.to_dict() == other
@@ -253,9 +253,9 @@ class BD:
 	def items(self) -> Iterator[tuple[str, Any]]:
 		return ((k, getattr(self, k)) for k in self._data)
 
-	def update(self, data: Union[Dict[str, Any], "BD"]) -> "BD":
-		"""Updates the BD instance with another dictionary or BD instance."""
-		iterable = data._data.items() if isinstance(data, BD) else data.items()
+	def update(self, data: Union[Dict[str, Any], "Data"]) -> "Data":
+		"""Updates the Data instance with another dictionary or Data instance."""
+		iterable = data._data.items() if isinstance(data, Data) else data.items()
 		for k, v in iterable:
 			self.set(k, v)
 		return self
@@ -271,14 +271,14 @@ class BD:
 		raise KeyError(f"Key '{key}' not found.")
 
 	def clear(self) -> None:
-		"""Removes all items from the BD instance, respecting anti-freeze/frozen limits."""
+		"""Removes all items from the Data instance, respecting anti-freeze/frozen limits."""
 		if self._frozen:
 			raise ImmutableError("Cannot clear; the object is frozen.")
 		for key in list(self._data.keys()):
 			if key not in self._anti_freeze:
 				self.delete(key)
 
-	def set(self, path: str, value: Any) -> "BD":
+	def set(self, path: str, value: Any) -> "Data":
 		"""Sets a value at a potentially nested path (e.g., 'user.profile.name')."""
 		if not isinstance(path, str):
 			raise DataError("Path must be a string.")
@@ -291,8 +291,8 @@ class BD:
 		target = self
 
 		for part in parts[:-1]:
-			if part not in target._data or not isinstance(target._data[part], BD):
-				target._set_raw(part, BD())
+			if part not in target._data or not isinstance(target._data[part], Data):
+				target._set_raw(part, Data())
 			target = target._data[part]
 
 		target._set_raw(parts[-1], value)
@@ -309,7 +309,7 @@ class BD:
 		current = self
 		for part in parts:
 			try:
-				current = getattr(current, part) if isinstance(current, (BD, Repr)) else current[part]
+				current = getattr(current, part) if isinstance(current, (Data, Repr)) else current[part]
 			except (AttributeError, KeyError, TypeError):
 				return default
 		return current
@@ -327,7 +327,7 @@ class BD:
 		self._delete_raw(target, parts[-1])
 
 	@staticmethod
-	def _delete_raw(target: "BD", key: str) -> None:
+	def _delete_raw(target: "Data", key: str) -> None:
 		if target._frozen and key not in target._anti_freeze:
 			raise ImmutableError(f"Cannot delete '{key}'; the object is frozen.")
 		if key in target._data:
@@ -373,11 +373,11 @@ class BD:
 				warnings.warn(f"Watcher callback failed: {e}")
 
 	def to_dict(self, update_self: bool = True) -> Dict[str, Any]:
-		"""Converts the BD structure into a standard Python dictionary."""
+		"""Converts the Data structure into a standard Python dictionary."""
 		def _serialize(item: Any) -> Any:
 			if isinstance(item, Repr):
 				return _serialize(item._actual_val)
-			if isinstance(item, BD):
+			if isinstance(item, Data):
 				return item.to_dict(update_self=update_self)
 			if isinstance(item, (list, tuple, set, frozenset)):
 				return [_serialize(i) for i in item]
@@ -394,15 +394,15 @@ class BD:
 			if update_self: self._data[k] = serialized_val
 		return out
 
-	def freeze(self) -> "BD":
+	def freeze(self) -> "Data":
 		"""
-		Recursively freezes the object, nested BD instances, and converts 
+		Recursively freezes the object, nested Data instances, and converts 
 		mutable collections (list, set, dict) into immutable types.
 		"""
 		super().__setattr__("_frozen", True)
 
 		def _deep_freeze(item: Any) -> Any:
-			if isinstance(item, BD):
+			if isinstance(item, Data):
 				return item.freeze()
 
 			if isinstance(item, list):
@@ -429,5 +429,5 @@ class BD:
 __all__ = (
 	'DataError', 'ComputationError', 'ImmutableError',
 	'Repr', 'AntiFreeze', 'Method', 'Computed', 'Secret', 'Validated', 'Alias', 'Observed',
-	'BD'
+	'Data'
 )

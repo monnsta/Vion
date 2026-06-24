@@ -1,4 +1,5 @@
 import asyncio
+import builtins
 import gzip
 import logging
 import os
@@ -320,6 +321,8 @@ class BaseFileIO(ABC, Generic[T]):
 						self.cache.set(path, self.clone(data))
 					return True, data
 				except (FileNotFoundError, Exception) as e:
+					if type(e) not in builtins.__dict__.values():
+						raise
 					if not isinstance(e, FileNotFoundError):
 						log.error(f"Failed to load {path}", exc_info=True)
 					return False, self.default_empty

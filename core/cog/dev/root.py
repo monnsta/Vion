@@ -18,6 +18,7 @@ class DevRoot(commands.Cog):
 	def __init__(self, bot: commands.Bot):
 		self.bot = bot
 		self.p = config.default_prefix[0]
+		self.dev_only = True
 
 		self.dev.add_command(Blacklist(self.bot))
 		self.dev.add_command(Extension(self.bot))
@@ -56,7 +57,7 @@ class DevRoot(commands.Cog):
 		description='Get help for the dev group.'
 	)
 	async def help(self, ctx: commands.Context):
-		await ctx.reply(view=Paginated(
+		view = Paginated(
 			"",
 			[
 				mt(
@@ -109,7 +110,7 @@ class DevRoot(commands.Cog):
 					"Usage:",
 					f"* `{self.p}dev extension load core.cog.root`",
 					f"* `{self.p}d e l core.cog.root`",
-					f"* {config.cmd.dev.extension.load} `path:` core.cog.root"
+					f"* {config.cmd.dev.extension.get('load')} `path:` core.cog.root"
 				),
 				mt(
 					"## Blacklist:",
@@ -131,7 +132,9 @@ class DevRoot(commands.Cog):
 				)
 			],
 			ctx.author
-		))
+		)
+		message = await ctx.reply(view=view)
+		view.message = message
 
 
 	@dev.command(
@@ -143,9 +146,8 @@ class DevRoot(commands.Cog):
 		message='The message you want to send'
 	)
 	@app.user_install()
-	@app.allowed_contexts(
-		guilds=True, dms=True,
-		private_channels=True
+	@app.allowed_installs(
+		guilds=True, users=True
 	)
 	async def send(self, ctx: commands.Context, *, message: str):
 		initial_message = None
@@ -181,6 +183,7 @@ class DevRoot(commands.Cog):
 			accent_color=0x7289da
 		)
 		msg = await ctx.reply(view=initial_view)
+		initial_view.message = msg
 
 		runner = Code(code)
 
@@ -229,6 +232,7 @@ class DevRoot(commands.Cog):
 									accent_color=0x7289da
 								)
 								await msg.edit(view=live_view)
+								live_view.message = msg
 								last_content = content
 							except Exception:
 								pass
@@ -265,7 +269,11 @@ class DevRoot(commands.Cog):
 				accent_color=color
 			)
 
+			view.current_page = view.total_pages - 1
+			view.create_layout()
+
 			await msg.edit(view=view)
+			view.message = msg
 
 		except Exception as e:
 			view = Paginated(
@@ -275,6 +283,7 @@ class DevRoot(commands.Cog):
 				accent_color=0xf04747
 			)
 			await msg.edit(view=view)
+			view.message = msg
 
 
 	@dev.command(
@@ -285,22 +294,35 @@ class DevRoot(commands.Cog):
 	async def reload_config(self, ctx: commands.Context):
 		original_config = config.to_dict()
 		original_emoji = emoji.to_dict()
+		preserved_cmd = config.get('cmd', None)
+
 		try:
 			config.clear()
 			emoji.clear()
+
 			await load_config()
-			await asyncio.sleep(10)
+
+			if preserved_cmd is not None:
+				config.set('cmd', preserved_cmd)
+
+			await asyncio.sleep(1)
+
 			await ctx.reply(view=Success("Successfully reloaded config"))
+
 		except Exception:
+			config.clear()
+			emoji.clear()
 			config.load(original_config)
 			emoji.load(original_emoji)
 
 			error_traceback = traceback.format_exc()
 
+			await asyncio.sleep(1)
+
 			await ctx.reply(view=Fail(
 				"Failed to Reload Config",
 				None,
-				"```python",
+				"```py",
 				error_traceback,
 				"```"
 			))

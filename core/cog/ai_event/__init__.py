@@ -2,5 +2,5 @@
 
 
 async def setup(bot):
-	# bot.add_cog(Root)
-	pass # remove pass after done
+	# await bot.add_cog(Root)
+	...

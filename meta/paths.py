@@ -3,7 +3,7 @@ import logging
 import os
 from pathlib import Path
 
-from core.lib.bttrdict import BD, Method
+from core.lib.dataclass import Data, Method
 
 
 log = logging.getLogger(__name__)
@@ -11,7 +11,7 @@ log = logging.getLogger(__name__)
 root = Path(__file__).resolve().parent.parent
 
 
-base = BD(
+base = Data(
 	data	= root / "data",
 	logs	= root / "logs",
 	meta	= root / "meta",
@@ -19,7 +19,7 @@ base = BD(
 
 )
 
-sub = BD(
+sub = Data(
 	trash  	= base.data / "trash",
 	glob   	= base.data / "global",
 	servers	= base.data / "servers",
@@ -29,8 +29,8 @@ sub = BD(
 	custom_cogs	= Method(lambda self, i: self.servers / i / "cog")
 )
 
-file = BD(
-	server = BD(
+file = Data(
+	server = Data(
 		settings   	= lambda i: sub.servers / i / "settings.json",
 		ai_data    	= lambda i: sub.servers / i / "ai_data.json",
 		delete_time	= lambda i: sub.trash   / i / "delete_time.json",
@@ -39,15 +39,14 @@ file = BD(
 		data	= lambda i: sub.custom_cogs(i) / "data.json"
 	),
 
-	user = BD(
+	user = Data(
 		settings   	= lambda i: sub.users / i / "settings.json",
 		ai_data    	= lambda i: sub.users / i / "ai_data.json",
 		delete_time	= lambda i: sub.trash / i / "delete_time.json"
 	),
 
-	glob = BD(
+	glob = Data(
 		blacklist   	= sub.glob / "blacklist.json",
-		bot_obj     	= sub.glob / "bot_info.json",
 		bot_activity	= sub.glob / "bot_activity.json"
 	),
 
@@ -88,10 +87,10 @@ class CreatePath:
 		log.debug("Path processing batch complete.")
 create_path = CreatePath()
 
-def setup_directory() -> None:
+async def setup_directory() -> None:
 	log.info("Initializing filesystem setup...")
 
-	asyncio.run(create_path(
+	await create_path(
 		(base.data,   True),
 		(base.logs,   True),
 		(sub.servers, True),
@@ -101,9 +100,7 @@ def setup_directory() -> None:
 
 		file.glob.blacklist,
 		file.glob.bot_activity
-	))
-
-	log.info("Filesystem setup complete.")
+	)
 
 for obj in (base, sub, file): obj.freeze()
 

@@ -33,7 +33,6 @@ class Events(commands.Cog):
 		log.debug("Random status background task dispatched.")
 
 	def cog_unload(self):
-		self.bot.remove_before_invoke_hook(self.verify_subcommand)
 		if self.cleanup_old_data.is_running():
 			self.cleanup_old_data.cancel()
 		if self.random_status_task:
@@ -56,21 +55,35 @@ class Events(commands.Cog):
 		while not self.bot.is_closed():
 			try:
 				if not self.status_queue:
-					self.status_queue = list(config.status.list)
+					self.status_queue = list(config.activity.list)
 					random.shuffle(self.status_queue)
 
 				new_status = self.status_queue.pop()
 				log.debug(f"Changing status to: {new_status}")
 
+				activity_mapping = {
+					0: discord.Game,
+					1: discord.Streaming,
+					2: discord.Activity,
+					3: discord.Activity,
+					4: discord.CustomActivity,
+					5: discord.Activity,
+				}
+
+				activity_class = activity_mapping.get(config.activity.type, discord.Activity)
+				kwargs = {"name": new_status}
+
+				if activity_class is discord.Activity:
+					kwargs["type"] = discord.ActivityType(config.activity.type)
+				elif activity_class is discord.Streaming:
+					kwargs["url"] = getattr(config.activity.url)
+
 				await self.bot.change_presence(
-					activity=discord.Activity(
-						type=config.status.type,
-						name=new_status
-					),
-					status=discord.Status.dnd
+					activity=activity_class(**kwargs),
+					status=config.activity.status
 				)
 
-				wait_seconds = random.randint(*config.status.range)
+				wait_seconds = random.randint(*config.activity.range)
 				await asyncio.sleep(wait_seconds)
 			except asyncio.CancelledError:
 				log.debug("Random status task cancelled.")
@@ -144,7 +157,7 @@ class Events(commands.Cog):
 							if moved_at_time.tzinfo is None:
 								moved_at_time = moved_at_time.replace(tzinfo=config.timezone)
 
-							if current_time - moved_at_time > timedelta(days=config.cleanup_days):
+							if current_time - moved_at_time > timedelta(days=config.logging.cleanup_days):
 								shutil.rmtree(folder)
 								log.info(f"Permanently deleted data for guild {folder.name} from bin.")
 					except Exception:
@@ -190,8 +203,8 @@ class Events(commands.Cog):
 
 		legal = (
 			"-# By adding this bot, you agree to our "
-			f"[Terms of Service]( <https://{config.domain}/terms> ) & "
-			f"[Privacy Policy]( <https://{config.domain}/privacy> )."
+			f"[Terms of Service]( <https://{config.domain}/{config.bot.name}/terms> ) & "
+			f"[Privacy Policy]( <https://{config.domain}/{config.bot.name}/privacy> )."
 		)
 		if data_restored:
 			log.info(f"Data restored for guild {guild.id}.")
@@ -229,15 +242,24 @@ class Events(commands.Cog):
 
 		if isinstance(error, commands.CommandNotFound):
 			content = ctx.message.content[len(ctx.prefix):].strip()
-			attempted = content.replace(" ", ".")
-			display_attempt = content.replace(" ", " ")
-			
-			all_commands = list(config.cmd.keys())
-			matches = difflib.get_close_matches(attempted, all_commands, n=1, cutoff=0.6)
+			display_attempt = " ".join(content.split())
+
+			def flatten_commands(node, prefix=""):
+				cmds = {}
+				for k, v in node.items():
+					path = f"{prefix} {k}".strip()
+					if hasattr(v, "mention") and isinstance(getattr(v, "mention"), str):
+						cmds[path] = v
+					elif hasattr(v, "items"):
+						cmds.update(flatten_commands(v, path))
+				return cmds
+
+			flat_cmds = flatten_commands(config.cmd)
+			matches = difflib.get_close_matches(display_attempt, list(flat_cmds.keys()), n=1, cutoff=0.6)
 
 			if matches:
 				suggestion_name = matches[0]
-				suggestion_mention = config.cmd.get(suggestion_name)
+				suggestion_mention = flat_cmds[suggestion_name]
 				description = f"The command `{display_attempt}` does not exist. Did you mean {suggestion_mention}?"
 			else: 
 				description = "The command you entered does not exist."
@@ -277,7 +299,7 @@ class Events(commands.Cog):
 		elif isinstance(error, (commands.CheckFailure, commands.BadArgument)):
 			await ctx.reply(view=Fail(
 				"Command Error",
-				f"<block>{error}<block>"
+				f"```{error}```"
 			))
 
 		else:

@@ -1,4 +1,5 @@
 import builtins
+import ial
 import json
 import logging
 import sys
@@ -6,7 +7,7 @@ import sys
 import discord
 import pytz
 
-from core.lib.bttrdict import BD, Computed, Method, AntiFreeze
+from core.lib.dataclass import Data, Computed, Method, AntiFreeze
 from core.lib.utils import F, mt
 from core.lib.file import ial_file
 from meta.paths import sub, file
@@ -17,27 +18,33 @@ log = logging.getLogger(__name__)
 real_import = builtins.__import__
 
 
-config = BD()
-emoji  = BD()
+config = Data()
+emoji  = Data()
 
 
 async def load_config():
 	global config, emoji
 	log.info("Setting up config...")
 	if ial_file == None:
-		log.critical("ial_file was None, please install the required dependencies")
+		log.critical("ial parser not found, please install the required dependencies")
 		sys.exit(10)
-	success, data = await ial_file.load(file.conf, update_cache=False, use_cache=False)
+	try:
+		success, data = await ial_file.load(file.conf, update_cache=False, use_cache=False)
+	except ial.MultiError as e:
+		for i, error in enumerate(e.errors):
+			log.error(f"{i}. {error}", exc_info=True)
 
 	if not success:
 		log.critical(f"Failed to load {file.conf}")
 		sys.exit(10)
 
 	try:
-		config.update(BD.load(data))
+		config.update(Data.load(data))
 	except Exception:
-		log.critical("An error occurred while parsing config into BD object", exc_info=True)
+		log.critical("An error occurred while parsing config into Data object", exc_info=True)
 		sys.exit(10)
+
+	log.debug(json.dumps({k: v for k, v in data.items() if k != "system_instructions"}))
 
 	allowed_prefixes = tuple(f"{m}." for m in config.sandbox.allowed_modules)
 	allowed_exact = set(config.sandbox.allowed_modules)
@@ -59,21 +66,22 @@ async def load_config():
 	config.dev_server_ids = [dsid for _, dsid, _ in config.dev_servers]
 	config.dev_ids = [did for _, did in config.devs]
 
-	emoji.update(BD.load(config.emoji.to_dict(update_self=False)))
+	emoji.update(Data.load(config.emoji.to_dict(update_self=False)))
 	config.delete("emoji")
 
-	config.status.range = tuple(config.status.range)
+	config.activity.range = tuple(config.activity.range)
 	config.timezone = pytz.timezone(config.timezone)
 
 	_, secrets_data = await ial_file.load(file.env)
-	config.secrets = BD.load(secrets_data)
+	config.secrets = Data.load(secrets_data)
 
 	config.sandbox.allowed_builtins = {name: getattr(builtins, name) for name in config.sandbox.allowed_builtins}
 	config.sandbox.allowed_builtins["__import__"] = safe_import
 
-	config.system_instructions = Computed(lambda self: F(self.system_instructions).format(config=self))
+	config.system_instructions = Computed(lambda self: F(self.system_instructions).format())
+	log.debug(config.system_instructions)
 
-	config.event_inst = BD(
+	config.event_inst = Data(
 		_template = lambda event, objects, extra_text: mt(
 			f"You're triggered by the `{event}` event.",
 			f"You have these objects to work with: {', '.join(objects)}",
@@ -128,7 +136,7 @@ async def load_config():
 			"A channel was deleted, you can comment on it by sending a message in a general place people talk."
 		))
 	)
-	config.cmd = BD()
+	config.cmd = Data()
 
 
 __all__ = ('load_config', 'emoji', 'config')

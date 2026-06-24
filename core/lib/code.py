@@ -10,7 +10,7 @@ import types
 from contextlib import redirect_stderr, redirect_stdout
 from typing import Any, Callable, Optional
 
-from core.lib.bttrdict import BD, Repr
+from core.lib.dataclass import Data, Repr
 from core.lib.utils import create_id
 from meta import config
 
@@ -20,7 +20,7 @@ log = logging.getLogger(__name__)
 
 ANSI_ESCAPE = re.compile(r'\x1B(?:[@-Z\\-_]|\[[0-?]*[ -/]*[@-~])')
 
-status = BD(
+status = Data(
 	PENDING   = Repr("PENDING", 1),
 	RUNNING   = Repr("RUNNING", 2),
 	COMPLETED = Repr("COMPLETED", 3),
@@ -29,7 +29,7 @@ status = BD(
 	TIMED_OUT = Repr("TIMED_OUT", 6)
 )
 
-def extract(text: str) -> BD:
+def extract(text: str) -> Data:
 	log.debug("Extracting code and monologue from text")
 	py = re.search(
 		r"<code>\s*(.*?)\s*</code>",
@@ -41,7 +41,7 @@ def extract(text: str) -> BD:
 	)
 	log.debug(f"Extracted Code:\n{py}\n\nExtracted Monologue:\n{mo}")
 
-	return BD(
+	return Data(
 		code = py.group(1).strip() if py else "",
 		monologue = mo.group(1).strip() if mo else ""
 	)
@@ -58,12 +58,12 @@ class StreamInterceptor(io.StringIO):
 		return res
 
 class Code:
-	tasks = BD()
+	tasks = Data()
 
 	def __init__(self, code_str: str, on_stdout: Optional[Callable[[str], None]] = None, on_stderr: Optional[Callable[[str], None]] = None):
 		self.code_str = code_str
 		self.execution_id = f"EI{str(create_id())}"
-		self.data = BD(
+		self.data = Data(
 			status = status.PENDING,
 			stdout = "",
 			stderr  = "",
@@ -164,14 +164,14 @@ class Code:
 
 		return True, "Task stopped successfully."
 
-	async def wait(self) -> BD:
+	async def wait(self) -> Data:
 		if self._task and not self._task.done():
 			log.debug(f"Waiting for task ID: {self.execution_id}")
 			await self._task
 		self._sync_data()
 		return self.data
 
-	def get_output(self) -> BD:
+	def get_output(self) -> Data:
 		self._sync_data()
 		return self.data
 
@@ -182,7 +182,7 @@ class Code:
 
 	def _reset_state(self):
 		log.debug(f"Resetting state for ID: {self.execution_id}")
-		self.data = BD(
+		self.data = Data(
 			status = status.PENDING,
 			stdout = "",
 			stderr  = "",
