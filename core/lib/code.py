@@ -116,7 +116,7 @@ class Code:
 					log.debug(f"Executing ID {self.execution_id} with {timeout}s timeout")
 					with redirect_stdout(self._stdout_buf), redirect_stderr(self._stderr_buf):
 						self.data.result = await asyncio.wait_for(
-							main_func(**context_vars), 
+							main_func(**context_vars),
 							timeout=timeout
 						)
 				else:

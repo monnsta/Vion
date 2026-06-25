@@ -33,9 +33,9 @@ async def validate_key(api_key: str) -> bool | None:
 
 class GenerateContent:
 	def __init__(
-		self, 
-		api_key: str, 
-		model_name: str, 
+		self,
+		api_key: str,
+		model_name: str,
 		system_instruction: Optional[str] = None,
 		temperature: float = 0.6,
 		top_p: float = 1.0,

@@ -54,7 +54,6 @@ file = Data(
 	conf	= root / "configure.ial"
 )
 
-
 class CreatePath:
 	async def process_path(self, path: str | Path, is_dir: bool = False) -> None:
 		path_obj = Path(path)
@@ -85,9 +84,24 @@ class CreatePath:
 				tasks.append(self.process_path(path))
 		await asyncio.gather(*tasks)
 		log.debug("Path processing batch complete.")
-create_path = CreatePath()
+
+
+async def validate_paths():
+	critical_files = (
+		file.env,
+		file.conf
+	)
+
+	missing_files = [f for f in critical_files if not f.exists()]
+
+	if missing_files:
+		for f in missing_files:
+			log.critical(f"Missing important file: {f}")
+		sys.exit(10)
 
 async def setup_directory() -> None:
+	await validate_paths()
+
 	log.info("Initializing filesystem setup...")
 
 	await create_path(
@@ -102,7 +116,9 @@ async def setup_directory() -> None:
 		file.glob.bot_activity
 	)
 
+
 for obj in (base, sub, file): obj.freeze()
+create_path = CreatePath()
 
 
 __all__ = (

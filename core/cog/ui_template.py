@@ -201,7 +201,7 @@ class Paginated(TimeoutView):
 
 		if current_chunk:
 			pages.append(current_chunk)
-		
+
 		return pages or [[]]
 
 	async def interaction_check(self, interaction: discord.Interaction) -> bool:
@@ -344,7 +344,7 @@ class TextForm(Generic):
 
 		self.result_future = asyncio.Future()
 
-		container = self.children[0] 
+		container = self.children[0]
 		btn = ui.Button(label=button_label, style=discord.ButtonStyle.primary)
 		btn.callback = self.open_modal
 		container.add_item(ui.ActionRow(btn))

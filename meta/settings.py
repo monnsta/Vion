@@ -4,7 +4,6 @@ import json
 import logging
 import sys
 
-import discord
 import pytz
 
 from core.lib.dataclass import Data, Computed, Method, AntiFreeze

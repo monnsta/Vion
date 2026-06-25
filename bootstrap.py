@@ -25,6 +25,9 @@ from core.lib.file import json_file
 from meta import base, config, load_config, setup_directory
 
 
+log = logging.getLogger(__name__)
+
+
 _fd = None
 _old_settings = None
 
@@ -157,6 +160,16 @@ class HtmlTimedRotatingFileHandler(TimedRotatingFileHandler):
 		return stream
 
 class RichHandler(RichHandler):
+	def emit(self, record):
+		if (
+			record.name.startswith("discord")
+			and "Attempting a reconnect in" in record.getMessage()
+		):
+			record.exc_info = None
+			record.exc_text = None
+
+		super().emit(record)
+
 	def get_level_text(self, record: logging.LogRecord) -> Text:
 		level_map = {
 			"DEBUG": "D",
@@ -235,10 +248,12 @@ def cleanup():
 		json_file.cache.stop_gc()
 	if _fd is not None and _old_settings is not None:
 		termios.tcsetattr(_fd, termios.TCSADRAIN, _old_settings)
+	log.info("Shutting down...")
 
 
 if __name__ != "__main__":
 	warnings.filterwarnings("ignore", category=DeprecationWarning)
+	warnings.simplefilter("ignore", DeprecationWarning)
 	atexit.register(cleanup)
 	disable_echoctl()
 

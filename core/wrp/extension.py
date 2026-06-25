@@ -1,4 +1,6 @@
 import logging
+import sys
+import types
 from pathlib import Path
 from typing import Dict, List, Tuple, Iterable
 
@@ -71,8 +73,21 @@ class Extension:
 			await create_path((cog_path, False))
 			await text_file.save(str(cog_path), code)
 
+			user_module = types.ModuleType(module_path)
+			user_module.__file__ = str(cog_path)
+			safe_builtins = dict(config.sandbox.allowed_builtins)
+			setattr(user_module, "__builtins__", safe_builtins)
+
+			try:
+				exec(code, user_module.__dict__)
+			except Exception as e:
+				return False, f"Failed to compile/execute cog in sandbox:\n```py\n{e}\n```"
+
+			sys.modules[module_path] = user_module
+
 			if module_path in bot.extensions:
-				return await self.reload(bot, module_path)
+				await self.unload(bot, module_path)
+			
 			return await self.load(bot, module_path)
 
 		except SyntaxError as e:

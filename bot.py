@@ -108,7 +108,7 @@ class Bot(commands.Bot):
 
 		if message.guild:
 			_, guild_settings = await server.settings.load(message.guild.id)
-		_, user_settings = await user.settings.load(message.author.id) 
+		_, user_settings = await user.settings.load(message.author.id)
 
 		return [
 			*config.default_prefix,
@@ -122,10 +122,13 @@ if __name__ == "__main__":
 
 	try:
 		log.info("Starting bot...")
-		bot.run(config.secrets.discord_api_key, log_handler=None)
+		key = config.get("secrets.discord_api_key", None)
+		if key:
+			bot.run(config.secrets.discord_api_key, log_handler=None)
+		else:
+			log.critical("Could not find the bot token.")
+			sys.exit(10)
 	except (KeyboardInterrupt, SystemExit):
 		log.info("Process terminated by user")
-	except discord.aiohttp.ClientConnectorDNSError as e:
-		log.error(f"Connection failed: Unable to resolve Discord API hostname ({e.host}). Check your internet connection or DNS.")
 	except Exception:
 		log.critical("Fatal error during bot startup", exc_info=True)

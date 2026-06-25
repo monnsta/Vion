@@ -209,7 +209,7 @@ class BaseFileIO(ABC, Generic[T]):
 
 		if final_path.parent:
 			final_path.parent.mkdir(parents=True, exist_ok=True)
-		
+
 		flags = os.O_WRONLY | os.O_CREAT | os.O_TRUNC
 		fd = os.open(str(target_path), flags, mode or 0o666)
 		try:
@@ -217,10 +217,10 @@ class BaseFileIO(ABC, Generic[T]):
 				f.write(data)
 				f.flush()
 				os.fsync(f.fileno())
-			
+
 			if mode is not None:
 				target_path.chmod(mode)
-				
+
 		except Exception:
 			if atomic:
 				target_path.unlink(missing_ok=True)
@@ -284,10 +284,10 @@ class BaseFileIO(ABC, Generic[T]):
 
 	# Public Methods
 	async def load(
-		self, 
-		path: str | Path, 
+		self,
+		path: str | Path,
 		*,
-		use_cache: bool = True, 
+		use_cache: bool = True,
 		read_only: bool = False,
 		update_cache: bool = True
 	) -> tuple[bool, T]:
@@ -296,7 +296,7 @@ class BaseFileIO(ABC, Generic[T]):
 
 		:param path: The file path to read.
 		:param use_cache: If False, ignores existing cache and reads from disk.
-		:param read_only: If True, returns the cached object directly (no cloning). 
+		:param read_only: If True, returns the cached object directly (no cloning).
 		                  FASTER, but you MUST NOT modify the returned object.
 		:param update_cache: If True, disk-read results will be stored in cache.
 		:return: Tuple of (Success Boolean, Data)
@@ -360,7 +360,7 @@ class BaseFileIO(ABC, Generic[T]):
 		if background:
 			asyncio.create_task(
 				self._save_internal(
-					path, self.clone(data), update_cache, atomic, 
+					path, self.clone(data), update_cache, atomic,
 					verify, compress, mode, skip_if_unchanged
 				)
 			)
@@ -385,7 +385,7 @@ class BaseFileIO(ABC, Generic[T]):
 	) -> AsyncIterator[T]:
 		"""
 		Context manager to read, modify, and automatically save data.
-		The per-file lock is held for the duration of the 'with' block to ensure 
+		The per-file lock is held for the duration of the 'with' block to ensure
 		atomicity and prevent race conditions during the read-modify-write cycle.
 		"""
 		path = os.path.abspath(os.fspath(path))
@@ -447,7 +447,7 @@ class JSON(BaseFileIO[dict]):
 		return orjson.dumps(data if data is not None else {})
 
 	def deserialize(self, content: bytes) -> dict:
-		if not content or content.strip() == b"": 
+		if not content or content.strip() == b"":
 			return self.default_empty
 		return orjson.loads(content)
 

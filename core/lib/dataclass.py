@@ -27,7 +27,7 @@ class ImmutableError(DataError):
 class Repr:
 	"""
 	A proxy wrapper that returns a specific string representation
-	while delegating all attribute access and comparisons to an 
+	while delegating all attribute access and comparisons to an
 	underlying value.
 	"""
 	__slots__ = ("_repr_val", "_actual_val")
@@ -184,7 +184,7 @@ class Data:
 				return "<computed>"
 			return repr(val)
 
-		items = [f"{k}={_format_val(v)}" for k, v in self._data.items() 
+		items = [f"{k}={_format_val(v)}" for k, v in self._data.items()
 				 if not isinstance(v, types.MethodType)]
 		return f"<{', '.join(items)}>"
 
@@ -348,7 +348,7 @@ class Data:
 			value = value.value
 
 		if type(value) is Secret:
-			pass 
+			pass
 		elif type(value) is AntiFreeze:
 			self._anti_freeze.add(key)
 			value = value.value
@@ -396,7 +396,7 @@ class Data:
 
 	def freeze(self) -> "Data":
 		"""
-		Recursively freezes the object, nested Data instances, and converts 
+		Recursively freezes the object, nested Data instances, and converts
 		mutable collections (list, set, dict) into immutable types.
 		"""
 		super().__setattr__("_frozen", True)
@@ -407,7 +407,7 @@ class Data:
 
 			if isinstance(item, list):
 				return tuple(_deep_freeze(i) for i in item)
-			
+
 			if isinstance(item, set):
 				return frozenset(_deep_freeze(i) for i in item)
 

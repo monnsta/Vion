@@ -106,9 +106,9 @@ class GeminiKey(HybridGroup):
 
 		data = await load_settings(manager, target_id, type)
 
-		if type == 'user': 
+		if type == 'user':
 			data["api_keys"].append(key)
-		else: 
+		else:
 			data["api_keys"].append({"key": key, "owner": ctx.author.id})
 
 		success = await manager.settings.save(target_id, data)

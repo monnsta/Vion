@@ -238,7 +238,7 @@ class Root(commands.Cog):
 		cancel = "Action Aborted"
 		if random.random() < 0.5:
 			cancel += "\n-# I promise you we don't read your data when we are bored :3"
-	
+
 		view = Confirmation(
 			question,
 			f"Your **{type}** data has been deleted permanently.",

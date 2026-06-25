@@ -1,9 +1,15 @@
 #!/bin/bash
+
+# Copyright (C) 2026 monnsta
+# This software is proprietary and confidential.
+# Unauthorized copying, modification, or distribution
+# is strictly prohibited.
+
 set -u
 
 # --- 1. Configuration ---
-PYTHON_BIN="python3"
-PIP_BIN="pip3"
+PYTHON_BIN=".venv/bin/python"
+PIP_BIN=".venv/bin/pip"
 BOT_FILE="bot.py"
 REQUIREMENTS="requirements.txt"
 
@@ -20,56 +26,83 @@ CHECK_ENV=false
 APP_DIR=$(cd -- "$(dirname -- "${BASH_SOURCE[0]}")" &> /dev/null && pwd)
 BOT_PATH="$APP_DIR/$BOT_FILE"
 REQ_PATH="$APP_DIR/$REQUIREMENTS"
-# Copyright (C) 2026 monnsta
-# This software is proprietary and confidential.
-# Unauthorized copying, modification, or distribution
-# is strictly prohibited.
-
 CRASH_TS=()
 
-RED='\e[1;31m'
-GRN='\e[1;32m'
-YLW='\e[1;33m'
-CYN='\e[1;36m'
-MAG='\e[1;35m'
-RES='\e[0m'
+DIM='\033[2m'
+BOLD='\033[1m'
+RED='\033[1;31m'
+GRN='\033[1;32m'
+YLW='\033[1;33m'
+CYN='\033[1;36m'
+MAG='\033[1;35m'
+RES='\033[0m'
 
 # --- 3. Functions ---
+get_ts() {
+	echo -e "${DIM}$(date '+%H:%M:%S')${RES}"
+}
+
 log() {
-	echo -e "${CYN}$(date '+%H:%M:%S')${RES} ${GRN}I${RES} exec.sh: $1"
+	echo -e "$(get_ts) ${GRN}I${RES} $1"
 }
 
 warn() {
-	echo -e "${CYN}$(date '+%H:%M:%S')${RES} ${YLW}W${RES} exec.sh: $1"
+	echo -e "$(get_ts) ${YLW}W${RES} $1"
 }
 
 error() {
-	echo -e "${CYN}$(date '+%H:%M:%S')${RES} ${RED}E${RES} exec.sh: $1" >&2
+	echo -e "$(get_ts) ${RED}E${RES} $1" >&2
+}
+
+prompt_confirm() {
+	echo -en "$(get_ts) ${YLW}?${RES} $1 [y/N]: "
+	read -r response
+	if [[ "$response" =~ ^[Yy]$ ]]; then
+		return 0
+	fi
+	return 1
 }
 
 show_help() {
-	echo -e "${MAG}▶ Bot Executor${RES}"
-	echo "Usage: $0 [OPTIONS]"
-	echo ""
-	echo "Options:"
-	echo "  -s, --supervise     Enable auto-restart and crash monitoring loop"
-	echo "  -i, --install       Check and install dependencies before running"
-	echo "  -c, --check         Verify environment (Python, Pip, Script existence)"
-	echo "  -d, --docker        Run using Docker Compose (detached)"
-	echo "  -r, --restart N     Set restart wait time in seconds (default: 2)"
-	echo "  -m, --max-crashes N Set max crashes allowed in window (default: 2)"
-	echo "  -h, --help          Show this help message"
+	local cols=$(tput cols 2>/dev/null || echo 80)
+	local sep=$(printf "%${cols}s" "")
+	
+	echo -e "${MAG}${BOLD}▶ BOT EXECUTOR MANAGER${RES}"
+	echo -e "${DIM}${sep// /-}${RES}"
+	echo -e "${BOLD}Usage:${RES} $0 [OPTIONS]\n"
+	echo -e "${BOLD}Options:${RES}"
+
+	print_opt() {
+		local flags="$1"
+		local desc="$2"
+		local color="${3:-}"
+		local pad_len=22
+		local desc_len=$((cols - pad_len))
+		[[ $desc_len -lt 20 ]] && desc_len=20
+
+		printf "${color}  %-19s ${RES}" "$flags"
+		echo "$desc" | fold -s -w "$desc_len" | awk -v pad="$pad_len" 'NR==1{print $0} NR>1{printf "%*s%s\n", pad, "", $0}'
+		echo ""
+	}
+
+	print_opt "-s, --supervise" "Enable auto-restart and crash monitoring loop" "${CYN}"
+	print_opt "-i, --install" "Check and install dependencies before running" "${CYN}"
+	print_opt "-c, --check" "Verify environment (Python, Pip, Script existence)" "${CYN}"
+	print_opt "-d, --docker" "Run using Docker Compose (detached)" "${CYN}"
+	print_opt "-r, --restart N" "Set restart wait time in seconds (default: 2)" "${CYN}"
+	print_opt "-m, --max-crashes N" "Set max crashes allowed in window (default: 2)" "${CYN}"
+	print_opt "-h, --help" "Show this help message" "${CYN}"
 }
 
 check_env() {
 	log "Checking environment..."
-	if ! command -v "$PYTHON_BIN" &> /dev/null; then
-		error "Python not found: $PYTHON_BIN"
+	if [[ ! -x "$APP_DIR/$PYTHON_BIN" ]]; then
+		error "Python executable not found or not executable: $APP_DIR/$PYTHON_BIN"
 		exit 1
 	fi
 
-	if [[ "$INSTALL_DEPS" == true ]] && ! command -v "$PIP_BIN" &> /dev/null; then
-		error "Pip not found: $PIP_BIN"
+	if [[ "$INSTALL_DEPS" == true ]] && [[ ! -x "$APP_DIR/$PIP_BIN" ]]; then
+		error "Pip executable not found or not executable: $APP_DIR/$PIP_BIN"
 		exit 1
 	fi
 
@@ -83,8 +116,29 @@ check_env() {
 install_deps() {
 	if [[ -f "$REQ_PATH" ]]; then
 		log "Checking/Installing dependencies..."
-		if ! "$PIP_BIN" install -r "$REQ_PATH" --quiet; then
-			warn "Dependency installation failed. Attempting to run anyway."
+
+		if [[ -n "${PREFIX:-}" && "$PREFIX" == *"/com.termux/"* ]]; then
+			log "Termux detected. Verifying build tools..."
+			if ! command -v cargo &> /dev/null || ! command -v clang &> /dev/null; then
+				warn "Missing build tools (rust, clang)."
+				if prompt_confirm "Do you want to install Termux build tools using pkg?"; then
+					pkg install -y rust clang binutils make || warn "Failed to install Termux build tools."
+				else
+					warn "Skipping tool installation. Pip compilation might fail."
+				fi
+			fi
+		fi
+
+		if ! "$APP_DIR/$PIP_BIN" install -r "$REQ_PATH"; then
+			error "Dependency installation failed."
+			if [[ -n "${PREFIX:-}" && "$PREFIX" == *"/com.termux/"* ]]; then
+				warn "Attempting Termux mathlib fallback..."
+				if ! MATHLIB=m "$APP_DIR/$PIP_BIN" install -r "$REQ_PATH"; then
+					warn "Fallback failed. Attempting to run anyway."
+				fi
+			else
+				warn "Attempting to run anyway."
+			fi
 		fi
 	else
 		warn "No $REQUIREMENTS found."
@@ -94,18 +148,18 @@ install_deps() {
 is_crash_looping() {
 	local now=$(date +%s)
 	local cutoff=$((now - CRASH_WINDOW))
-	
+
 	local updated_ts=()
 	for ts in "${CRASH_TS[@]}"; do
 		if [[ "$ts" -gt "$cutoff" ]]; then
 			updated_ts+=("$ts")
 		fi
 	done
-	
+
 	updated_ts+=("$now")
 	CRASH_TS=("${updated_ts[@]}")
 
-	if [[ ${#CRASH_TS[@]} -ge $MAX_CRASHES ]]; then
+	if [[ ${#CRASH_TS[@]} -gt $MAX_CRASHES ]]; then
 		return 0
 	fi
 	return 1
@@ -116,7 +170,7 @@ run_docker() {
 		error "Docker not found. Please install Docker first."
 		exit 1
 	fi
-	
+
 	log "Building and starting containers (detached)..."
 	docker compose up --build -d
 	log "Container is up. Use 'docker compose logs -f' to view output."
@@ -126,6 +180,12 @@ run_docker() {
 # --- 4. Parse Arguments ---
 while [[ $# -gt 0 ]]; do
 	case "$1" in
+		-[!-]?*)
+			opts="${1#-}"
+			shift
+			set -- $(echo "$opts" | sed 's/./-& /g') "$@"
+			continue
+			;;
 		-s|--supervise)
 			SUPERVISE=true
 			shift
@@ -142,10 +202,18 @@ while [[ $# -gt 0 ]]; do
 			run_docker
 			;;
 		-r|--restart)
+			if [[ -z "${2:-}" || ! "$2" =~ ^[0-9]+$ ]]; then
+				error "Option $1 requires a valid numerical argument."
+				exit 1
+			fi
 			RESTART_WAIT="$2"
 			shift 2
 			;;
 		-m|--max-crashes)
+			if [[ -z "${2:-}" || ! "$2" =~ ^[0-9]+$ ]]; then
+				error "Option $1 requires a valid numerical argument."
+				exit 1
+			fi
 			MAX_CRASHES="$2"
 			shift 2
 			;;
@@ -166,19 +234,23 @@ clear
 
 trap "log 'Manual interruption detected. Exiting...'; exit 0" SIGINT SIGTERM
 
+[[ "$INSTALL_DEPS" == true ]] && CHECK_ENV=true
+
 [[ "$CHECK_ENV" == true ]] && check_env
 [[ "$INSTALL_DEPS" == true ]] && install_deps
 
 if [[ "$SUPERVISE" == false ]]; then
 	clear
-	"$PYTHON_BIN" "$BOT_PATH"
+	log "Starting ${BOT_PATH}..."
+	"$APP_DIR/$PYTHON_BIN" "$BOT_PATH"
 	exit $?
 fi
 
-log "Supervisor active. Monitoring $BOT_FILE..."
-
 while true; do
-	"$PYTHON_BIN" "$BOT_PATH"
+	clear
+	log "Supervisor active. Monitoring $BOT_FILE..."
+	log "Starting ${BOT_PATH}..."
+	"$APP_DIR/$PYTHON_BIN" "$BOT_PATH"
 	EXIT_CODE=$?
 
 	case $EXIT_CODE in
@@ -200,12 +272,12 @@ while true; do
 			;;
 		*)
 			error "Bot crashed with code $EXIT_CODE."
-			
+
 			if is_crash_looping; then
 				error "FATAL: Reached $MAX_CRASHES crashes in ${CRASH_WINDOW}s. Manual intervention required."
 				exit 1
 			fi
-			
+
 			log "Restarting in ${RESTART_WAIT}s (Failure ${#CRASH_TS[@]}/$MAX_CRASHES)..."
 			sleep "$RESTART_WAIT"
 			;;

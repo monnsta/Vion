@@ -193,7 +193,7 @@ class BaseProfileManager:
 								"- **commands.py**: Custom commands setup for this server.\n"
 								"- **events.py**: Custom events setup for this server.\n"
 							)
-						
+
 						readme_content += "\n*Note: Original JSON data files have been formatted as readable Markdown lists for easier viewing.*"
 						zf.writestr("README.md", readme_content)
 
@@ -281,8 +281,8 @@ class Server(BaseProfileManager):
 		cog = self.file_routes.cog(eid)
 
 		success = await super()._setup(
-			entity_id=guild.id, 
-			entity_name=guild.name, 
+			entity_id=guild.id,
+			entity_name=guild.name,
 			extra_paths=[cog]
 		)
 

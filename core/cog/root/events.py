@@ -261,20 +261,20 @@ class Events(commands.Cog):
 				suggestion_name = matches[0]
 				suggestion_mention = flat_cmds[suggestion_name]
 				description = f"The command `{display_attempt}` does not exist. Did you mean {suggestion_mention}?"
-			else: 
+			else:
 				description = "The command you entered does not exist."
 
 			await ctx.reply(view=Fail("Invalid Command", description))
 
 		elif isinstance(error, commands.MissingRequiredArgument):
 			await ctx.reply(view=Fail(
-				"Missing Argument", 
+				"Missing Argument",
 				f"You missed the `{error.param.name}` parameter."
 			))
 
 		elif isinstance(error, commands.CommandOnCooldown):
 			await ctx.reply(view=Fail(
-				"On Cooldown", 
+				"On Cooldown",
 				f"You can try this again in **{error.retry_after:.1f}s**."
 			))
 
@@ -285,14 +285,14 @@ class Events(commands.Cog):
 			)
 
 			await ctx.reply(view=Fail(
-				"Missing Permissions", 
+				"Missing Permissions",
 				f"You need the following permission(s) to do that: {perms}"
 			))
 
 		elif isinstance(error, commands.BotMissingPermissions):
 			perms = ", ".join([f"`{p.replace('_', ' ').title()}`" for p in error.missing_permissions])
 			await ctx.reply(view=Fail(
-				"Missing Permissions", 
+				"Missing Permissions",
 				f"I don't have the permissions required to run this: {perms}"
 			))
 

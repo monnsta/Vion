@@ -1,5 +1,6 @@
 import asyncio
 import datetime
+import warnings
 import yaml
 import json
 
@@ -21,8 +22,8 @@ except ImportError:
 
 class Convert:
 	def __init__(
-		self, 
-		filter_attrs: list = None, 
+		self,
+		filter_attrs: list = None,
 		max_depth: int = 5,
 		ignore_none: bool = True,
 		ignore_empty: bool = True,
@@ -104,7 +105,9 @@ class Convert:
 						continue
 
 					try:
-						value = getattr(obj, attr_name)
+						with warnings.catch_warnings():
+							warnings.simplefilter("ignore", DeprecationWarning)
+							value = getattr(obj, attr_name)
 						if callable(value):
 							continue
 
@@ -168,7 +171,7 @@ convert_message = Convert(
 		'identity_enabled', 'roles', 'channel_mentions',
 		'mention_everyone', 'pinned_at', 'pinned',
 		'desktop_status', 'pending', 'web_status', 'channels',
-		'activity', 'flags', 'public_flags'
+		'activity', 'flags', 'public_flags', 'interaction'
 	],
 	max_depth = 5,
 	output_format = "yaml"
@@ -178,7 +181,8 @@ convert_guild = Convert(
 	filter_attrs = [
 		'me', 'BASE', 'key', 'DEFAULT_VALUE',
 		'VALID_FLAGS', 'jump_url', 'categories',
-		'voice_channels', 'text_channels'
+		'voice_channels', 'text_channels',
+		'interaction'
 	],
 	max_depth = 5,
 	output_format = "yaml"
@@ -189,7 +193,7 @@ convert_user = Convert(
 		'BASE', 'key', 'DEFAULT_VALUE', 'VALID_FLAGS',
 		'guild', 'mutual_guilds', 'status', 'web_status',
 		'mobile_status', 'desktop_status', 'client_status',
-		'colour'
+		'colour', 'interaction'
 	],
 	max_depth = 5,
 	output_format = "yaml"
@@ -200,7 +204,7 @@ convert_bot = Convert(
 		'cached_messages', 'cogs', 'extra_events',
 		'users', 'user', 'token', 'soundboard_sounds',
 		'help_command', 'command_mentions', 'commands',
-		'stickers'
+		'stickers', 'interaction'
 	],
 	max_depth = 3,
 	output_format = "yaml"
