@@ -51,7 +51,7 @@ file = Data(
 	),
 
 	env 	= root / ".env",
-	conf	= root / "configure.ial"
+	conf	= root / "config.ial"
 )
 
 class CreatePath:

@@ -63,8 +63,9 @@ class HtmlFormatter(logging.Formatter):
 		self.console = Console(file=io.StringIO(), record=True, force_terminal=True, width=150, color_system="truecolor")
 
 	def format(self, record):
-		time_str = self.formatTime(record, "%b %-d %H:%M:%S")
+		time_str = self.formatTime(record, "%H:%M:%S")
 		level = record.levelname
+		level_letter = level[0] if level else "?"
 		msg = html.escape(record.getMessage())
 
 		colors = {
@@ -80,7 +81,7 @@ class HtmlFormatter(logging.Formatter):
 			f'<div class="log-entry">\n'
 			f'	<div class="log-header">\n'
 			f'		<span class="log-time">[{time_str}]</span>\n'
-			f'		<span class="log-level" style="color: {color};">[{level}]</span>\n'
+			f'		<span class="log-level" style="color: {color};">{level_letter}</span>\n' 
 			f'		<span class="log-meta">[PID:{record.process}] [{record.threadName}] [{record.name}:{record.lineno}]</span>\n'
 			f'	</div>\n'
 			f'	<div class="log-msg">{msg}</div>\n'

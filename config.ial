@@ -14,7 +14,7 @@ activity: [o(i|s|l)] (
 );
 
 devs: [l(l(s|i))] (
-	(_monsta_.; 1096716001078423552);
+	(monnsta_; 1096716001078423552);
 );
 
 dev_servers: [l(l(s|i))] (

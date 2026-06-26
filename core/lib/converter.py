@@ -1,11 +1,22 @@
 import asyncio
 import datetime
-import warnings
-import yaml
 import json
+import logging
+import warnings
 
 import discord
 
+try:
+	import yaml
+except ImportError:
+	yaml = None
+
+
+log = logging.getLogger(__name__)
+
+
+if not yaml:
+	log.critical("yaml is not installed, please install the required dependencies")
 
 try:
 	DISCORD_MODELS = (

@@ -6,7 +6,7 @@ services:
     env_file:
       - ./.env
     volumes:
-      - ./configure.ial:/app/configure.ial
+      - ./config.ial:/app/config.ial
       - ./core:/app/core
       - ./meta:/app/meta
       - ./data:/app/data

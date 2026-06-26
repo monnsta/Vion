@@ -137,8 +137,8 @@ class Code:
 
 			except Exception as e:
 				err_msg = traceback.format_exc()
-				log.error(f"Runtime error for ID {self.execution_id}:\n{err_msg}")
-				self.data.error = str(e)
+				log.error(f"Runtime error for ID {self.execution_id}:\n{e}")
+				self.data.error = str(err_msg)
 				self.data.status = status.FAILED
 
 			finally:

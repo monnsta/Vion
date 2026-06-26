@@ -24,20 +24,16 @@ class Events(commands.Cog):
 	def __init__(self, bot: commands.Bot):
 		self.bot = bot
 		self.status_queue = []
-		self.random_status_task = self.bot.loop.create_task(self.random_status_change())
-		log.debug("General Cog initialized.")
 
 	async def cog_load(self):
 		self.random_status_task = asyncio.create_task(self.random_status_change())
 		self.bot.before_invoke(self.verify_subcommand)
-		log.debug("Random status background task dispatched.")
 
 	def cog_unload(self):
 		if self.cleanup_old_data.is_running():
 			self.cleanup_old_data.cancel()
 		if self.random_status_task:
 			self.random_status_task.cancel()
-		log.info("General Cog unloaded and tasks cancelled.")
 		return super().cog_unload()
 
 	async def verify_subcommand(self, ctx: commands.Context):
@@ -59,7 +55,7 @@ class Events(commands.Cog):
 					random.shuffle(self.status_queue)
 
 				new_status = self.status_queue.pop()
-				log.debug(f"Changing status to: {new_status}")
+				log.info(f"Changing status to: \"{new_status}\"")
 
 				activity_mapping = {
 					0: discord.Game,
@@ -176,7 +172,7 @@ class Events(commands.Cog):
 	# --- Core Event Listeners ---
 	@commands.Cog.listener()
 	async def on_ready(self):
-		log.info(f"Bot is ready. Logged in as {getattr(self.bot, 'user', 'Unknown')}")
+		log.info(f"Bot is ready. Logged in as \"{self.bot.user}\"")
 		log.info("Updating Guilds...")
 		for guild in self.bot.guilds:
 			if await blacklist.is_blacklisted(guild.id, "server"):
@@ -184,11 +180,9 @@ class Events(commands.Cog):
 				await guild.leave()
 			if not await server.is_setup(guild.id):
 				await server.setup(guild)
-			await server.info.save(guild)
 
 		if not self.cleanup_old_data.is_running():
 			self.cleanup_old_data.start()
-		log.info("Initialization tasks completed.")
 
 
 	@commands.Cog.listener()
@@ -229,8 +223,40 @@ class Events(commands.Cog):
 
 	@commands.Cog.listener()
 	async def on_guild_remove(self, guild: discord.Guild):
+		if guild.unavailable:
+			return
+
 		log.info(f"Left guild: {guild.name} ({guild.id}). Purging data.")
 		await server.data.delete(guild.id)
+
+
+	@commands.Cog.listener()
+	async def on_message(self, message: discord.Message):
+		if message.author.bot:
+			return
+
+		is_pinged = self.bot.user in message.mentions
+
+		name_mentioned = self.bot.user.name.lower() in message.content.lower()
+
+		is_reply_to_bot = (
+			message.reference 
+			and message.reference.cached_message 
+			and message.reference.cached_message.author == self.bot.user
+		)
+
+		if message.reference and not is_reply_to_bot:
+			resolved = message.reference.resolved
+			if isinstance(resolved, discord.Message) and resolved.author == self.bot.user:
+				is_reply_to_bot = True
+
+		if is_pinged or name_mentioned or is_reply_to_bot:
+			guild_name = message.guild.name if message.guild else None
+			log.info(f"bot mentioned in {f'{guild_name} > {message.channel.name}' if guild_name is not None else "DM"} by {message.author.display_name}")
+
+			async with message.channel.typing():
+				await asyncio.sleep(0.5)
+				await message.reply(f"{self.bot.user.name} will be back with you soon! we are going through a huge rebranding and refactors.")
 
 
 	@commands.Cog.listener()

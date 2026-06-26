@@ -241,7 +241,7 @@ trap "log 'Manual interruption detected. Exiting...'; exit 0" SIGINT SIGTERM
 
 if [[ "$SUPERVISE" == false ]]; then
 	clear
-	log "Starting ${BOT_PATH}..."
+	log "Starting bot..."
 	"$APP_DIR/$PYTHON_BIN" "$BOT_PATH"
 	exit $?
 fi
@@ -249,7 +249,7 @@ fi
 while true; do
 	clear
 	log "Supervisor active. Monitoring $BOT_FILE..."
-	log "Starting ${BOT_PATH}..."
+	log "Starting bot..."
 	"$APP_DIR/$PYTHON_BIN" "$BOT_PATH"
 	EXIT_CODE=$?
 

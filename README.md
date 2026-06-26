@@ -35,7 +35,7 @@ python bot.py
 ---
 
 ## Configuration
-The bot's identity, behavior, limits, and AI parameters are entirely driven by the configure.ial file located in the project root. This ensures code logic remains abstracted from AI instructions and deployment configurations.
+The bot's identity, behavior, limits, and AI parameters are entirely driven by the config.ial file located in the project root. This ensures code logic remains abstracted from AI instructions and deployment configurations.
 Make sure you copy .env.template into .env to input your API secrets (Discord, Gemini, AssemblyAI) before running the program for the first time.
 
 ---
