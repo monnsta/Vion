@@ -1,3 +1,5 @@
+# Copyright (c) 2026 monnsta. All rights reserved.
+
 import json
 import traceback
 import types

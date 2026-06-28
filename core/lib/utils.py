@@ -1,7 +1,9 @@
+# Copyright (c) 2026 monnsta. All rights reserved.
+
 import random
 import string
 import time
-from typing import Iterable
+from typing import Iterable, Any
 
 from discord.ext import commands
 
@@ -48,11 +50,21 @@ def create_id() -> str:
 	id_str = base62_encode(combined_int, 10)
 	return id_str
 
-def em(text: str) -> str:
-	MARKDOWN_CHARS = r"\*_~`|>#-.()[]{}!"
+def em(*args: Any, chars: str = r"\*_~`|>#-.()[]{}!") -> str:
+	def flatten(items: Any) -> list[str]:
+		flat = []
+		for item in items:
+			if isinstance(item, (list, tuple)):
+				flat.extend(flatten(item))
+			else:
+				flat.append(str(item))
+		return flat
+
+	full_text = "".join(flatten(args))
+
 	result = []
-	for ch in text:
-		if ch in MARKDOWN_CHARS:
+	for ch in full_text:
+		if ch in chars:
 			result.append("\\" + ch)
 		else:
 			result.append(ch)

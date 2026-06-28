@@ -1,3 +1,5 @@
+# Copyright (c) 2026 monnsta. All rights reserved.
+
 import asyncio
 import atexit
 import html
@@ -78,13 +80,13 @@ class HtmlFormatter(logging.Formatter):
 		color = colors.get(level, "#f8f8f2")
 
 		html_out = (
-			f'<div class="log-entry">\n'
-			f'	<div class="log-header">\n'
-			f'		<span class="log-time">[{time_str}]</span>\n'
+			f'<div class="log-entry" onclick="this.classList.toggle(\'active\')">\n'
+			f'	<div class="log-time-level">\n'
+			f'		<span class="log-time">{time_str}</span>\n'
 			f'		<span class="log-level" style="color: {color};">{level_letter}</span>\n' 
-			f'		<span class="log-meta">[PID:{record.process}] [{record.threadName}] [{record.name}:{record.lineno}]</span>\n'
 			f'	</div>\n'
-			f'	<div class="log-msg">{msg}</div>\n'
+			f'	<div class="log-content">\n'
+			f'		<div class="log-msg">{msg}</div>\n'
 		)
 
 		if record.exc_info:
@@ -102,9 +104,19 @@ class HtmlFormatter(logging.Formatter):
 
 			if start != -1:
 				snippet = rich_html[start:end]
-				html_out += f'	<div class="log-traceback">\n{snippet}\n	</div>\n'
+				html_out += f'		<div class="log-traceback" onclick="event.stopPropagation()">\n{snippet}\n		</div>\n'
 
-		html_out += '</div>\n'
+		html_out += '	</div>\n'
+
+		html_out += (
+			f'	<div class="log-popup" onclick="event.stopPropagation()">\n'
+			f'		<div><span class="meta-label">PID:</span> {record.process}</div>\n'
+			f'		<div><span class="meta-label">Thread:</span> {record.threadName}</div>\n'
+			f'		<div><span class="meta-label">Location:</span> {record.name}:{record.lineno}</div>\n'
+			f'	</div>\n'
+			f'</div>\n'
+		)
+
 		return html_out
 
 class HtmlTimedRotatingFileHandler(TimedRotatingFileHandler):
@@ -122,37 +134,22 @@ class HtmlTimedRotatingFileHandler(TimedRotatingFileHandler):
 				'			background-color: #000000; color: #f8f8f2; margin: 0; padding: 10px; \n'
 				'			font-family: "JetBrains Mono", Consolas, "Courier New", monospace; \n'
 				'			font-variant-numeric: tabular-nums; font-size: 11px; \n'
-				'			-webkit-text-size-adjust: 100% !important; \n'
-				'			text-size-adjust: 100% !important; \n'
+				'			-webkit-text-size-adjust: 100% !important; text-size-adjust: 100% !important; \n'
 				'		}\n'
-				'		.log-entry { display: flex; flex-direction: column; gap: 4px; padding: 8px; border-bottom: 1px solid #1a1a1a; transition: background 0.2s; }\n'
+				'		.log-entry { display: flex; flex-direction: row; gap: 12px; padding: 6px 8px; border-bottom: 1px solid #1a1a1a; cursor: pointer; position: relative; transition: background 0.2s; }\n'
 				'		.log-entry:hover { background-color: #0a0a0a; }\n'
-				'		.log-header { display: flex; gap: 12px; font-family: inherit; }\n'
+				'		.log-entry.active { background-color: #0a0a0a; z-index: 20; }\n'
+				'		.log-time-level { display: flex; gap: 8px; flex-shrink: 0; font-size: 9.5px; padding-top: 1px; opacity: 0.85; }\n'
 				'		.log-time { color: #8be9fd; }\n'
 				'		.log-level { font-weight: bold; }\n'
-				'		.log-meta { color: #9c9fa9; margin-left: auto; }\n'
-				'		.log-msg { color: #f8f8f2; white-space: pre-wrap; overflow-wrap: anywhere; word-break: break-word; font-family: inherit; }\n'
-				'		.log-traceback { \n'
-				'			margin-top: 8px; background: #050505; padding: 10px; \n'
-				'			border-radius: 6px; border: 1px solid #1a1a1a; overflow-x: auto; \n'
-				'			-webkit-text-size-adjust: 100% !important; \n'
-				'			text-size-adjust: 100% !important; \n'
-				'		}\n'
-				'		.log-traceback pre {\n'
-				'			margin: 0;\n'
-				'			display: block;\n'
-				'			width: max-content;\n'
-				'			min-width: 100%;\n'
-				'		}\n'
-				'		.log-traceback pre, .log-traceback code, .log-traceback span {\n'
-				'			font-family: "JetBrains Mono", Consolas, "Courier New", monospace !important;\n'
-				'			font-size: 11px !important;\n'
-				'			line-height: 1.25 !important;\n'
-				'			letter-spacing: 0 !important;\n'
-				'			word-spacing: 0 !important;\n'
-				'			white-space: pre !important;\n'
-				'			font-feature-settings: "tnum" !important;\n'
-				'		}\n'
+				'		.log-content { display: flex; flex-direction: column; flex-grow: 1; min-width: 0; }\n'
+				'		.log-msg { color: #f8f8f2; white-space: pre-wrap; overflow-wrap: anywhere; word-break: break-word; line-height: 1.4; }\n'
+				'		.log-popup { display: none; position: absolute; left: 80px; top: 100%; margin-top: -4px; background: #111; border: 1px solid #333; padding: 8px 12px; border-radius: 4px; box-shadow: 0 4px 10px rgba(0,0,0,0.8); z-index: 10; color: #9c9fa9; flex-direction: column; gap: 4px; }\n'
+				'		.log-entry.active .log-popup { display: flex; }\n'
+				'		.meta-label { color: #8be9fd; font-weight: bold; margin-right: 4px; }\n'
+				'		.log-traceback { margin-top: 6px; background: #050505; padding: 10px; border-radius: 6px; border: 1px solid #1a1a1a; overflow-x: auto; -webkit-text-size-adjust: 100% !important; text-size-adjust: 100% !important; }\n'
+				'		.log-traceback pre { margin: 0; display: block; width: max-content; min-width: 100%; }\n'
+				'		.log-traceback pre, .log-traceback code, .log-traceback span { font-family: "JetBrains Mono", Consolas, "Courier New", monospace !important; font-size: 11px !important; line-height: 1.25 !important; letter-spacing: 0 !important; word-spacing: 0 !important; white-space: pre !important; font-feature-settings: "tnum" !important; }\n'
 				'	</style>\n'
 				'</head>\n<body>\n'
 			)

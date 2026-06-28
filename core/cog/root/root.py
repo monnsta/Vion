@@ -1,3 +1,5 @@
+# Copyright (c) 2026 monnsta. All rights reserved.
+
 import random
 from typing import Literal
 

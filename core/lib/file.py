@@ -1,3 +1,5 @@
+# Copyright (c) 2026 monnsta. All rights reserved.
+
 import asyncio
 import builtins
 import gzip
@@ -163,6 +165,7 @@ class SlidingTTLCache(Generic[T]):
 		else:
 			log.debug("SlidingTTLCache background GC thread is not running.")
 
+
 class RefCountedLock:
 	"""A wrapper for asyncio.Lock that tracks active users to allow safe deletion from memory."""
 	__slots__ = ('lock', 'count')
@@ -170,13 +173,14 @@ class RefCountedLock:
 		self.lock = asyncio.Lock()
 		self.count = 0
 
+
 class BaseFileIO(ABC, Generic[T]):
 	"""
 	Abstract Base Class for high-performance, thread-safe File I/O with caching.
 	Supports atomic writes and concurrent-safe modifications via context managers.
 	"""
 	def __init__(self, cache_ttl_seconds: int = 60, cache_maxsize: int = 1000) -> None:
-		self.cache = SlidingTTLCache[T](ttl_seconds=cache_ttl_seconds, maxsize=cache_maxsize)
+		self.cache = SlidingTTLCache[tuple[T, float]](ttl_seconds=cache_ttl_seconds, maxsize=cache_maxsize)
 		self._locks: dict[str, RefCountedLock] = {}
 
 
@@ -193,14 +197,29 @@ class BaseFileIO(ABC, Generic[T]):
 		if lock_obj.count <= 0:
 			self._locks.pop(path, None)
 
-	def _sync_read(self, path: str) -> T:
+	async def _get_valid_cache(self, path: str) -> tuple[T, float] | None:
+		cached_entry = self.cache.get(path)
+		if cached_entry is None:
+			return None
+
+		try:
+			disk_mtime = await asyncio.to_thread(os.path.getmtime, path)
+			if disk_mtime == cached_entry[1]:
+				return cached_entry
+		except FileNotFoundError:
+			pass
+
+		return None
+
+	def _sync_read(self, path: str) -> tuple[T, float]:
 		with open(path, "rb") as f:
+			mtime = os.fstat(f.fileno()).st_mtime
 			content = f.read()
 		if content.startswith(b'\x1f\x8b'):
 			content = gzip.decompress(content)
-		return self.deserialize(content)
+		return self.deserialize(content), mtime
 
-	def _sync_write(self, path: str, data: bytes, atomic: bool, mode: int | None, verify: bool, compress: bool) -> None:
+	def _sync_write(self, path: str, data: bytes, atomic: bool, mode: int | None, verify: bool, compress: bool) -> float:
 		if compress:
 			data = gzip.compress(data)
 
@@ -236,21 +255,23 @@ class BaseFileIO(ABC, Generic[T]):
 		if atomic:
 			target_path.replace(final_path)
 
+		return os.path.getmtime(final_path)
+
 	async def _save_internal(self, path: str, data: T, update_cache: bool, atomic: bool, verify: bool, compress: bool, mode: int | None, skip_if_unchanged: bool) -> bool:
 		lock_obj = self._acquire_lock(path)
 		try:
 			async with lock_obj.lock:
 				if skip_if_unchanged:
-					cached = self.cache.get(path)
-					if cached is not None and cached == data:
+					valid_cache = await self._get_valid_cache(path)
+					if valid_cache is not None and valid_cache[0] == data:
 						return True
 
 				serialized_data = self.serialize(data)
-				await asyncio.to_thread(
+				new_mtime = await asyncio.to_thread(
 					self._sync_write, path, serialized_data, atomic, mode, verify, compress
 				)
 				if update_cache:
-					self.cache.set(path, self.clone(data))
+					self.cache.set(path, (self.clone(data), new_mtime))
 				return True
 		except Exception:
 			log.error(f"Save failed for {path}", exc_info=True)
@@ -303,22 +324,22 @@ class BaseFileIO(ABC, Generic[T]):
 		"""
 		path = os.path.abspath(os.fspath(path))
 		if use_cache:
-			cached = self.cache.get(path)
-			if cached is not None:
-				return True, (cached if read_only else self.clone(cached))
+			valid_cache = await self._get_valid_cache(path)
+			if valid_cache is not None:
+				return True, (valid_cache[0] if read_only else self.clone(valid_cache[0]))
 
 		lock_obj = self._acquire_lock(path)
 		try:
 			async with lock_obj.lock:
 				if use_cache:
-					cached = self.cache.get(path)
-					if cached is not None:
-						return True, (cached if read_only else self.clone(cached))
+					valid_cache = await self._get_valid_cache(path)
+					if valid_cache is not None:
+						return True, (valid_cache[0] if read_only else self.clone(valid_cache[0]))
 
 				try:
-					data = await asyncio.to_thread(self._sync_read, path)
+					data, mtime = await asyncio.to_thread(self._sync_read, path)
 					if update_cache:
-						self.cache.set(path, self.clone(data))
+						self.cache.set(path, (self.clone(data), mtime))
 					return True, data
 				except (FileNotFoundError, Exception) as e:
 					if type(e) not in builtins.__dict__.values():
@@ -395,13 +416,13 @@ class BaseFileIO(ABC, Generic[T]):
 				data = None
 				original_data = None
 				if use_cache:
-					cached = self.cache.get(path)
-					if cached is not None:
-						data = self.clone(cached)
+					valid_cache = await self._get_valid_cache(path)
+					if valid_cache is not None:
+						data = self.clone(valid_cache[0])
 
 				if not data:
 					try:
-						data = await asyncio.to_thread(self._sync_read, path)
+						data, _mtime = await asyncio.to_thread(self._sync_read, path)
 					except FileNotFoundError:
 						data = self.clone(self.default_empty)
 					except Exception as e:
@@ -418,10 +439,10 @@ class BaseFileIO(ABC, Generic[T]):
 						return
 
 					serialized = self.serialize(data)
-					await asyncio.to_thread(
+					new_mtime = await asyncio.to_thread(
 						self._sync_write, path, serialized, atomic, mode, verify, compress
 					)
-					self.cache.set(path, self.clone(data))
+					self.cache.set(path, (self.clone(data), new_mtime))
 		finally:
 			self._release_lock(path, lock_obj)
 

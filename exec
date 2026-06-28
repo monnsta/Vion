@@ -1,9 +1,6 @@
 #!/bin/bash
 
-# Copyright (C) 2026 monnsta
-# This software is proprietary and confidential.
-# Unauthorized copying, modification, or distribution
-# is strictly prohibited.
+# Copyright (c) 2026 monnsta. All rights reserved.
 
 set -u
 
@@ -66,7 +63,7 @@ prompt_confirm() {
 show_help() {
 	local cols=$(tput cols 2>/dev/null || echo 80)
 	local sep=$(printf "%${cols}s" "")
-	
+
 	echo -e "${MAG}${BOLD}▶ BOT EXECUTOR MANAGER${RES}"
 	echo -e "${DIM}${sep// /-}${RES}"
 	echo -e "${BOLD}Usage:${RES} $0 [OPTIONS]\n"
@@ -88,7 +85,6 @@ show_help() {
 	print_opt "-s, --supervise" "Enable auto-restart and crash monitoring loop" "${CYN}"
 	print_opt "-i, --install" "Check and install dependencies before running" "${CYN}"
 	print_opt "-c, --check" "Verify environment (Python, Pip, Script existence)" "${CYN}"
-	print_opt "-d, --docker" "Run using Docker Compose (detached)" "${CYN}"
 	print_opt "-r, --restart N" "Set restart wait time in seconds (default: 2)" "${CYN}"
 	print_opt "-m, --max-crashes N" "Set max crashes allowed in window (default: 2)" "${CYN}"
 	print_opt "-h, --help" "Show this help message" "${CYN}"
@@ -113,16 +109,47 @@ check_env() {
 	log "Environment OK."
 }
 
+verify_termux_crypto() {
+	if [[ -n "${PREFIX:-}" && "$PREFIX" == *"/com.termux/"* ]]; then
+		# Check if cryptography is installed via pip but the Rust bindings fail
+		if "$APP_DIR/$PIP_BIN" freeze 2>/dev/null | grep -qi "^cryptography==" && \
+		   ! "$APP_DIR/$PYTHON_BIN" -c "from cryptography.hazmat.bindings import _rust" 2>/dev/null; then
+
+			warn "Broken Termux cryptography binary detected. Injecting system package..."
+
+			log "Uninstalling broken pip version..."
+			"$APP_DIR/$PIP_BIN" uninstall -y cryptography >/dev/null 2>&1
+
+			log "Installing pre-compiled Termux package via pkg..."
+			pkg install -y python-cryptography || warn "Failed to install python-cryptography via pkg."
+
+			log "Injecting system cryptography into venv..."
+			local PY_VER
+			PY_VER=$("$APP_DIR/$PYTHON_BIN" -c 'import sys; print(f"{sys.version_info.major}.{sys.version_info.minor}")')
+
+			local SYS_SITE_PACKAGES="$PREFIX/lib/python$PY_VER/site-packages"
+			local VENV_SITE_PACKAGES="$APP_DIR/.venv/lib/python$PY_VER/site-packages"
+
+			if [[ -d "$SYS_SITE_PACKAGES/cryptography" ]]; then
+				cp -r "$SYS_SITE_PACKAGES/cryptography" "$VENV_SITE_PACKAGES/"
+				cp -r "$SYS_SITE_PACKAGES"/cryptography-*.dist-info "$VENV_SITE_PACKAGES/" 2>/dev/null || true
+				log "Cryptography successfully injected and fixed!"
+			else
+				error "Could not locate system cryptography at $SYS_SITE_PACKAGES"
+			fi
+		fi
+	fi
+}
+
 install_deps() {
 	if [[ -f "$REQ_PATH" ]]; then
 		log "Checking/Installing dependencies..."
 
 		if [[ -n "${PREFIX:-}" && "$PREFIX" == *"/com.termux/"* ]]; then
-			log "Termux detected. Verifying build tools..."
 			if ! command -v cargo &> /dev/null || ! command -v clang &> /dev/null; then
 				warn "Missing build tools (rust, clang)."
 				if prompt_confirm "Do you want to install Termux build tools using pkg?"; then
-					pkg install -y rust clang binutils make || warn "Failed to install Termux build tools."
+					pkg install -y rust clang binutils make libffi openssl || warn "Failed to install Termux build tools."
 				else
 					warn "Skipping tool installation. Pip compilation might fail."
 				fi
@@ -165,18 +192,6 @@ is_crash_looping() {
 	return 1
 }
 
-run_docker() {
-	if ! command -v docker &> /dev/null; then
-		error "Docker not found. Please install Docker first."
-		exit 1
-	fi
-
-	log "Building and starting containers (detached)..."
-	docker compose up --build -d
-	log "Container is up. Use 'docker compose logs -f' to view output."
-	exit 0
-}
-
 # --- 4. Parse Arguments ---
 while [[ $# -gt 0 ]]; do
 	case "$1" in
@@ -197,9 +212,6 @@ while [[ $# -gt 0 ]]; do
 		-c|--check)
 			CHECK_ENV=true
 			shift
-			;;
-		-d|--docker)
-			run_docker
 			;;
 		-r|--restart)
 			if [[ -z "${2:-}" || ! "$2" =~ ^[0-9]+$ ]]; then
@@ -239,15 +251,15 @@ trap "log 'Manual interruption detected. Exiting...'; exit 0" SIGINT SIGTERM
 [[ "$CHECK_ENV" == true ]] && check_env
 [[ "$INSTALL_DEPS" == true ]] && install_deps
 
+verify_termux_crypto
+
 if [[ "$SUPERVISE" == false ]]; then
-	clear
 	log "Starting bot..."
 	"$APP_DIR/$PYTHON_BIN" "$BOT_PATH"
 	exit $?
 fi
 
 while true; do
-	clear
 	log "Supervisor active. Monitoring $BOT_FILE..."
 	log "Starting bot..."
 	"$APP_DIR/$PYTHON_BIN" "$BOT_PATH"

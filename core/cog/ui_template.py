@@ -1,3 +1,5 @@
+# Copyright (c) 2026 monnsta. All rights reserved.
+
 import asyncio
 import random
 from collections import Counter
@@ -28,7 +30,6 @@ def get_annoyance_message(user_id: int) -> str | None:
 			"Clicking this won't make it yours. Trust me.",
 			"I'm busy. Talk to the hand. ✋",
 			"Every time you click, a pixel dies. Think of the pixels.",
-			"Is your 'Enter' key stuck, or is it just your brain?",
 			"This button has a restraining order against you."
 		])
 	if count <= 12:
@@ -37,7 +38,6 @@ def get_annoyance_message(user_id: int) -> str | None:
 			"I'm actually going to ignore you if you keep this up.",
 			"Is this a joke to you? BECAUSE IT ISN'T TO ME.",
 			"GO. AWAY.",
-			"System error: User too stubborn. Please uninstall life.",
 			"I have 14 million futures and in none of them do you own this menu.",
 			"Your persistence is admirable. Your intelligence? Not so much.",
 			"I’m reporting this to the Bot Council.",

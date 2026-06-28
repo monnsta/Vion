@@ -1,9 +1,11 @@
+# Copyright (c) 2026 monnsta. All rights reserved.
+
 import asyncio
 import logging
 import os
 from pathlib import Path
 
-from core.lib.dataclass import Data, Method
+from core.lib.dataclass import Data, Method, Computed
 
 
 log = logging.getLogger(__name__)
@@ -12,10 +14,12 @@ root = Path(__file__).resolve().parent.parent
 
 
 base = Data(
+	core 	= root / "core",
+	meta 	= root / "meta",
+	asset	= Computed(lambda self: self.meta / "asset"),
+
 	data	= root / "data",
 	logs	= root / "logs",
-	meta	= root / "meta",
-	core	= root / "core"
 
 )
 
@@ -24,7 +28,9 @@ sub = Data(
 	glob   	= base.data / "global",
 	servers	= base.data / "servers",
 	users  	= base.data / "users",
-	cog    	= base.core / "cog",
+
+	cog   	= base.core / "cog",
+	avatar	= base.asset / "avatars",
 
 	custom_cogs	= Method(lambda self, i: self.servers / i / "cog")
 )

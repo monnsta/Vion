@@ -1,7 +1,4 @@
-# Copyright (C) 2026 monnsta
-# This software is proprietary and confidential.
-# Unauthorized copying, modification, or distribution
-# is strictly prohibited.
+# Copyright (c) 2026 monnsta. All rights reserved.
 
 import bootstrap
 

@@ -1,3 +1,5 @@
+# Copyright (c) 2026 monnsta. All rights reserved.
+
 import discord
 from discord import app_commands as app
 from discord.ext import commands

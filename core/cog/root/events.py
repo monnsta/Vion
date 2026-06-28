@@ -1,3 +1,5 @@
+# Copyright (c) 2026 monnsta. All rights reserved.
+
 import asyncio
 import difflib
 import logging
@@ -11,10 +13,10 @@ from discord.ext import commands, tasks
 
 from core.lib.file import json_file
 from core.wrp.profile import server
-from core.wrp.blacklist import blacklist
+from core.wrp.blacklist import blacklist, BlacklistedError
 from meta import config, file, sub
 
-from core.cog.ui_template import Fail, Generic
+from core.cog.ui_template import Fail, Generic, UnexpectedError
 
 
 log = logging.getLogger(__name__)
@@ -37,6 +39,14 @@ class Events(commands.Cog):
 		return super().cog_unload()
 
 	async def verify_subcommand(self, ctx: commands.Context):
+		is_blocked, data = await blacklist.get(ctx.author.id, "user")
+
+		if is_blocked and isinstance(data, dict):
+			reason = data.get("reason", "No reason provided.")
+			expires_at = data.get("expires_at")
+
+			raise BlacklistedError(reason=reason, expires_at=expires_at)
+
 		if isinstance(ctx.command, commands.Group):
 			if ctx.subcommand_passed is None:
 				return
@@ -235,28 +245,16 @@ class Events(commands.Cog):
 		if message.author.bot:
 			return
 
-		is_pinged = self.bot.user in message.mentions
+		if await blacklist.is_blacklisted(message.author.id, "user"):
+			return
 
-		name_mentioned = self.bot.user.name.lower() in message.content.lower()
-
-		is_reply_to_bot = (
-			message.reference 
-			and message.reference.cached_message 
-			and message.reference.cached_message.author == self.bot.user
-		)
-
-		if message.reference and not is_reply_to_bot:
-			resolved = message.reference.resolved
-			if isinstance(resolved, discord.Message) and resolved.author == self.bot.user:
-				is_reply_to_bot = True
-
-		if is_pinged or name_mentioned or is_reply_to_bot:
+		if self.bot.user in message.mentions and not message.content.startswith(tuple(await self.bot.determine_prefix("", message))):
 			guild_name = message.guild.name if message.guild else None
 			log.info(f"bot mentioned in {f'{guild_name} > {message.channel.name}' if guild_name is not None else "DM"} by {message.author.display_name}")
 
 			async with message.channel.typing():
 				await asyncio.sleep(0.5)
-				await message.reply(f"{self.bot.user.name} will be back with you soon! we are going through a huge rebranding and refactors.")
+				await message.reply(f"{self.bot.user.name} will be back with you soon! we are going through a huge rebranding and refactors. Untill then, try some of the fun commands, use `{config.default_prefix[0]}fun help`")
 
 
 	@commands.Cog.listener()
@@ -265,6 +263,26 @@ class Events(commands.Cog):
 			return
 
 		error = getattr(error, 'original', error)
+
+		if isinstance(error, BlacklistedError):
+			duration_str = "Permanent"
+			if error.expires_at:
+				try:
+					dt = datetime.fromisoformat(error.expires_at)
+					duration_str = f"Expires <t:{int(dt.timestamp())}:R>"
+				except Exception:
+					duration_str = "Temporary"
+
+			await ctx.reply(
+				view=Fail(
+					"Access Denied", 
+					f"You are restricted from using this bot.\n\n"
+					f"**Reason:** {error.reason}\n"
+					f"**Duration:** {duration_str}"
+				),
+				ephemeral=True
+			)
+			return
 
 		if isinstance(error, commands.CommandNotFound):
 			content = ctx.message.content[len(ctx.prefix):].strip()
@@ -322,11 +340,33 @@ class Events(commands.Cog):
 				f"I don't have the permissions required to run this: {perms}"
 			))
 
-		elif isinstance(error, (commands.CheckFailure, commands.BadArgument)):
+		elif isinstance(error, commands.BadLiteralArgument):
+			literals = ", ".join(f"`{l}`" for l in error.literals)
 			await ctx.reply(view=Fail(
-				"Command Error",
-				f"```{error}```"
+				"Invalid Option",
+				f"Invalid option for `{error.param.name}`. Must be one of: {literals}"
 			))
+
+		elif isinstance(error, commands.BadUnionArgument):
+			await ctx.reply(view=Fail(
+				"Invalid Input",
+				f"The argument provided for `{error.param.name}` could not be parsed."
+			))
+
+		elif isinstance(error, (commands.UserNotFound, commands.MemberNotFound)):
+			await ctx.reply(view=Fail(
+				"User Not Found",
+				"I couldn't find that user. Please provide a valid username, ID, or mention."
+			))
+
+		elif isinstance(error, commands.NotOwner):
+			await ctx.reply(view=Fail(
+				"Restricted Command",
+				"Only the bot owner can use this command."
+			))
+
+		elif isinstance(error, (commands.CheckFailure, commands.BadArgument)):
+			await ctx.reply(view=UnexpectedError)
 
 		else:
 			log.error(f"Ignoring exception in command {ctx.command}:", exc_info=error)

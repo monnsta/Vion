@@ -1,12 +1,23 @@
+# Copyright (c) 2026 monnsta. All rights reserved.
+
 import logging
 from datetime import datetime, timedelta
 from typing import Any, Dict, List, Optional, Tuple
+
+from discord.ext import commands
 
 from core.lib.file import json_file
 from meta import config, file
 
 
 log = logging.getLogger(__name__)
+
+
+class BlacklistedError(commands.CommandError):
+	def __init__(self, reason: str, expires_at: Optional[str] = None):
+		self.reason = reason
+		self.expires_at = expires_at
+		super().__init__(f"User is blacklisted. Reason: {reason}")
 
 
 class Blacklist:
@@ -84,8 +95,6 @@ class Blacklist:
 			return False, "Invalid duration format (use 7d, 12h, 30m)."
 
 		data[entity_type][eid] = {
-			"id": entity_id,
-			"type": entity_type,
 			"mod_id": mod_id,
 			"reason": reason,
 			"created_at": self._now().isoformat(),
@@ -187,10 +196,14 @@ class Blacklist:
 		if not success:
 			return []
 
-		if entity_type:
-			return list(data.get(entity_type, {}).values())
+		types_to_check = [entity_type] if entity_type else ["server", "user"]
+		results = []
 
-		return list(data["server"].values()) + list(data["user"].values())
+		for t in types_to_check:
+			for eid, entry in data.get(t, {}).items():
+				results.append({**entry, "id": int(eid), "type": t})
+
+		return results
 
 	async def is_blacklisted(self, entity_id: int, entity_type: str) -> bool:
 		if entity_type not in ("server", "user"):
@@ -208,4 +221,4 @@ class Blacklist:
 blacklist = Blacklist()
 
 
-__all__ = ('blacklist',)
+__all__ = ('blacklist', 'BlacklistedError')

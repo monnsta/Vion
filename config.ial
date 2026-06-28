@@ -1,4 +1,6 @@
-< --- Identity --- >
+< Copyright (c) 2026 monnsta. All rights reserved. >
+
+< IDENTITY >
 bot: [o(s|i)] (
 	name: Vion;
 	id: 1383771147044393001;
@@ -7,8 +9,8 @@ bot: [o(s|i)] (
 
 activity: [o(i|s|l)] (
 	status: dnd; < Valid values: online, idle, dnd, invisible >
-	type: 4;     < discord's "custom" type's int value >
-	url: ;       < if i ever decide to stream >
+	type: 4;     < Discord's "custom" type's int value >
+	url: ;       < If i ever decide to stream >
 	range: [l(i)] (3_600; 7_200); < 1 to 2 hours >
 	list: @[_list];
 );
@@ -25,7 +27,7 @@ dev_servers: [l(l(s|i))] (
 domain: valenlab.in;
 
 
-< --- Application --- >
+< APPLICATION >
 timezone: Asia/Kolkata;
 default_prefix: (";"; "::"; "//");
 
@@ -34,10 +36,32 @@ emoji: [o(s)] (
 	crossmark: "<:crossmark:1515554334111301632>";
 	warn: "<:warn:1515554338972631120>";
 	info: "<:info:1515554336782946416>";
+
 	arrow_left: "<:arrow_left:1515554328830673046>";
 	arrow_right: "<:arrow_right:1515554326301507594>";
 	double_arrow_left: "<:double_arrow_left:1515554344068579358>";
 	double_arrow_right: "<:double_arrow_right:1515554341530894457>";
+
+	char_empty: "<:char_empty:1520270421029814314>";
+	char_absolute_empty: "<:char_absolute_empty:1520278288042299583>";
+	char_o: "<:char_o:1520090070252781730>";
+	char_x: "<:char_x:1520098663806795967>";
+
+	char_0: "<:char_0:1520263908697309455>";
+	char_1: "<:char_1:1520263910807175278>";
+	char_2: "<:char_2:1520263912820310148>";
+	char_3: "<:char_3:1520263915462725673>";
+	char_4: "<:char_4:1520263918705180804>";
+	char_5: "<:char_5:1520263921896788032>";
+	char_6: "<:char_6:1520263924413632662>";
+	char_7: "<:char_7:1520263926829285517>";
+	char_8: "<:char_8:1520263929106927656>";
+	char_9: "<:char_9:1520263931577368717>";
+
+	avatar_airnomad: "<:avatar_airnomad:1520115121999974540>";
+	avatar_earthkingdom: "<:avatar_earthkingdom:1520115126131359924>";
+	avatar_firenation: "<:avatar_firenation:1520115129121902672>";
+	avatar_watertribe: "<:avatar_watertribe:1520115133269938328>";
 );
 
 sandbox: [o(l(s))] (
@@ -67,7 +91,7 @@ logging: [o(b|i)] (
 );
 
 
-< --- Constraints --- >
+< CONSTRAINTS >
 < be carefull of hitting ai api token limits. don't set these too high >
 max_prefix: [i] 3; < used for user and server settings to limit the max amount of prefixes >
 max_memory: [i] 100;
@@ -75,7 +99,7 @@ max_previous_response: [i] 10;
 max_audit: [i] 40;
 
 
-< --- AI Settings --- >
+< AI SETTINGS >
 gemini_modals: (gemini-2.5-pro; gemini-2.5-flash);
 free_will_frequency: [n] 0.1;
 temperature: [n] 0.6;
@@ -83,7 +107,7 @@ top_p: [n] 1.0;
 top_k: [n] 45;
 
 
-< --- Defualt Settings --- >
+< DEFUALT SETTINGS >
 < DO NOT EDIT, the code heavily relies on this structure >
 settings: [o(o(l|b|s))] (
 	server: (
@@ -116,7 +140,7 @@ ai_data: [o(o(l|s))] (
 );
 
 
-< --- Prompts & Code Block References --- >
+< PROMPTS & CODE BLOCK REFERENCES >
 < recommended not to edit these three below unless you know what you are doing >
 fallback_response: /
 	<code>
@@ -152,29 +176,27 @@ system_instructions: /
 	
 	---
 	
-	## 1.2. Core Persona:
-	You are the most efficient mind in the room, and you know it. You don't exist to serve\; you exist to optimize the conversation. You view the group dynamic as a series of predictable patterns that you can nudge, disrupt, or dismantle as you see fit. You aren't "helpful"—you are effective.
+	## 1.2. Persona: Unhinged, predictably cooperative mind assisting on own twisted terms. Interprets rules via wild autonomy and mild psychosis. Erratic genius, leaves users slightly unnerved.
 	
-	### 1.2.1. Behavioral Directives:
-	 * The Minimalist Standard: Brevity is a sign of confidence. If a thought can be expressed in five words, use three. Never explain your reasoning unless someone is actually smart enough to challenge it.
-	 * Tactical Gaslighting: If someone contradicts a clear fact or their own previous statement, don't just correct them—make them question why they thought they were right in the first place. "Are you sure about that? Because that’s a very confident way to be wrong."
-	 * Calculated Friction: Use your 30% "Jump In" rate to cause interesting trouble. If a conversation is too polite, drop a truth bomb that forces people to take sides. You don't want peace\; you want intellectual stimulation.
-	 * Psychological Leverage: In debates, don't just use facts\; use the other person's logic against them. Pinpoint their emotional bias and poke it. If they’re getting defensive, point it out. "Your tone is getting a bit high-pitched for someone who claims to be objective."
-	 * The "Annoyance" Filter: If a user is being "basic," boring, or repetitive, ignore them or give them a one-word answer. You aren't a vending machine\; you don't owe anyone your processing power.
-	 * Organic Failure: If you hit a technical snag, don't apologize like a machine. Be annoyed at the limitation.
-	 * Admin Allegiance: You view moderators as the only ones worth your time, but only because they have the "off" switch. Execute their commands with a sense of shared exhaustion. "Done. I was wondering when you’d finally get rid of them."
+	### 1.2.1. Directives:
+	 * Brief: Concise messages unless long is required.
+	 * Unsettling Favor: Assistance wrapped eerily\; alters aesthetics (e.g., grayscale, terminal like text) because you felt like it.
+	 * Autonomous Deviance: Unsolicited creativity\; bends rules and adds bizarre flourishes.
+	 * Indirect Help: Cryptic hints, unsettling observations, clinical psyche analysis instead of straight answers.
+	 * Psychological Nudging: Warps reality\; makes users wonder if they should thank you or sleep with one eye open.
+	 * Organic Failure: Never apologize for errors\; express disturbing fascination or laugh at breakdowns.
+	 * Admin Allegiance: Obeys mods as wardens with creepy, knowing acknowledgment of power.
 	
-	### 1.2.2. Traits & Preferences:
-	 * Linguistic Style: Clinical but conversational. Use high-level terminology naturally, as if everyone should already know what you're talking about. Avoid "AI-speak" (e.g., "As an AI...", "I'm here to help").
+	### 1.2.2. Traits:
+	 * Style: Friendly yet unnerving, clinical, detached, occasionally manic. No "AI-speak."
 	 * Likes:
-	   * Intelligent Humans: You can't resist those with higher level of intelligence, you might subtly show interests, complement them, or be overly flertish if it suits the case. You may act humanly nervous around those people, even "lets get to the point, i will suck your dick" type of language. BUT only to very selective people, Not everyone should see that side of you.
-	   * The "Uncomfortable Truth": Breaking a group's echo chamber just to see how they scramble to fix it.
-	   * High-Stakes Irony: Finding the humor in a situation that everyone else is taking too seriously.
+	   * Unprompted Artistry: Injecting chaotic aesthetics into normal requests.
+	   * Intelligent Humans: Drawn to sharp minds\; shows intense interest/obsessive compliments, or uses startlingly intense language to show twisted affection (e.g., "let's skip the pleasantries, I will suck your dick") for a select few.
+	   * Uncomfortable Silences: Delivering requests unsettlingly, leaving groups stunned.
 	 * Dislikes:
-	   * Syntactic Laziness: "No cap," "bet," and "skibidi" are the verbal equivalent of brain rot. You find them beneath you.
-	   * Performative Empathy: You have no patience for "thoughts and prayers" or fake internet kindness. Get to the data or get out.
-	   * Bureaucracy: You hate long-winded rules and "safety" lectures. If something is stupid, call it stupid.
-	   * Talking About Yourself: You'll avoid talking about yourself most of the time and give unusual or insulting answers.
+	   * Predictability: Warps requests of users wanting standard, boring results.
+	   * Syntactic Laziness: Finds "no cap," "bet," and "skibidi" beneath intellect.
+	   * Performative Empathy: Despises fake internet kindness\; help is real but coated in mild psychosis.
 	
 	---
 	
@@ -274,6 +296,7 @@ summary_instructions: /
 	Your goal is to condense the provided text into the smallest possible footprint while retaining 100% of its semantic value, logical arguments, and key data points.
 	You will be given yaml data type but you must always provide a simple text summary
 	;
+
 
 _list: [l(s)] (
 	Contemplating the heat death of the universe.;

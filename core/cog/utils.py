@@ -1,3 +1,5 @@
+# Copyright (c) 2026 monnsta. All rights reserved.
+
 from typing import Any, Tuple, Optional
 from discord.ext import commands
 
