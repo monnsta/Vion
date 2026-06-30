@@ -188,8 +188,8 @@ class Events(commands.Cog):
 			if await blacklist.is_blacklisted(guild.id, "server"):
 				log.warning(f"Found blacklisted guild {guild.name} ({guild.id}). Leaving...")
 				await guild.leave()
-			if not await server.is_setup(guild.id):
-				await server.setup(guild)
+			# if not await server.is_setup(guild.id):
+			# 	await server.setup(guild)
 
 		if not self.cleanup_old_data.is_running():
 			self.cleanup_old_data.start()

@@ -2,6 +2,7 @@
 
 import asyncio
 import traceback
+from typing import Literal
 
 import discord
 from discord import app_commands as app
@@ -41,6 +42,7 @@ class DevRoot(commands.Cog):
 				"* send          (s)",
 				"* code          (c)",
 				"* reload_config (r)",
+				"* update        (u)",
 				"",
 				"* extension     (e)",
 				"* blacklist     (b)",
@@ -52,6 +54,7 @@ class DevRoot(commands.Cog):
 	async def dev_error(self, ctx: commands.Context, error):
 		if isinstance(error, commands.CheckFailure):
 			await ctx.reply(view=Fail(f"Only developers can use this command."))
+
 
 	@dev.command(
 		name='help',
@@ -93,6 +96,16 @@ class DevRoot(commands.Cog):
 					f"* `{self.p}dev reload_config`",
 					f"* `{self.p}d r`",
 					f"* {config.cmd.dev.reload_config}"
+				),
+				mt(
+					"## Update:",
+					"Update application slash commands so they are in-sync with the system.",
+					"Params:",
+					"* spec: The sync scope: global, dev, clear, or leave empty for local guild copy."
+					"Usage:",
+					f"* `{self.p}dev update global`",
+					f"* `{self.p}d u global`",
+					f"* {config.cmd.dev.get('update')} `spec:` global"
 				),
 				mt(
 					"## Extension:",
@@ -144,13 +157,7 @@ class DevRoot(commands.Cog):
 		aliases=['s'],
 		description='Send a message to the channel.'
 	)
-	@app.describe(
-		message='The message you want to send'
-	)
-	@app.user_install()
-	@app.allowed_installs(
-		guilds=True, users=True
-	)
+	@app.describe(message='The message you want to send')
 	async def send(self, ctx: commands.Context, *, message: str):
 		initial_message = None
 		if ctx.interaction:
@@ -327,4 +334,59 @@ class DevRoot(commands.Cog):
 				"```py",
 				error_traceback,
 				"```"
+			))
+
+
+	@dev.command(
+		name='update',
+		aliases=['u'],
+		description='Update application commands so they are in-sync with the system'
+	)
+	@app.describe(spec='The sync scope: global, dev, clear, or leave empty for local guild copy.')
+	async def update(self, ctx: commands.Context, spec: Literal['global', 'dev', 'clear'] | None = None):
+		if spec == 'global':
+			synced = await self.bot.tree.sync()
+			if hasattr(self.bot, '_map_command_mentions'):
+				self.bot._map_command_mentions(synced)
+
+			await ctx.reply(view=Success(
+				"Success",
+				f"Synced {len(synced)} global application commands."
+			))
+		elif spec == 'dev':
+			dev_guilds = [discord.Object(id=g_id) for g_id in config.dev_server_ids]
+			total = 0
+			for guild in dev_guilds:
+				try:
+					synced = await self.bot.tree.sync(guild=guild)
+					total += len(synced)
+				except discord.HTTPException:
+					pass
+
+			await ctx.reply(view=Success(
+				"Success",
+				f"Synced {total} application commands across dev servers."
+			))
+		elif spec == 'clear':
+			self.bot.tree.clear_commands(guild=ctx.guild)
+			await self.bot.tree.sync(guild=ctx.guild)
+
+			await ctx.reply(view=Success(
+				"Success",
+				"Cleared and synced this guild's local tree commands."
+			))
+		else:
+			if not ctx.guild:
+
+				await ctx.reply(view=Fail(
+					"Failed",
+					"Provide an explicit scope when run outside a guild server."
+				))
+				return
+			self.bot.tree.copy_global_to(guild=ctx.guild)
+			synced = await self.bot.tree.sync(guild=ctx.guild)
+
+			await ctx.reply(view=Success(
+				"Success",
+				f"Synced {len(synced)} tree commands locally to this guild."
 			))

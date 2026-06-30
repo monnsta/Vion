@@ -11,7 +11,7 @@ import pytz
 from core.lib.dataclass import Data, Computed, Method, AntiFreeze
 from core.lib.utils import F, mt
 from core.lib.file import ial_file
-from meta.paths import sub, file
+from meta.paths import file
 
 
 log = logging.getLogger(__name__)
@@ -35,17 +35,17 @@ async def load_config():
 		for i, error in enumerate(e.errors):
 			log.error(f"{i}. {error}", exc_info=True)
 
-	if not success:
+	if not success: # type: ignore
 		log.critical(f"Failed to load {file.conf}")
 		sys.exit(10)
 
 	try:
-		config.update(Data.load(data))
+		config.update(Data.load(data)) # type: ignore
 	except Exception:
 		log.critical("An error occurred while parsing config into Data object", exc_info=True)
 		sys.exit(10)
 
-	log.debug(json.dumps({k: v for k, v in data.items() if k != "system_instructions"}))
+	log.debug(json.dumps({k: v for k, v in data.items() if k != "system_instructions"})) #type: ignore
 
 	allowed_prefixes = tuple(f"{m}." for m in config.sandbox.allowed_modules)
 	allowed_exact = set(config.sandbox.allowed_modules)

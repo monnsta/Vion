@@ -4,7 +4,7 @@
 bot: [o(s|i)] (
 	name: Vion;
 	id: 1383771147044393001;
-	invite: https://discord.com/oauth2/authorize?client_id=1383771147044393001&permissions=1759218604441591&integration_type=0&scope=bot;
+	invite: https://discord.com/oauth2/authorize?client_id=1383771147044393001;
 );
 
 activity: [o(i|s|l)] (
@@ -67,11 +67,12 @@ emoji: [o(s)] (
 sandbox: [o(l(s))] (
 	allowed_modules: (
 		asyncio; base64; bisect; cmath; collections;
-		copy; core.wrp; datetime; decimal; discord;
+		copy; urllib.parse; datetime; decimal; discord;
 		enum; fractions; functools; heapq; itertools;
 		json; math; random; re; requests; statistics;
-		string; textwrap; time; unicodedata;
-		urllib.parse; uuid;
+		string; textwrap; time; unicodedata; uuid;
+		meta.paths; core.wrp; core.lib.converter;
+		core.lib.dataclass; code.lib.utils
 	);
 	allowed_builtins: (
 		__build_class__; abs; all; any; bin;

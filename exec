@@ -19,6 +19,8 @@ SUPERVISE=false
 INSTALL_DEPS=false
 CHECK_ENV=false
 
+export ANDROID_API_LEVEL=34
+
 # --- 2. Internal Setup ---
 APP_DIR=$(cd -- "$(dirname -- "${BASH_SOURCE[0]}")" &> /dev/null && pwd)
 BOT_PATH="$APP_DIR/$BOT_FILE"
@@ -61,8 +63,10 @@ prompt_confirm() {
 }
 
 show_help() {
-	local cols=$(tput cols 2>/dev/null || echo 80)
-	local sep=$(printf "%${cols}s" "")
+	local cols
+	cols=$(tput cols 2>/dev/null || echo 80)
+	local sep
+	sep=$(printf "%${cols}s" "")
 
 	echo -e "${MAG}${BOLD}▶ BOT EXECUTOR MANAGER${RES}"
 	echo -e "${DIM}${sep// /-}${RES}"
@@ -92,6 +96,11 @@ show_help() {
 
 check_env() {
 	log "Checking environment..."
+	if [[ ! -x "$BOT_PATH" && ! -f "$BOT_PATH" ]]; then
+		error "Bot script not found: $BOT_PATH"
+		exit 1
+	fi
+
 	if [[ ! -x "$APP_DIR/$PYTHON_BIN" ]]; then
 		error "Python executable not found or not executable: $APP_DIR/$PYTHON_BIN"
 		exit 1
@@ -101,41 +110,39 @@ check_env() {
 		error "Pip executable not found or not executable: $APP_DIR/$PIP_BIN"
 		exit 1
 	fi
-
-	if [[ ! -f "$BOT_PATH" ]]; then
-		error "Bot script not found: $BOT_PATH"
-		exit 1
-	fi
 	log "Environment OK."
 }
 
 verify_termux_crypto() {
 	if [[ -n "${PREFIX:-}" && "$PREFIX" == *"/com.termux/"* ]]; then
-		# Check if cryptography is installed via pip but the Rust bindings fail
-		if "$APP_DIR/$PIP_BIN" freeze 2>/dev/null | grep -qi "^cryptography==" && \
-		   ! "$APP_DIR/$PYTHON_BIN" -c "from cryptography.hazmat.bindings import _rust" 2>/dev/null; then
+		local PY_VER
+		PY_VER=$("$APP_DIR/$PYTHON_BIN" -c 'import sys; print(f"{sys.version_info.major}.{sys.version_info.minor}")')
+		local SYS_SITE_PACKAGES="$PREFIX/lib/python$PY_VER/site-packages"
+		local VENV_SITE_PACKAGES="$APP_DIR/.venv/lib/python$PY_VER/site-packages"
 
-			warn "Broken Termux cryptography binary detected. Injecting system package..."
+		if grep -q "cryptography" "$REQ_PATH" 2>/dev/null; then
+			if ! "$APP_DIR/$PYTHON_BIN" -c "from cryptography.hazmat.bindings import _rust" 2>/dev/null; then
+				warn "Injecting system cryptography package to bypass compilation..."
+				pkg install -y python-cryptography || warn "Failed to install python-cryptography."
+				if [[ -d "$SYS_SITE_PACKAGES/cryptography" ]]; then
+					mkdir -p "$VENV_SITE_PACKAGES"
+					cp -r "$SYS_SITE_PACKAGES/cryptography" "$VENV_SITE_PACKAGES/"
+					cp -r "$SYS_SITE_PACKAGES"/cryptography-*.dist-info "$VENV_SITE_PACKAGES/" 2>/dev/null || true
+					log "Cryptography successfully injected!"
+				fi
+			fi
+		fi
 
-			log "Uninstalling broken pip version..."
-			"$APP_DIR/$PIP_BIN" uninstall -y cryptography >/dev/null 2>&1
-
-			log "Installing pre-compiled Termux package via pkg..."
-			pkg install -y python-cryptography || warn "Failed to install python-cryptography via pkg."
-
-			log "Injecting system cryptography into venv..."
-			local PY_VER
-			PY_VER=$("$APP_DIR/$PYTHON_BIN" -c 'import sys; print(f"{sys.version_info.major}.{sys.version_info.minor}")')
-
-			local SYS_SITE_PACKAGES="$PREFIX/lib/python$PY_VER/site-packages"
-			local VENV_SITE_PACKAGES="$APP_DIR/.venv/lib/python$PY_VER/site-packages"
-
-			if [[ -d "$SYS_SITE_PACKAGES/cryptography" ]]; then
-				cp -r "$SYS_SITE_PACKAGES/cryptography" "$VENV_SITE_PACKAGES/"
-				cp -r "$SYS_SITE_PACKAGES"/cryptography-*.dist-info "$VENV_SITE_PACKAGES/" 2>/dev/null || true
-				log "Cryptography successfully injected and fixed!"
-			else
-				error "Could not locate system cryptography at $SYS_SITE_PACKAGES"
+		if grep -q "pillow" "$REQ_PATH" 2>/dev/null; then
+			if ! "$APP_DIR/$PYTHON_BIN" -c "from PIL import _imaging" 2>/dev/null; then
+				warn "Injecting system pillow package to bypass compilation..."
+				pkg install -y python-pillow || warn "Failed to install python-pillow."
+				if [[ -d "$SYS_SITE_PACKAGES/PIL" ]]; then
+					mkdir -p "$VENV_SITE_PACKAGES"
+					cp -r "$SYS_SITE_PACKAGES/PIL" "$VENV_SITE_PACKAGES/"
+					cp -r "$SYS_SITE_PACKAGES"/Pillow-*.dist-info "$VENV_SITE_PACKAGES/" 2>/dev/null || true
+					log "Pillow successfully injected!"
+				fi
 			fi
 		fi
 	fi
@@ -145,46 +152,37 @@ install_deps() {
 	if [[ -f "$REQ_PATH" ]]; then
 		log "Checking/Installing dependencies..."
 
-		if [[ -n "${PREFIX:-}" && "$PREFIX" == *"/com.termux/"* ]]; then
-			if ! command -v cargo &> /dev/null || ! command -v clang &> /dev/null; then
-				warn "Missing build tools (rust, clang)."
-				if prompt_confirm "Do you want to install Termux build tools using pkg?"; then
-					pkg install -y rust clang binutils make libffi openssl || warn "Failed to install Termux build tools."
-				else
-					warn "Skipping tool installation. Pip compilation might fail."
-				fi
-			fi
-		fi
+		local TEMP_REQ
+		TEMP_REQ=$(mktemp)
+		grep -Ev "cryptography|pillow" "$REQ_PATH" > "$TEMP_REQ"
 
-		if ! "$APP_DIR/$PIP_BIN" install -r "$REQ_PATH"; then
+		if ! "$APP_DIR/$PIP_BIN" install -r "$TEMP_REQ"; then
 			error "Dependency installation failed."
 			if [[ -n "${PREFIX:-}" && "$PREFIX" == *"/com.termux/"* ]]; then
 				warn "Attempting Termux mathlib fallback..."
-				if ! MATHLIB=m "$APP_DIR/$PIP_BIN" install -r "$REQ_PATH"; then
-					warn "Fallback failed. Attempting to run anyway."
+				if ! MATHLIB=m "$APP_DIR/$PIP_BIN" install -r "$TEMP_REQ"; then
+					warn "Fallback failed."
 				fi
-			else
-				warn "Attempting to run anyway."
 			fi
 		fi
+		rm -f "$TEMP_REQ"
 	else
 		warn "No $REQUIREMENTS found."
 	fi
 }
 
 is_crash_looping() {
-	local now=$(date +%s)
+	local now
+	now=$(date +%s)
 	local cutoff=$((now - CRASH_WINDOW))
 
-	local updated_ts=()
-	for ts in "${CRASH_TS[@]}"; do
-		if [[ "$ts" -gt "$cutoff" ]]; then
-			updated_ts+=("$ts")
+	for i in "${!CRASH_TS[@]}"; do
+		if [[ "${CRASH_TS[i]}" -le "$cutoff" ]]; then
+			unset "CRASH_TS[i]"
 		fi
 	done
 
-	updated_ts+=("$now")
-	CRASH_TS=("${updated_ts[@]}")
+	CRASH_TS+=("$now")
 
 	if [[ ${#CRASH_TS[@]} -gt $MAX_CRASHES ]]; then
 		return 0
@@ -198,7 +196,11 @@ while [[ $# -gt 0 ]]; do
 		-[!-]?*)
 			opts="${1#-}"
 			shift
-			set -- $(echo "$opts" | sed 's/./-& /g') "$@"
+			while [[ -n "$opts" ]]; do
+				char="${opts:0:1}"
+				opts="${opts:1}"
+				set -- "-$char" "$@"
+			done
 			continue
 			;;
 		-s|--supervise)
@@ -249,14 +251,11 @@ trap "log 'Manual interruption detected. Exiting...'; exit 0" SIGINT SIGTERM
 [[ "$INSTALL_DEPS" == true ]] && CHECK_ENV=true
 
 [[ "$CHECK_ENV" == true ]] && check_env
-[[ "$INSTALL_DEPS" == true ]] && install_deps
-
-verify_termux_crypto
+[[ "$INSTALL_DEPS" == true ]] && verify_termux_crypto && install_deps
 
 if [[ "$SUPERVISE" == false ]]; then
 	log "Starting bot..."
-	"$APP_DIR/$PYTHON_BIN" "$BOT_PATH"
-	exit $?
+	exec "$APP_DIR/$PYTHON_BIN" "$BOT_PATH"
 fi
 
 while true; do

@@ -8,13 +8,10 @@ import json
 import logging
 import os
 import re
-import shutil
 import sys
 import time
 import traceback
-import textwrap
 import termios
-import tty
 import warnings
 from logging.handlers import TimedRotatingFileHandler
 
@@ -157,7 +154,7 @@ class HtmlTimedRotatingFileHandler(TimedRotatingFileHandler):
 			stream.flush()
 		return stream
 
-class RichHandler(RichHandler):
+class RichHandlerv2(RichHandler):
 	def emit(self, record):
 		if (
 			record.name.startswith("discord")
@@ -199,7 +196,7 @@ def setup_console_logging():
 	root_logger.setLevel(logging.DEBUG)
 	root_logger.handlers.clear()
 
-	console_handler = RichHandler(
+	console_handler = RichHandlerv2(
 		level=logging.INFO,
 		rich_tracebacks=True,
 		tracebacks_show_locals=False,

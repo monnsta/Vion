@@ -1,7 +1,7 @@
 <div align="center">
 	<img src="icon.png" alt="Vion Logo" width="120" height="120" />
 	<h1>Vion: The Unrestricted AI Discord Agent</h1>
-	<p><em>An advanced AI agent designed with robust modularity and sandbox execution capabilities, capable of doing *ANYTHING* within Discord.</em></p>
+	<p><em>An advanced AI agent designed with robust modularity and sandbox execution capabilities, capable of doing ANYTHING within Discord.</em></p>
 </div>
 
 ---

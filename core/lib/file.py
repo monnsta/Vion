@@ -10,17 +10,10 @@ import threading
 from abc import ABC, abstractmethod
 from contextlib import asynccontextmanager
 from pathlib import Path
-from typing import Any, AsyncIterator, Generic, TypeVar
+from typing import cast, AsyncIterator, Generic, TypeVar
 
 try:
 	import orjson
-
-	try:
-		import tomli
-		import tomli_w
-	except ImportError:
-		tomli = None
-		tomli_w = None
 
 	try:
 		import yaml
@@ -41,7 +34,6 @@ except ImportError:
 	tomli_w = None
 	yaml = None
 	ial = None
-
 
 
 log = logging.getLogger(__name__)
@@ -523,9 +515,9 @@ _default = (
 )
 
 text_file = TEXT(*_default)
-json_file = JSON(*_default) if orjson            else None
-yaml_file = YAML(*_default) if yaml   and orjson else None
-ial_file  =  IAL(*_default) if ial    and orjson else None
+json_file = cast(JSON, JSON(*_default) if orjson else None)
+yaml_file = cast(YAML, YAML(*_default) if yaml and orjson else None)
+ial_file  = cast(IAL,  IAL(*_default)  if ial  and orjson else None)
 
 
 __all__ = (

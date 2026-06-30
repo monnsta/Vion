@@ -64,13 +64,6 @@ class Bot(commands.Bot):
 			walk(cmd)
 		log.debug(config.cmd)
 
-	async def on_error(self, event_method, *args, **kwargs):
-		exc_type, exc_val, exc_tb = sys.exc_info()
-		if isinstance(exc_val, aiohttp.ClientConnectorDNSError):
-			log.error("DNS Resolution failed.")
-			return
-		await super().on_error(event_method, *args, **kwargs)
-
 	async def setup_hook(self):
 		log.info("Starting Setup...")
 
@@ -81,23 +74,7 @@ class Bot(commands.Bot):
 			except NotImplementedError:
 				pass
 
-		dev_guilds = [discord.Object(id=g_id) for g_id in config.dev_server_ids]
-
 		await extension.load_all(self)
-
-		log.info("Syncing application commands...")
-		synced_global = await self.tree.sync()
-
-		total_dev_synced = 0
-		for guild in dev_guilds:
-			try:
-				dev_synced = await self.tree.sync(guild=guild)
-				total_dev_synced += len(dev_synced)
-			except discord.HTTPException as e:
-				log.error(f"Failed to sync dev guild {guild.id}: {e}")
-
-		log.info(f"Sync Complete: {len(synced_global)} Global, {total_dev_synced} Dev")
-		self._map_command_mentions(synced_global)
 
 	async def determine_prefix(self, _, message):
 		guild_settings = {}

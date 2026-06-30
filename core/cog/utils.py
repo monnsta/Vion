@@ -65,13 +65,13 @@ class HybridGroup(commands.HybridGroup):
 	def __init__(self, *args, **kwargs):
 		super().__init__(*args, **kwargs)
 
-		for name, attr in self.__class__.__dict__.items():
+		for _, attr in self.__class__.__dict__.items():
 			if isinstance(attr, commands.Command):
 				cmd = attr.copy()
 
 				cmd._callback = cmd.callback.__get__(self, self.__class__)
 
 				if getattr(cmd, 'on_error', None):
-					cmd._on_error = cmd.on_error.__get__(self, self.__class__)
+					setattr(cmd, '_on_error', cmd.on_error.__get__(self, self.__class__))
 
-				self.add_command(cmd)
+				self.add_command(cmd) # type: ignore

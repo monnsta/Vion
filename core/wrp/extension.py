@@ -22,16 +22,21 @@ class Extension:
 			return
 
 		for cog_name, cog in bot.cogs.items():
-			if getattr(cog, '__module__', '').startswith(extension):
-				if getattr(cog, 'dev_only', False):
-					for command in cog.get_app_commands():
+			if getattr(cog, '__module__', '').startswith(extension) and getattr(cog, 'dev_only', False):
+
+				for app_cmd in cog.get_app_commands():
+					for guild_id in dev_guilds:
+						bot.tree.add_command(app_cmd, guild=discord.Object(id=int(guild_id)), override=True)
+					bot.tree.remove_command(app_cmd.name)
+
+				for cmd in cog.get_commands():
+					if isinstance(cmd, (commands.HybridCommand, commands.HybridGroup)):
+						app_cmd = cmd.app_command
 						for guild_id in dev_guilds:
-							guild_obj = discord.Object(id=int(guild_id))
-							bot.tree.add_command(command, guild=guild_obj, override=True)
+							bot.tree.add_command(app_cmd, guild=discord.Object(id=int(guild_id)), override=True)
+						bot.tree.remove_command(app_cmd.name)
 
-						bot.tree.remove_command(command.name)
-
-					log.debug(f"Registered app commands for cog '{cog_name}' ({extension}) in dev guilds.")
+				log.info(f"Registered app commands for {extension} in dev guilds.")
 
 	async def get_all(self) -> List[str]:
 		extensions = []
@@ -89,7 +94,7 @@ class Extension:
 
 			if module_path in bot.extensions:
 				await self.unload(bot, module_path)
-			
+
 			return await self.load(bot, module_path)
 
 		except SyntaxError as e:
