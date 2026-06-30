@@ -156,7 +156,7 @@ class Extension:
 
 	async def unload_all(self, bot: commands.Bot) -> Dict[str, Tuple[bool, str]]:
 		results = {}
-		loaded_exts = list(bot.extensions.keys())
+		loaded_exts = list(bot.extensions)
 
 		for ext in loaded_exts:
 			results[ext] = await self.unload(bot, ext)
@@ -164,7 +164,7 @@ class Extension:
 
 	async def reload_all(self, bot: commands.Bot) -> Dict[str, Tuple[bool, str]]:
 		results = {}
-		loaded_exts = list(bot.extensions.keys())
+		loaded_exts = list(bot.extensions)
 
 		for ext in loaded_exts:
 			results[ext] = await self.reload(bot, ext)

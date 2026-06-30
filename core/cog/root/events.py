@@ -275,9 +275,9 @@ class Events(commands.Cog):
 
 			await ctx.reply(
 				view=Fail(
-					"Access Denied", 
-					f"You are restricted from using this bot.\n\n"
-					f"**Reason:** {error.reason}\n"
+					"Access Denied",
+					"You are restricted from using this bot.\n\n",
+					f"**Reason:** {error.reason}\n",
 					f"**Duration:** {duration_str}"
 				),
 				ephemeral=True
@@ -299,7 +299,7 @@ class Events(commands.Cog):
 				return cmds
 
 			flat_cmds = flatten_commands(config.cmd)
-			matches = difflib.get_close_matches(display_attempt, list(flat_cmds.keys()), n=1, cutoff=0.6)
+			matches = difflib.get_close_matches(display_attempt, list(flat_cmds), n=1, cutoff=0.6)
 
 			if matches:
 				suggestion_name = matches[0]

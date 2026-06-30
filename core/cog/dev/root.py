@@ -12,7 +12,7 @@ from core.lib.code import Code, status
 from core.lib.utils import is_dev, mt
 from meta import load_config, config, emoji
 
-from core.cog.ui_template import Fail, Success, Paginated
+from core.cog.ui_template import Fail, Success, Paginated, UnexpectedError
 from core.cog.dev.blacklist import Blacklist
 from core.cog.dev.extension import Extension
 
@@ -53,7 +53,7 @@ class DevRoot(commands.Cog):
 	@dev.error
 	async def dev_error(self, ctx: commands.Context, error):
 		if isinstance(error, commands.CheckFailure):
-			await ctx.reply(view=Fail(f"Only developers can use this command."))
+			await ctx.reply(view=Fail("Only developers can use this command."))
 
 
 	@dev.command(
@@ -359,9 +359,11 @@ class DevRoot(commands.Cog):
 			for guild in dev_guilds:
 				try:
 					synced = await self.bot.tree.sync(guild=guild)
+					if hasattr(self.bot, '_map_command_mentions'):
+						self.bot._map_command_mentions(synced)
 					total += len(synced)
 				except discord.HTTPException:
-					pass
+					await ctx.reply(view=UnexpectedError)
 
 			await ctx.reply(view=Success(
 				"Success",

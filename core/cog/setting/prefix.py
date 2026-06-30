@@ -111,7 +111,7 @@ class Prefix(HybridGroup):
 		if len(data["prefix"]) >= config.max_prefix:
 			await ctx.reply(view=Fail(
 				"Max Prefix Limit Reached",
-				f"You can only add {config.max_prefix} prefixes.{f'.. Well the current amount is passed that but you still cannot add more.' if len(data['prefix']) > config.max_prefix else ''}"
+				f"You can only add {config.max_prefix} prefixes.{'.. Well the current amount is passed that but you still cannot add more.' if len(data['prefix']) > config.max_prefix else ''}"
 			))
 			return
 		if char in data["prefix"]:

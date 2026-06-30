@@ -26,7 +26,7 @@ emoji  = Data()
 async def load_config():
 	global config, emoji
 	log.info("Setting up config...")
-	if ial_file == None:
+	if not ial_file:
 		log.critical("ial parser not found, please install the required dependencies")
 		sys.exit(10)
 	try:

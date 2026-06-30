@@ -61,7 +61,7 @@ class Blacklist:
 		expired_count = 0
 
 		for e_type in ("server", "user"):
-			for e_id in list(data[e_type].keys()):
+			for e_id in list(data[e_type]):
 				entry = data[e_type][e_id]
 				if entry.get("expires_at"):
 					expiry = datetime.fromisoformat(entry["expires_at"])

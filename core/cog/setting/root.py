@@ -45,7 +45,7 @@ class SettingRoot(commands.Cog):
 				ctx.author
 			)
 			conf_msg = await ctx.reply(view=conf_view)
-			
+
 			if not await conf_view.wait_for_answer():
 				return
 

@@ -16,7 +16,7 @@ async def autocomplete(interaction: discord.Interaction, current: str):
 	all_extensions = await extension.get_all()
 	choices = []
 
-	loaded_exts = [ext.lower() for ext in interaction.client.extensions.keys()]
+	loaded_exts = [ext.lower() for ext in interaction.client.extensions]
 
 	for ext_path in all_extensions:
 		if current.lower() in ext_path.lower():
@@ -180,7 +180,7 @@ class Extension(HybridGroup):
 	)
 	async def list(self, ctx: commands.Context):
 		all_extensions = await extension.get_all()
-		loaded_exts = [ext.lower() for ext in self.bot.extensions.keys()]
+		loaded_exts = [ext.lower() for ext in self.bot.extensions]
 
 		results = []
 		for ext in all_extensions:

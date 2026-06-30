@@ -25,9 +25,9 @@ class AvatarRPSView(TimeoutView):
 		self.container = ui.Container(accent_color=0x00E9FE)
 
 		rules_text = (
-			f"### Avatar RPS\n"
-			f"Choose your element!\n\n"
-			f"**Matchup Rules:**\n"
+			"### Avatar RPS\n"
+			"Choose your element!\n\n"
+			"**Matchup Rules:**\n"
 			f"{emoji.avatar_watertribe} **Water** beats {emoji.avatar_firenation} Fire & {emoji.avatar_earthkingdom} Earth\n"
 			f"{emoji.avatar_earthkingdom} **Earth** beats {emoji.avatar_firenation} Fire & {emoji.avatar_airnomad} Air\n"
 			f"{emoji.avatar_firenation} **Fire** beats {emoji.avatar_airnomad} Air\n"

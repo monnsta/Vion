@@ -35,7 +35,6 @@ class Bot(commands.Bot):
 
 	@staticmethod
 	def _map_command_mentions(synced_commands):
-		log.debug(f"Synced commands count: {len(synced_commands)}")
 		def walk(command, prefix="", root_id=None):
 			root_id = root_id or command.id
 			name = f"{prefix} {command.name}".strip()
@@ -62,7 +61,6 @@ class Bot(commands.Bot):
 
 		for cmd in synced_commands:
 			walk(cmd)
-		log.debug(config.cmd)
 
 	async def setup_hook(self):
 		log.info("Starting Setup...")
@@ -75,6 +73,19 @@ class Bot(commands.Bot):
 				pass
 
 		await extension.load_all(self)
+
+		try:
+			global_cmds = await self.tree.fetch_commands()
+			self._map_command_mentions(global_cmds)
+
+			try:
+				guild = discord.Object(id=int(config.dev_server_ids[0]))
+				guild_cmds = await self.tree.fetch_commands(guild=guild)
+				self._map_command_mentions(guild_cmds)
+			except discord.HTTPException:
+				pass
+		except discord.HTTPException as e:
+			log.error("Failed to fetch commands during startup", exc_info=True)
 
 	async def determine_prefix(self, _, message):
 		guild_settings = {}

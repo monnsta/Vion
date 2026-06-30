@@ -96,7 +96,7 @@ class GeminiKey(HybridGroup):
 			return
 
 		key_validity = await validate_key(key)
-		if key_validity == None:
+		if key_validity is None:
 			await ctx.reply(view=UnexpectedError)
 			return
 		if not key_validity:

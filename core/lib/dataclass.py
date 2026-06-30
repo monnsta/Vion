@@ -276,7 +276,7 @@ class Data:
 		"""Removes all items from the Data instance, respecting anti-freeze/frozen limits."""
 		if self._frozen:
 			raise ImmutableError("Cannot clear; the object is frozen.")
-		for key in list(self._data.keys()):
+		for key in list(self._data):
 			if key not in self._anti_freeze:
 				self.delete(key)
 

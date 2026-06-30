@@ -77,12 +77,12 @@ class HtmlFormatter(logging.Formatter):
 		color = colors.get(level, "#f8f8f2")
 
 		html_out = (
-			f'<div class="log-entry" onclick="this.classList.toggle(\'active\')">\n'
-			f'	<div class="log-time-level">\n'
+			'<div class="log-entry" onclick="this.classList.toggle(\'active\')">\n'
+			'	<div class="log-time-level">\n'
 			f'		<span class="log-time">{time_str}</span>\n'
-			f'		<span class="log-level" style="color: {color};">{level_letter}</span>\n' 
-			f'	</div>\n'
-			f'	<div class="log-content">\n'
+			f'		<span class="log-level" style="color: {color};">{level_letter}</span>\n'
+			'	</div>\n'
+			'	<div class="log-content">\n'
 			f'		<div class="log-msg">{msg}</div>\n'
 		)
 
@@ -106,12 +106,12 @@ class HtmlFormatter(logging.Formatter):
 		html_out += '	</div>\n'
 
 		html_out += (
-			f'	<div class="log-popup" onclick="event.stopPropagation()">\n'
+			'	<div class="log-popup" onclick="event.stopPropagation()">\n'
 			f'		<div><span class="meta-label">PID:</span> {record.process}</div>\n'
 			f'		<div><span class="meta-label">Thread:</span> {record.threadName}</div>\n'
 			f'		<div><span class="meta-label">Location:</span> {record.name}:{record.lineno}</div>\n'
-			f'	</div>\n'
-			f'</div>\n'
+			'	</div>\n'
+			'</div>\n'
 		)
 
 		return html_out
@@ -206,7 +206,7 @@ def setup_console_logging():
 	)
 	root_logger.addHandler(console_handler)
 
-	logging.getLogger("discord").setLevel(logging.WARNING)
+	logging.getLogger("discord").setLevel(logging.INFO)
 	logging.getLogger("asyncio").setLevel(logging.WARNING)
 
 def setup_file_logging():
