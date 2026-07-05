@@ -1,7 +1,4 @@
 #!/bin/bash
-
-# Copyright (c) 2026 monnsta. All rights reserved.
-
 set -u
 
 # --- 1. Configuration ---

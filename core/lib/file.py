@@ -1,5 +1,3 @@
-# Copyright (c) 2026 monnsta. All rights reserved.
-
 import asyncio
 import builtins
 import gzip
@@ -30,8 +28,6 @@ try:
 		ial = None
 except ImportError:
 	orjson = None
-	tomli = None
-	tomli_w = None
 	yaml = None
 	ial = None
 

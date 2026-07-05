@@ -1,5 +1,3 @@
-# Copyright (c) 2026 monnsta. All rights reserved.
-
 import asyncio
 import datetime
 import json
@@ -195,7 +193,7 @@ convert_guild = Convert(
 		'me', 'BASE', 'key', 'DEFAULT_VALUE',
 		'VALID_FLAGS', 'jump_url', 'categories',
 		'voice_channels', 'text_channels',
-		'interaction'
+		'interaction', 'mutual_guilds'
 	],
 	max_depth = 5,
 	output_format = "yaml"
@@ -204,11 +202,11 @@ convert_guild = Convert(
 convert_user = Convert(
 	filter_attrs = [
 		'BASE', 'key', 'DEFAULT_VALUE', 'VALID_FLAGS',
-		'guild', 'mutual_guilds', 'status', 'web_status',
+		'guild', 'status', 'web_status', 'interaction',
 		'mobile_status', 'desktop_status', 'client_status',
-		'colour', 'interaction'
+		'colour'
 	],
-	max_depth = 5,
+	max_depth = 3,
 	output_format = "yaml"
 )
 

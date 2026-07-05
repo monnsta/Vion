@@ -1,5 +1,3 @@
-# Copyright (c) 2026 monnsta. All rights reserved.
-
 import asyncio
 import random
 from collections import Counter

@@ -1,5 +1,3 @@
-# Copyright (c) 2026 monnsta. All rights reserved.
-
 from typing import Literal
 
 from discord import app_commands as app
@@ -31,7 +29,7 @@ class SettingRoot(commands.Cog):
 		if not manager:
 			return
 
-		data = await load_settings(server, ctx.guild.id, "server")
+		data = await load_settings(server, getattr(ctx.guild, 'id'), "server")
 		current_value = data[key]
 		target_value = value
 		conf_view = None

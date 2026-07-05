@@ -1,11 +1,8 @@
-# Copyright (c) 2026 monnsta. All rights reserved.
-
-import asyncio
 import logging
-import os
+import sys
 from pathlib import Path
 
-from core.lib.dataclass import Data, Method, Computed
+from core.lib.utils import create_path
 
 
 log = logging.getLogger(__name__)
@@ -13,83 +10,88 @@ log = logging.getLogger(__name__)
 root = Path(__file__).resolve().parent.parent
 
 
-base = Data(
-	core 	= root / "core",
-	meta 	= root / "meta",
-	asset	= Computed(lambda self: self.meta / "asset"),
+class Base:
+	def __init__(self) -> None:
+		self.core = root / "core"
+		self.meta = root / "meta"
+		self.data = root / "data"
+		self.logs = root / "logs"
 
-	data	= root / "data",
-	logs	= root / "logs",
+	@property
+	def asset(self) -> Path:
+		return self.meta / "asset"
 
-)
 
-sub = Data(
-	trash  	= base.data / "trash",
-	glob   	= base.data / "global",
-	servers	= base.data / "servers",
-	users  	= base.data / "users",
+class Sub:
+	def __init__(self, base: Base) -> None:
+		self.base    = base
 
-	cog   	= base.core / "cog",
-	avatar	= base.asset / "avatars",
+		self.trash   = base.data / "trash"
+		self.glob    = base.data / "global"
+		self.servers = base.data / "servers"
+		self.users   = base.data / "users"
+		self.cog     = base.core / "cog"
 
-	custom_cogs	= Method(lambda self, i: self.servers / i / "cog")
-)
+	@property
+	def avatar(self) -> Path:
+		return self.base.asset / "avatars"
 
-file = Data(
-	server = Data(
-		settings   	= lambda i: sub.servers / i / "settings.json",
-		ai_data    	= lambda i: sub.servers / i / "ai_data.json",
-		delete_time	= lambda i: sub.trash   / i / "delete_time.json",
+	def custom_cogs(self, i: str) -> Path:
+		return self.servers / i / "cog"
 
-		cog 	= lambda i: sub.custom_cogs(i) / "__init__.py",
-		data	= lambda i: sub.custom_cogs(i) / "data.json"
-	),
 
-	user = Data(
-		settings   	= lambda i: sub.users / i / "settings.json",
-		ai_data    	= lambda i: sub.users / i / "ai_data.json",
-		delete_time	= lambda i: sub.trash / i / "delete_time.json"
-	),
+class File:
+	def __init__(self, sub: Sub) -> None:
+		self.sub    = sub
 
-	glob = Data(
-		blacklist   	= sub.glob / "blacklist.json",
-		bot_activity	= sub.glob / "bot_activity.json"
-	),
+		self.server = self.ServerFiles(self)
+		self.user   = self.UserFiles(self)
+		self.glob   = self.GlobalFiles(self)
 
-	env 	= root / ".env",
-	conf	= root / "config.ial"
-)
+		self.env    = root / ".env"
+		self.conf   = root / "config.ial"
 
-class CreatePath:
-	async def process_path(self, path: str | Path, is_dir: bool = False) -> None:
-		path_obj = Path(path)
+	class ServerFiles:
+		def __init__(self, parent: 'File') -> None:
+			self.parent = parent
 
-		if is_dir:
-			dir_to_create = path_obj
-		else:
-			dir_to_create = path_obj.parent
+		def settings(self, i: str) -> Path:
+			return self.parent.sub.servers / i / "settings.json"
 
-		try:
-			if dir_to_create and not dir_to_create.exists():
-				log.debug(f"Creating directory: {dir_to_create}")
-				await asyncio.to_thread(dir_to_create.mkdir, parents=True, exist_ok=True)
+		def ai_data(self, i: str) -> Path:
+			return self.parent.sub.servers / i / "ai_data.json"
 
-			if not is_dir:
-				log.debug(f"Touching file: {path_obj}")
-				await asyncio.to_thread(path_obj.touch, exist_ok=True)
-		except Exception:
-			log.error(f"An unexpected error occurred while processing {path}", exc_info=True)
+		def delete_time(self, i: str) -> Path:
+			return self.parent.sub.trash / i / "delete_time.json"
 
-	async def __call__(self, *paths: tuple[str | Path, bool] | str | Path) -> None:
-		log.debug(f"Starting path processing for {len(paths)} paths.")
-		tasks = []
-		for path in paths:
-			if isinstance(path, tuple):
-				tasks.append(self.process_path(*path))
-			else:
-				tasks.append(self.process_path(path))
-		await asyncio.gather(*tasks)
-		log.debug("Path processing batch complete.")
+		def cog(self, i: str) -> Path:
+			return self.parent.sub.custom_cogs(i) / "__init__.py"
+
+		def data(self, i: str) -> Path:
+			return self.parent.sub.custom_cogs(i) / "data.json"
+
+	class UserFiles:
+		def __init__(self, parent: 'File') -> None:
+			self.parent = parent
+
+		def settings(self, i: str) -> Path:
+			return self.parent.sub.users / i / "settings.json"
+
+		def ai_data(self, i: str) -> Path:
+			return self.parent.sub.users / i / "ai_data.json"
+
+		def delete_time(self, i: str) -> Path:
+			return self.parent.sub.trash / i / "delete_time.json"
+
+	class GlobalFiles:
+		def __init__(self, parent: 'File') -> None:
+			self.blacklist    = parent.sub.glob / "blacklist.json"
+			self.bot_activity = parent.sub.glob / "bot_activity.json"
+
+
+base = Base()
+sub = Sub(base)
+file = File(sub)
 
 
 async def validate_paths():
@@ -121,10 +123,6 @@ async def setup_directory() -> None:
 		file.glob.blacklist,
 		file.glob.bot_activity
 	)
-
-
-for obj in (base, sub, file): obj.freeze()
-create_path = CreatePath()
 
 
 __all__ = (

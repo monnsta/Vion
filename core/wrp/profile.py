@@ -1,5 +1,3 @@
-# Copyright (c) 2026 monnsta. All rights reserved.
-
 import asyncio
 import datetime
 import io
@@ -14,14 +12,15 @@ import discord
 
 from core.lib.converter import convert_guild, convert_user
 from core.lib.file import json_file, text_file
-from meta import config, create_path, file, sub
+from core.lib.utils import create_path
+from meta import config, file, sub
 
 
 log = logging.getLogger(__name__)
 
 
 class BaseProfileManager:
-	def __init__(self, entity_type: str, active_dir: str, file_routes: Any, default_settings: dict, default_ai_data: dict):
+	def __init__(self, entity_type: str, active_dir: Path, file_routes: Any, default_settings: dict, default_ai_data: dict):
 		self.entity_type = entity_type
 		self.active_dir = active_dir
 		self.file_routes = file_routes
@@ -252,7 +251,7 @@ class BaseProfileManager:
 			log.debug(f"Loading AI info for {self.parent.entity_type} {entity_id}")
 			path = self.parent.file_routes.ai_data(str(entity_id))
 			success, data = await json_file.load(path)
-			return success, data.get(self.parent.entity_type, {}) if success else (False, {})
+			return (success, data.get(self.parent.entity_type, {})) if success else (False, {})
 
 		async def save(self, entity: Union[discord.Guild, discord.User, discord.Member]) -> bool:
 			log.debug(f"Updating cached info for {self.parent.entity_type} {entity.id}")

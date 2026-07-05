@@ -1,5 +1,3 @@
-# Copyright (c) 2026 monnsta. All rights reserved.
-
 from typing import Literal
 
 from discord import app_commands as app

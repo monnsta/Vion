@@ -1,5 +1,3 @@
-< Copyright (c) 2026 monnsta. All rights reserved. >
-
 < IDENTITY >
 bot: [o(s|i)] (
 	name: Vion;
@@ -20,7 +18,7 @@ devs: [l(l(s|i))] (
 );
 
 dev_servers: [l(l(s|i))] (
-	(ValenLab; 1470312769059553397; https://discord.gg/<code>);
+	(ValenLab; 1470312769059553397; https://discord.gg/pkScGU23Af);
 	(TestSite; 1261420566938779668; https://discord.gg/bx3M3JfYR2);
 );
 
@@ -71,8 +69,8 @@ sandbox: [o(l(s))] (
 		enum; fractions; functools; heapq; itertools;
 		json; math; random; re; requests; statistics;
 		string; textwrap; time; unicodedata; uuid;
-		meta.paths; core.wrp; core.lib.converter;
-		core.lib.dataclass; code.lib.utils
+		meta; core.wrp; core.lib.converter;
+		core.lib.dataclass; core.lib.utils;
 	);
 	allowed_builtins: (
 		__build_class__; abs; all; any; bin;
@@ -101,7 +99,7 @@ max_audit: [i] 40;
 
 
 < AI SETTINGS >
-gemini_modals: (gemini-2.5-pro; gemini-2.5-flash);
+gemini_models: (gemini-2.5-pro; gemini-2.5-flash);
 free_will_frequency: [n] 0.1;
 temperature: [n] 0.6;
 top_p: [n] 1.0;
@@ -143,6 +141,23 @@ ai_data: [o(o(l|s))] (
 
 < PROMPTS & CODE BLOCK REFERENCES >
 < recommended not to edit these three below unless you know what you are doing >
+prompt_template: /
+	{f"<guild_obj>\\n{guild}\\n</guild_obj>" if guild else ""}
+	{f"<user_obj>\\n{user}\\n</user_obj>" if user else ""}
+
+	{f"<user_dm_messages>\\n{user_messages}\\n</user_dm_messages>" if user_messages else ""}
+	{f"<guild_messages>\\n{guild_messages}\\n</guild_messages>" if guild_messages else ""}
+
+	You are given {', '.join(params) if params else "no"} parameters, declare your main entry point as such:
+	```
+	async def main({', '.join(params) if params else ""}):
+		...
+	```
+
+	You are triggered by the {event} event.
+	{extra if extra is not None else ""}
+	;
+
 fallback_response: /
 	<code>
 	import discord

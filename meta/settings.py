@@ -1,5 +1,3 @@
-# Copyright (c) 2026 monnsta. All rights reserved.
-
 import builtins
 import ial
 import json
@@ -8,8 +6,8 @@ import sys
 
 import pytz
 
-from core.lib.dataclass import Data, Computed, Method, AntiFreeze
-from core.lib.utils import F, mt
+from core.lib.dataclass import Data, AntiFreeze
+from core.lib.utils import F
 from core.lib.file import ial_file
 from meta.paths import file
 
@@ -79,64 +77,9 @@ async def load_config():
 	config.sandbox.allowed_builtins = {name: getattr(builtins, name) for name in config.sandbox.allowed_builtins}
 	config.sandbox.allowed_builtins["__import__"] = safe_import
 
-	config.system_instructions = Computed(lambda self: F(self.system_instructions).format())
-	log.debug(config.system_instructions)
+	config.system_instructions = F(config.system_instructions).format()
+	config.prompt_template = F(config.prompt_template)
 
-	config.event_inst = Data(
-		_template = lambda event, objects, extra_text: mt(
-			f"You're triggered by the `{event}` event.",
-			f"You have these objects to work with: {', '.join(objects)}",
-			f"{extra_text}"
-		),
-
-		freewill = Method(lambda self: self._template(
-			"freewill",
-			["guild", "bot"],
-			"You can do anything you want in this event, get a channel to message in or just ignore. Upto you."
-		)),
-
-		inactivity = Method(lambda self: self._template(
-			"inactivity",
-			["guild", "bot"],
-			"You can send a message to increase activity in a channel of your choice or ignore."
-		)),
-
-		error_notify = Method(lambda self, traceback: self._template(
-			"error_notify",
-			["guild", "bot"],
-			f"You had error_notify on a code block, and it hit an error, this is the traceback:\n\n{traceback}"
-		)),
-
-		on_message = Method(lambda self, message_id: self._template(
-			"on_message",
-			["message", "bot"],
-			f"This is the message ID you were triggered by: {message_id}"
-		)),
-
-		on_member_join = Method(lambda self: self._template(
-			"on_member_join",
-			["member", "guild", "bot"],
-			"A member joined, you can welcome them or do anything you want."
-		)),
-
-		on_member_remove = Method(lambda self: self._template(
-			"on_member_remove",
-			["member", "guild", "bot"],
-			"A member left, you can say goodbye to them or do anything you want."
-		)),
-
-		on_channel_create = Method(lambda self: self._template(
-			"on_channel_create",
-			["channel", "bot"],
-			"A new channel was created, you can comment on it by sending a message to the channel or a different one if it's readonly."
-		)),
-
-		on_channel_remove = Method(lambda self: self._template(
-			"on_channel_remove",
-			["guild", "bot"],
-			"A channel was deleted, you can comment on it by sending a message in a general place people talk."
-		))
-	)
 	config.cmd = Data()
 
 

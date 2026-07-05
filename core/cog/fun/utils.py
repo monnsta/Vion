@@ -1,5 +1,3 @@
-# Copyright (c) 2026 monnsta. All rights reserved.
-
 import random
 
 
@@ -131,7 +129,7 @@ class TicTacToeSixBySevenBot:
 		return score
 
 	@classmethod
-	def _minimax(cls, board: list, depth: int, alpha: float, beta: float, is_maximizing: bool, bot_mark: str, human_mark: str) -> int:
+	def _minimax(cls, board: list, depth: int, alpha: float, beta: float, is_maximizing: bool, bot_mark: str, human_mark: str) -> float:
 		board_tuple = tuple(board)
 		if board_tuple in cls.TT and cls.TT[board_tuple][1] >= depth:
 			return cls.TT[board_tuple][0]
@@ -145,7 +143,7 @@ class TicTacToeSixBySevenBot:
 			return eval_val
 
 		moves = cls._get_candidate_moves(board)
-		moves.sort(key=cls.MOVE_PRIORITY.get)
+		moves.sort(key=cls.MOVE_PRIORITY.__getitem__)
 
 		if is_maximizing:
 			max_eval = -float('inf')
@@ -191,7 +189,7 @@ class TicTacToeSixBySevenBot:
 				return move
 			board[move] = None
 
-		moves.sort(key=cls.MOVE_PRIORITY.get)
+		moves.sort(key=cls.MOVE_PRIORITY.__getitem__)
 		best_score = -float('inf')
 		best_move = moves[0]
 		search_depth = 4 if difficulty > 1 else 3
@@ -232,3 +230,5 @@ class AvatarRPS:
 			return "p1"
 		elif p1_choice in cls._WIN_MATRIX[p2_choice]:
 			return "p2"
+
+		return "invalid"

@@ -1,10 +1,8 @@
-# Copyright (c) 2026 monnsta. All rights reserved.
-
 import asyncio
 import logging
 import tempfile
 from pathlib import Path
-from typing import Tuple, List, Optional, Union, Any
+from typing import Tuple, List, Optional, Any
 
 import httpx
 from google import genai
@@ -55,24 +53,27 @@ class GenerateContent:
 		)
 
 	async def _upload_and_wait(self, path: str) -> Any:
-		log.info(f"Uploading file: {path}")
-		file_obj = await self.client.aio.files.upload(file=Path(path))
+		log.debug(f"Uploading file: {path}")
+		file_obj = await self.client.aio.files.upload(path=path)
+
 		log.debug(f"File uploaded, initial state: {file_obj.state}")
 
 		while file_obj.state == "PROCESSING":
 			log.debug(f"Waiting for file {file_obj.name} to process...")
 			await asyncio.sleep(1)
+			if not file_obj.name:
+				raise RuntimeError("File name missing during processing.")
 			file_obj = await self.client.aio.files.get(name=file_obj.name)
 
 		if file_obj.state == "FAILED":
 			log.error(f"File processing failed for: {file_obj.name}")
 			raise RuntimeError(f"File {file_obj.name} failed to process.")
 
-		log.info(f"File processing complete: {file_obj.name}")
+		log.debug(f"File processing complete: {file_obj.name}")
 		return file_obj
 
 	async def _handle_remote_file(self, url: str) -> Any:
-		log.info(f"Downloading remote file: {url}")
+		log.debug(f"Downloading remote file: {url}")
 		async with httpx.AsyncClient(follow_redirects=True) as client:
 			response = await client.get(url)
 			response.raise_for_status()
@@ -105,7 +106,7 @@ class GenerateContent:
 		return item
 
 	async def call(self, prompt: str, inputs: Optional[List[Any]] = None) -> Tuple[bool, str]:
-		log.info("Starting content generation call")
+		log.debug("Starting content generation call")
 		try:
 			processed_parts = []
 			if inputs:
@@ -124,7 +125,9 @@ class GenerateContent:
 			)
 
 			if response.candidates and len(response.candidates) > 0:
-				log.info("Content generation successful")
+				log.debug("Content generation successful")
+				if not response.text:
+					return False, "AI sent a null response"
 				return True, response.text
 
 			log.warning("AI returned no candidates or content")

@@ -1,10 +1,6 @@
-# Copyright (c) 2026 monnsta. All rights reserved.
+import bootstrap as _
 
-import bootstrap
-
-import asyncio
 import logging
-import signal
 import sys
 
 import discord
@@ -65,13 +61,6 @@ class Bot(commands.Bot):
 	async def setup_hook(self):
 		log.info("Starting Setup...")
 
-		loop = asyncio.get_running_loop()
-		for sig in (signal.SIGINT, signal.SIGTERM):
-			try:
-				loop.add_signal_handler(sig, lambda: asyncio.create_task(self.close()))
-			except NotImplementedError:
-				pass
-
 		await extension.load_all(self)
 
 		try:
@@ -84,7 +73,7 @@ class Bot(commands.Bot):
 				self._map_command_mentions(guild_cmds)
 			except discord.HTTPException:
 				pass
-		except discord.HTTPException as e:
+		except discord.HTTPException:
 			log.error("Failed to fetch commands during startup", exc_info=True)
 
 	async def determine_prefix(self, _, message):
@@ -109,7 +98,7 @@ if __name__ == "__main__":
 		log.info("Starting bot...")
 		key = config.get("secrets.discord_api_key", None)
 		if key:
-			bot.run(config.secrets.discord_api_key, log_handler=None)
+			bot.run(key, log_handler=None)
 		else:
 			log.critical("Could not find the bot token.")
 			sys.exit(10)

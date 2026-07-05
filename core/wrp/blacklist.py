@@ -1,5 +1,3 @@
-# Copyright (c) 2026 monnsta. All rights reserved.
-
 import logging
 from datetime import datetime, timedelta
 from typing import Any, Dict, List, Optional, Tuple

@@ -1,11 +1,15 @@
-# Copyright (c) 2026 monnsta. All rights reserved.
-
+import asyncio
 import random
 import string
 import time
+import logging
 from typing import Iterable, Any
+from pathlib import Path
 
 from discord.ext import commands
+
+
+log = logging.getLogger(__name__)
 
 
 def is_dev(devs: Iterable[int]):
@@ -50,7 +54,7 @@ def create_id() -> str:
 	id_str = base62_encode(combined_int, 10)
 	return id_str
 
-def em(*args: Any, chars: str = r"\*_~`|>#-.()[]{}!") -> str:
+def em(*args: Any, chars: str = r"\*_~`|>#-") -> str:
 	def flatten(items: Any) -> list[str]:
 		flat = []
 		for item in items:
@@ -83,3 +87,31 @@ class F:
 			f"f'''{self.template}'''",
 			kwargs,
 		)
+
+class CreatePath:
+	async def process_path(self, path: str | Path, is_dir: bool = False) -> None:
+		path_obj = Path(path)
+		dir_to_create = path_obj if is_dir else path_obj.parent
+
+		try:
+			if dir_to_create and not dir_to_create.exists():
+				log.debug(f"Creating directory: {dir_to_create}")
+				await asyncio.to_thread(dir_to_create.mkdir, parents=True, exist_ok=True)
+
+			if not is_dir:
+				log.debug(f"Touching file: {path_obj}")
+				await asyncio.to_thread(path_obj.touch, exist_ok=True)
+		except Exception:
+			log.error(f"An unexpected error occurred while processing {path}", exc_info=True)
+
+	async def __call__(self, *paths: tuple[str | Path, bool] | str | Path) -> None:
+		log.debug(f"Starting path processing for {len(paths)} paths.")
+		tasks = []
+		for path in paths:
+			if isinstance(path, tuple):
+				tasks.append(self.process_path(*path))
+			else:
+				tasks.append(self.process_path(path))
+		await asyncio.gather(*tasks)
+		log.debug("Path processing batch complete.")
+create_path = CreatePath()
