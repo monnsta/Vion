@@ -71,11 +71,11 @@ class TimeoutView(ui.LayoutView):
 					if isinstance(sub_child, ui.ActionRow):
 						for component in sub_child.children:
 							if hasattr(component, "disabled"):
-								component.disabled = True
+								setattr(component, "disabled", True)
 					elif hasattr(sub_child, "disabled"):
-						sub_child.disabled = True
+						setattr(sub_child, "disabled", True)
 			elif hasattr(child, "disabled"):
-				child.disabled = True
+				setattr(child, "disabled", True)
 
 		if hasattr(self, "create_layout"):
 			getattr(self, "create_layout")()
@@ -141,7 +141,6 @@ class GotoModal(ui.Modal):
 				await interaction.response.send_message(view=Fail("Error", "Invalid page number."), ephemeral=True)
 		except ValueError:
 			await interaction.response.send_message(view=Fail("Error", "Please enter a valid number."), ephemeral=True)
-
 
 class Paginated(TimeoutView):
 	def __init__(self, header: str, items: list[str | list[str]], user: discord.Member | discord.User, accent_color: int = 0xb3e7df, per_page: int = 5, char_limit: int = 1800, jump_threshold: int = 8, timeout: float = 180.0) -> None:
@@ -331,9 +330,18 @@ class TextInputModal(ui.Modal):
 			self.future.set_result(self.input_field.value)
 		await interaction.response.defer()
 
-
 class TextForm(Generic):
-	def __init__(self, message_content: str, button_label: str, modal_title: str, field_label: str, default_field_value: str | None = None, user: discord.Member | discord.User = None, accent_color: int = 0x00E9FE, timeout: float = 180.0) -> None:
+	def __init__(
+		self,
+		message_content: str,
+		button_label: str,
+		modal_title: str,
+		field_label: str,
+		default_field_value: str | None = None,
+		user: discord.Member | discord.User | None = None,
+		accent_color: int = 0x00E9FE,
+		timeout: float = 180.0
+	) -> None:
 		super().__init__(message_content, accent_color=accent_color, timeout=timeout)
 		self.user = user
 		self.modal_title = modal_title
@@ -345,7 +353,7 @@ class TextForm(Generic):
 		container = self.children[0]
 		btn = ui.Button(label=button_label, style=discord.ButtonStyle.primary)
 		btn.callback = self.open_modal
-		container.add_item(ui.ActionRow(btn))
+		getattr(container, "add_item")(ui.ActionRow(btn))
 
 	async def interaction_check(self, interaction: discord.Interaction) -> bool:
 		if self.user:
@@ -368,4 +376,7 @@ class TextForm(Generic):
 			return None
 
 
-UnexpectedError = Fail("Unexpected Error", "An unexpected error occurred. Please report this")
+UnexpectedError = Fail(
+	"Unexpected Error",
+	"An unexpected error occurred. Please report this"
+)

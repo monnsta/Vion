@@ -1,4 +1,4 @@
-from typing import Any, Tuple, Optional
+from typing import Any, Tuple, Optional, Callable
 from discord.ext import commands
 
 from core.wrp.profile import server, user
@@ -58,6 +58,11 @@ def format_dt(dt_obj):
 	ts = int(dt_obj.timestamp()) if hasattr(dt_obj, 'timestamp') else dt_obj
 	return f"<t:{ts}:R>"
 
+def hybrid_command(*args: Any, **kwargs: Any) -> Callable[[Any], Any]:
+	def decorator(func: Callable[..., Any]) -> Any:
+		return commands.hybrid_command(*args, **kwargs)(func)
+	return decorator
+
 
 class HybridGroup(commands.HybridGroup):
 	def __init__(self, *args, **kwargs):
@@ -70,6 +75,6 @@ class HybridGroup(commands.HybridGroup):
 				cmd._callback = cmd.callback.__get__(self, self.__class__)
 
 				if getattr(cmd, 'on_error', None):
-					setattr(cmd, '_on_error', cmd.on_error.__get__(self, self.__class__))
+					cmd.on_error = cmd.on_error.__get__(self, self.__class__)
 
 				self.add_command(cmd) # type: ignore

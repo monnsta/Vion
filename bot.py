@@ -6,7 +6,7 @@ import sys
 import discord
 from discord.ext import commands
 
-from core.lib.dataclass import Data, Repr
+from core.lib.utils import map_command_mentions
 from core.wrp.profile import server, user
 from core.wrp.extension import extension
 from meta import config
@@ -29,35 +29,6 @@ class Bot(commands.Bot):
 		)
 		log.info("Bot initialized")
 
-	@staticmethod
-	def _map_command_mentions(synced_commands):
-		def walk(command, prefix="", root_id=None):
-			root_id = root_id or command.id
-			name = f"{prefix} {command.name}".strip()
-			var_name = name.replace(" ", ".")
-			mention_name = f"</{name}:{root_id}>"
-
-			options = getattr(command, "options", [])
-			has_subcommands = False
-
-			for opt in options:
-				if opt.type in (discord.AppCommandOptionType.subcommand, discord.AppCommandOptionType.subcommand_group):
-					has_subcommands = True
-					walk(opt, prefix=name, root_id=root_id)
-
-			if not has_subcommands:
-				command_data = Data(
-					name=name,
-					mention=mention_name,
-					description=command.description or "No description.",
-					root_id=root_id,
-					parameters=options
-				)
-				config.cmd.set(var_name, Repr(mention_name, command_data))
-
-		for cmd in synced_commands:
-			walk(cmd)
-
 	async def setup_hook(self):
 		log.info("Starting Setup...")
 
@@ -65,12 +36,12 @@ class Bot(commands.Bot):
 
 		try:
 			global_cmds = await self.tree.fetch_commands()
-			self._map_command_mentions(global_cmds)
+			map_command_mentions(global_cmds, config)
 
 			try:
 				guild = discord.Object(id=int(config.dev_server_ids[0]))
 				guild_cmds = await self.tree.fetch_commands(guild=guild)
-				self._map_command_mentions(guild_cmds)
+				map_command_mentions(guild_cmds, config)
 			except discord.HTTPException:
 				pass
 		except discord.HTTPException:

@@ -6,7 +6,7 @@ from discord.ext import commands
 from core.lib.utils import mt, is_admin
 from meta import config
 
-from core.cog.utils import resolve_target, load_settings, handle_common_errors, HybridGroup
+from core.cog.utils import resolve_target, load_settings, handle_common_errors, HybridGroup, hybrid_command
 from core.cog.ui_template import Success, Fail, Generic, Confirmation, TextForm, UnexpectedError
 
 
@@ -36,7 +36,7 @@ class Instruction(HybridGroup):
 		self.p = config.default_prefix[0]
 
 
-	@commands.hybrid_command(
+	@hybrid_command(
 		name='help',
 		aliases=['h'],
 		description='Get help for the instruction group.'
@@ -76,7 +76,7 @@ class Instruction(HybridGroup):
 		))
 
 
-	@commands.hybrid_command(
+	@hybrid_command(
 		name='set',
 		aliases=['s'],
 		description='Add instructions to the current server.'
@@ -89,7 +89,7 @@ class Instruction(HybridGroup):
 		if not manager:
 			return
 
-		data = await load_settings(manager, target_id, type)
+		data = await load_settings(manager, target_id, type) # type: ignore
 		instructions = data.get("instructions", "")
 
 		if text is not None:
@@ -137,7 +137,7 @@ class Instruction(HybridGroup):
 		await handle_common_errors(ctx, error)
 
 
-	@commands.hybrid_command(
+	@hybrid_command(
 		name='delete',
 		aliases=['d'],
 		description='Delete instructions for the current server.'
@@ -149,7 +149,7 @@ class Instruction(HybridGroup):
 		if not manager:
 			return
 
-		data = await load_settings(manager, target_id, type)
+		data = await load_settings(manager, target_id, type) # type: ignore
 
 		if data.get("instructions", "") == "":
 			await ctx.reply(view=Generic("No need to. It's already empty."))
@@ -177,7 +177,7 @@ class Instruction(HybridGroup):
 		await handle_common_errors(ctx, error)
 
 
-	@commands.hybrid_command(
+	@hybrid_command(
 		name='view',
 		aliases=['v'],
 		description='View added instructions for the current server.'
@@ -188,7 +188,7 @@ class Instruction(HybridGroup):
 		if not manager:
 			return
 
-		data = await load_settings(manager, target_id, type)
+		data = await load_settings(manager, target_id, type) # type: ignore
 		instructions = data.get("instructions", "")
 
 		if not instructions:

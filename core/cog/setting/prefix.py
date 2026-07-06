@@ -6,7 +6,7 @@ from discord.ext import commands
 from core.lib.utils import mt, em, is_admin
 from meta import config
 
-from core.cog.utils import resolve_target, load_settings, handle_common_errors, HybridGroup
+from core.cog.utils import resolve_target, load_settings, handle_common_errors, HybridGroup, hybrid_command
 from core.cog.ui_template import Success, Fail, Generic, Confirmation, UnexpectedError
 
 
@@ -36,12 +36,12 @@ class Prefix(HybridGroup):
 		self.p = config.default_prefix[0]
 
 
-	@commands.hybrid_command(
+	@hybrid_command(
 		name='help',
 		aliases=['h'],
 		description='Get help for the prefix group.'
 	)
-	async def help(self, ctx: commands.Context):
+	async def help_cmd(self, ctx: commands.Context):
 		await ctx.reply(view=Generic(
 			"# Prefix",
 			"This group is used to manage your personal prefixes or the server's.",
@@ -82,7 +82,7 @@ class Prefix(HybridGroup):
 		))
 
 
-	@commands.hybrid_command(
+	@hybrid_command(
 		name='add',
 		aliases=['a'],
 		description='Add a prefix to your personal profile or current server.'
@@ -104,7 +104,7 @@ class Prefix(HybridGroup):
 		if not manager:
 			return
 
-		data = await load_settings(manager, target_id, type)
+		data = await load_settings(manager, target_id, type) # type: ignore
 
 		if len(data["prefix"]) >= config.max_prefix:
 			await ctx.reply(view=Fail(
@@ -142,7 +142,7 @@ class Prefix(HybridGroup):
 		await handle_common_errors(ctx, error)
 
 
-	@commands.hybrid_command(
+	@hybrid_command(
 		name='remove',
 		aliases=['r'],
 		description='Remove a prefix from your personal profile or current server.'
@@ -157,7 +157,7 @@ class Prefix(HybridGroup):
 		if not manager:
 			return
 
-		data = await load_settings(manager, target_id, type)
+		data = await load_settings(manager, target_id, type) # type: ignore
 		prefixes = data.get("prefix", [])
 
 		idx = pos - 1
@@ -205,7 +205,7 @@ class Prefix(HybridGroup):
 		await handle_common_errors(ctx, error)
 
 
-	@commands.hybrid_command(
+	@hybrid_command(
 		name='list',
 		aliases=['l'],
 		description='List all the prefixes added to your personal profile or current server.'
@@ -218,7 +218,7 @@ class Prefix(HybridGroup):
 		if not manager:
 			return
 
-		data = await load_settings(manager, target_id, type)
+		data = await load_settings(manager, target_id, type) # type: ignore
 		prefixes = data.get("prefix", [])
 
 		if not prefixes:
@@ -234,7 +234,3 @@ class Prefix(HybridGroup):
 			f"Prefix List for {f'This {type.title()}' if type == 'server' else em(ctx.author.display_name)}",
 			f"{chr(10).join(prefix_list)}"
 		))
-
-
-async def setup(bot: commands.Bot):
-	await bot.add_cog(Prefix(bot))

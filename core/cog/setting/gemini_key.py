@@ -8,7 +8,7 @@ from core.lib.llm import validate_key
 from core.lib.utils import mt, em
 from meta import config, emoji
 
-from core.cog.utils import resolve_target, load_settings, HybridGroup
+from core.cog.utils import resolve_target, load_settings, HybridGroup, hybrid_command
 from core.cog.ui_template import Fail, Success, Generic, Confirmation, UnexpectedError
 
 
@@ -38,12 +38,12 @@ class GeminiKey(HybridGroup):
 		self.p = config.default_prefix[0]
 
 
-	@commands.hybrid_command(
+	@hybrid_command(
 		name='help',
 		aliases=['h'],
 		description='Get help for the gemini_key group.'
 	)
-	async def help(self, ctx: commands.Context):
+	async def help_cmd(self, ctx: commands.Context):
 		await ctx.reply(view=Generic(
 			"# Gemini Key",
 			"This group is used to manage your gemini api keys.",
@@ -81,7 +81,7 @@ class GeminiKey(HybridGroup):
 		))
 
 
-	@commands.hybrid_command(
+	@hybrid_command(
 		name='add',
 		aliases=['a'],
 		description='Add a gemini api key to your personal profile.'
@@ -104,7 +104,7 @@ class GeminiKey(HybridGroup):
 			))
 			return
 
-		data = await load_settings(manager, target_id, type)
+		data = await load_settings(manager, target_id, type) # type: ignore
 
 		if type == 'user':
 			data["api_keys"].append(key)
@@ -122,7 +122,7 @@ class GeminiKey(HybridGroup):
 		await ctx.reply(view=UnexpectedError)
 
 
-	@commands.hybrid_command(
+	@hybrid_command(
 		name='remove',
 		aliases=['r'],
 		description='Remove an api key you added from your personal profile.'
@@ -134,7 +134,7 @@ class GeminiKey(HybridGroup):
 		if not manager:
 			return
 
-		data = await load_settings(manager, target_id, type)
+		data = await load_settings(manager, target_id, type) # type: ignore
 		keys = data.get("api_keys", [])
 
 		idx = pos - 1
@@ -184,7 +184,7 @@ class GeminiKey(HybridGroup):
 				await message.edit(view=UnexpectedError)
 
 
-	@commands.hybrid_command(
+	@hybrid_command(
 		name='list',
 		aliases=['l'],
 		description='List all the api keys of your personal profile.'
@@ -195,7 +195,7 @@ class GeminiKey(HybridGroup):
 		if not manager:
 			return
 
-		data = await load_settings(manager, target_id, type)
+		data = await load_settings(manager, target_id, type) # type: ignore
 		keys = data.get("api_keys", [])
 
 		if not keys:

@@ -1,4 +1,5 @@
 import logging
+from pathlib import Path
 from typing import Any
 
 from core.lib.converter import convert_message
@@ -15,7 +16,7 @@ class _EntityListStore:
 		self.max_items = max_items
 		self.entity_type = entity_type
 
-	def _path(self, entity_id: int) -> str:
+	def _path(self, entity_id: int) -> Path:
 		eid = str(entity_id)
 		if self.entity_type == "guild":
 			return file.server.ai_data(eid)

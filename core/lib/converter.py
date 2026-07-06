@@ -2,6 +2,7 @@ import asyncio
 import datetime
 import json
 import logging
+import sys
 import warnings
 
 import discord
@@ -17,6 +18,7 @@ log = logging.getLogger(__name__)
 
 if not yaml:
 	log.critical("yaml is not installed, please install the required dependencies")
+	sys.exit(10)
 
 try:
 	DISCORD_MODELS = (
@@ -34,7 +36,7 @@ except ImportError:
 class Convert:
 	def __init__(
 		self,
-		filter_attrs: list = None,
+		filter_attrs: list | None = None,
 		max_depth: int = 5,
 		ignore_none: bool = True,
 		ignore_empty: bool = True,
@@ -150,7 +152,7 @@ class Convert:
 				raw_dict = self._flatten_dict(raw_dict)
 
 			if self.output_format == "yaml":
-				return yaml.dump(raw_dict, default_flow_style=False, sort_keys=False)
+				return yaml.dump(raw_dict, default_flow_style=False, sort_keys=False) # type: ignore
 			elif self.output_format == "json":
 				return json.dumps(raw_dict)
 

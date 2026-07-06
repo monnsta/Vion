@@ -2,7 +2,7 @@ import logging
 import sys
 import types
 from pathlib import Path
-from typing import Dict, List, Tuple, Iterable
+from typing import Dict, List, Tuple, Iterable, Any, cast
 
 import discord
 from discord.ext import commands
@@ -19,7 +19,7 @@ class Extension:
 		if not dev_guilds:
 			return
 
-		for cog_name, cog in bot.cogs.items():
+		for _, cog in bot.cogs.items():
 			if getattr(cog, '__module__', '').startswith(extension) and getattr(cog, 'dev_only', False):
 
 				for app_cmd in cog.get_app_commands():
@@ -30,9 +30,10 @@ class Extension:
 				for cmd in cog.get_commands():
 					if isinstance(cmd, (commands.HybridCommand, commands.HybridGroup)):
 						app_cmd = cmd.app_command
-						for guild_id in dev_guilds:
-							bot.tree.add_command(app_cmd, guild=discord.Object(id=int(guild_id)), override=True)
-						bot.tree.remove_command(app_cmd.name)
+						if app_cmd:
+							for guild_id in dev_guilds:
+								bot.tree.add_command(app_cmd, guild=discord.Object(id=int(guild_id)), override=True)
+							bot.tree.remove_command(app_cmd.name)
 
 				log.info(f"Registered app commands for {extension} in dev guilds.")
 
@@ -66,7 +67,7 @@ class Extension:
 
 	async def add(self, bot: commands.Bot, guild_id: int | str, code: str) -> Tuple[bool, str]:
 		guild_id = str(guild_id)
-		cog_path = file.server.commands(guild_id)
+		cog_path = cast(Any, file.server).commands(guild_id)
 
 		try:
 			relative_path = cog_path.with_suffix('').relative_to(Path.cwd().resolve())

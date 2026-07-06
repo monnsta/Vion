@@ -3,6 +3,7 @@ import ial
 import json
 import logging
 import sys
+from typing import List, Tuple, Dict, Any, Callable, cast
 
 import pytz
 
@@ -17,16 +18,110 @@ log = logging.getLogger(__name__)
 real_import = builtins.__import__
 
 
-config = Data()
-emoji  = Data()
+class Config(Data):
+	class Bot(Data):
+		name: str
+		id: int
+		invite: str
+
+	class Activity(Data):
+		status: str
+		type: int
+		url: str
+		range: Tuple[int, ...]
+		list: List[str]
+
+	class Sandbox(Data):
+		allowed_modules: Tuple[str, ...]
+		allowed_builtins: Dict[str, Callable]
+
+	class Logging(Data):
+		cleanup_days: int
+		use_json: bool
+
+	class Settings(Data):
+		server: dict
+		user: dict
+
+	class AIData(Data):
+		server: dict
+		user: dict
+
+	bot: Bot
+	activity: Activity
+	devs: List[Tuple[str, int]]
+	dev_servers: List[Tuple[str, int, str]]
+	domain: str
+	timezone: Any
+	default_prefix: Tuple[str, ...]
+	sandbox: Sandbox
+	logging: Logging
+	max_prefix: int
+	max_memory: int
+	max_previous_response: int
+	max_audit: int
+	gemini_models: Tuple[str, ...]
+	free_will_frequency: float
+	temperature: float
+	top_p: float
+	top_k: int
+	settings: Settings
+	ai_data: AIData
+	prompt_template: F
+	fallback_response: str
+	system_instructions: str
+	summary_instructions: str
+	secrets: Data
+	cmd: Data
+	dev_server_ids: List[int]
+	dev_ids: List[int]
+	ial: str
+
+class Emoji(Data):
+	checkmark: str
+	crossmark: str
+	warn: str
+	info: str
+
+	arrow_left: str
+	arrow_right: str
+	double_arrow_left: str
+	double_arrow_right: str
+
+	char_empty: str
+	char_absolute_empty: str
+	char_o: str
+	char_x: str
+
+	char_0: str
+	char_1: str
+	char_2: str
+	char_3: str
+	char_4: str
+	char_5: str
+	char_6: str
+	char_7: str
+	char_8: str
+	char_9: str
+
+	avatar_airnomad: str
+	avatar_earthkingdom: str
+	avatar_firenation: str
+	avatar_watertribe: str
 
 
-async def load_config():
+config: Config
+emoji: Emoji
+
+
+async def load_config(reload: bool = False):
 	global config, emoji
-	log.info("Setting up config...")
+	log.info("Setting up config..." if not reload else "Reloading config...")
+
 	if not ial_file:
 		log.critical("ial parser not found, please install the required dependencies")
 		sys.exit(10)
+
 	try:
 		success, data = await ial_file.load(file.conf, update_cache=False, use_cache=False)
 	except ial.MultiError as e:
@@ -38,6 +133,7 @@ async def load_config():
 		sys.exit(10)
 
 	try:
+		preserved_cmd = config.cmd if reload and hasattr(config, 'cmd') else Data()
 		config.update(Data.load(data)) # type: ignore
 	except Exception:
 		log.critical("An error occurred while parsing config into Data object", exc_info=True)
@@ -78,9 +174,9 @@ async def load_config():
 	config.sandbox.allowed_builtins["__import__"] = safe_import
 
 	config.system_instructions = F(config.system_instructions).format()
-	config.prompt_template = F(config.prompt_template)
+	config.prompt_template = F(cast(str, config.prompt_template))
 
-	config.cmd = Data()
+	config.cmd = preserved_cmd
 
 
 __all__ = ('load_config', 'emoji', 'config')

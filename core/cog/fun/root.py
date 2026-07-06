@@ -8,7 +8,7 @@ from discord.ext import commands
 from core.lib.utils import em, mt
 from meta import config
 
-from core.cog.ui_template import Success, Fail, Generic
+from core.cog.ui_template import Fail, Generic
 from core.cog.fun.ui import AvatarRPSView, TicTacToeView, SixBySevenTTTView
 
 

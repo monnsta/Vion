@@ -1,12 +1,13 @@
 import asyncio
 import random
+
 import discord
 from discord import ui
 
 from core.lib.utils import em
 from meta import emoji
 
-from core.cog.ui_template import TimeoutView, get_annoyance_message, Fail, Generic, Success
+from core.cog.ui_template import TimeoutView, get_annoyance_message, Fail, Generic
 from core.cog.fun.utils import AvatarRPS, TicTacToeBot, TicTacToeSixBySevenBot
 
 
@@ -15,7 +16,7 @@ class AvatarRPSView(TimeoutView):
 		super().__init__(timeout=180.0)
 		self.challenger = challenger
 		self.opponent = opponent
-		self.choices = {challenger.id: None, opponent.id: None}
+		self.choices: dict[int, str | None] = {challenger.id: None, opponent.id: None}
 
 		if opponent.bot:
 			self.choices[opponent.id] = random.choice(['water', 'earth', 'fire', 'air'])
@@ -36,19 +37,19 @@ class AvatarRPSView(TimeoutView):
 		row = ui.ActionRow()
 
 		w_btn = ui.Button(label="Water", style=discord.ButtonStyle.secondary, emoji=emoji.avatar_watertribe)
-		w_btn.callback = lambda i: self.handle_choice(i, "water")
+		w_btn.callback = lambda interaction: self.handle_choice(interaction, "water")
 		row.add_item(w_btn)
 
 		e_btn = ui.Button(label="Earth", style=discord.ButtonStyle.secondary, emoji=emoji.avatar_earthkingdom)
-		e_btn.callback = lambda i: self.handle_choice(i, "earth")
+		e_btn.callback = lambda interaction: self.handle_choice(interaction, "earth")
 		row.add_item(e_btn)
 
 		f_btn = ui.Button(label="Fire", style=discord.ButtonStyle.secondary, emoji=emoji.avatar_firenation)
-		f_btn.callback = lambda i: self.handle_choice(i, "fire")
+		f_btn.callback = lambda interaction: self.handle_choice(interaction, "fire")
 		row.add_item(f_btn)
 
 		a_btn = ui.Button(label="Air", style=discord.ButtonStyle.secondary, emoji=emoji.avatar_airnomad)
-		a_btn.callback = lambda i: self.handle_choice(i, "air")
+		a_btn.callback = lambda interaction: self.handle_choice(interaction, "air")
 		row.add_item(a_btn)
 
 		self.container.add_item(row)
@@ -72,10 +73,10 @@ class AvatarRPSView(TimeoutView):
 
 		self.choices[interaction.user.id] = choice
 
-		if None not in self.choices.values():
-			p1_choice = self.choices[self.challenger.id]
-			p2_choice = self.choices[self.opponent.id]
+		p1_choice = self.choices[self.challenger.id]
+		p2_choice = self.choices[self.opponent.id]
 
+		if p1_choice is not None and p2_choice is not None:
 			result = AvatarRPS.resolve(p1_choice, p2_choice)
 
 			emoji_map = {
@@ -112,24 +113,32 @@ class TicTacToeView(TimeoutView):
 		self.p2 = p2
 		self.bot_client = bot_client
 		self.current_player = p1
-		self.board = [None] * 9
+		self.board: list[str | None] = [None] * 9
 		self.marks = {p1.id: 'X', p2.id: 'O'}
 		self.emojis = {'X': emoji.char_x, 'O': emoji.char_o}
 		self.game_over = False
-		self.game_result_text = None
+		self.game_result_text: str | None = None
 
-		self.bot_difficulty = None
+		self.bot_difficulty: int | None = None
+		bot_id = bot_client.user.id if bot_client.user else None
+		
 		if self.p2.bot:
-			self.bot_difficulty = 2 if self.p2.id == bot_client.user.id else random.choice([0, 1, 2])
+			self.bot_difficulty = 2 if self.p2.id == bot_id else random.choice([0, 1, 2])
 		elif self.p1.bot:
-			self.bot_difficulty = 2 if self.p1.id == bot_client.user.id else random.choice([0, 1, 2])
+			self.bot_difficulty = 2 if self.p1.id == bot_id else random.choice([0, 1, 2])
 
-		self.buttons = []
+		self.buttons: list[ui.Button] = []
+		
+		def make_callback(button: ui.Button, index: int):
+			async def callback(interaction: discord.Interaction):
+				await self.handle_turn(interaction, button, index)
+			return callback
+
 		for y in range(3):
 			for x in range(3):
 				idx = y * 3 + x
 				btn = ui.Button(style=discord.ButtonStyle.secondary, label="\u200b")
-				btn.callback = lambda i, b=btn, current_idx=idx: self.handle_turn(i, b, current_idx)
+				btn.callback = make_callback(btn, idx)
 				self.buttons.append(btn)
 
 		self.create_layout()
@@ -193,7 +202,7 @@ class TicTacToeView(TimeoutView):
 		self.create_layout()
 		await interaction.response.edit_message(view=self)
 
-		if self.current_player.bot:
+		if self.current_player.bot and interaction.message:
 			await self.do_bot_turn(interaction.message)
 
 	async def do_bot_turn(self, message: discord.Message):
@@ -207,7 +216,7 @@ class TicTacToeView(TimeoutView):
 			self.board.copy(),
 			bot_mark,
 			human_mark,
-			self.bot_difficulty
+			self.bot_difficulty if self.bot_difficulty is not None else 2
 		)
 
 		if move_idx != -1:
@@ -288,6 +297,7 @@ class SixBySevenTTTModal(ui.Modal):
 		except ValueError:
 			await interaction.response.send_message(view=Fail("Invalid Input", "Please enter valid numbers."), ephemeral=True)
 
+
 class SixBySevenTTTView(TimeoutView):
 	def __init__(self, p1: discord.User | discord.Member, p2: discord.User | discord.Member, bot_client: discord.Client):
 		super().__init__(timeout=180.0)
@@ -295,17 +305,19 @@ class SixBySevenTTTView(TimeoutView):
 		self.p2 = p2
 		self.bot_client = bot_client
 		self.current_player = p1
-		self.board = [None] * 42
+		self.board: list[str | None] = [None] * 42
 		self.marks = {p1.id: 'X', p2.id: 'O'}
 		self.emojis = {'X': emoji.char_x, 'O': emoji.char_o, None: emoji.char_empty}
 		self.game_over = False
-		self.game_result_text = None
+		self.game_result_text: str | None = None
 
-		self.bot_difficulty = None
+		self.bot_difficulty: int | None = None
+		bot_id = bot_client.user.id if bot_client.user else None
+		
 		if self.p2.bot:
-			self.bot_difficulty = 2 if self.p2.id == bot_client.user.id else random.choice([0, 1, 2])
+			self.bot_difficulty = 2 if self.p2.id == bot_id else random.choice([0, 1, 2])
 		elif self.p1.bot:
-			self.bot_difficulty = 2 if self.p1.id == bot_client.user.id else random.choice([0, 1, 2])
+			self.bot_difficulty = 2 if self.p1.id == bot_id else random.choice([0, 1, 2])
 
 		self.move_btn = ui.Button(style=discord.ButtonStyle.secondary, label="Place Token")
 		self.move_btn.callback = self.prompt_move
@@ -386,7 +398,7 @@ class SixBySevenTTTView(TimeoutView):
 		self.create_layout()
 		await interaction.response.edit_message(view=self)
 
-		if self.current_player.bot:
+		if self.current_player.bot and interaction.message:
 			await self.do_bot_turn(interaction.message)
 
 	async def do_bot_turn(self, message: discord.Message):
@@ -400,7 +412,7 @@ class SixBySevenTTTView(TimeoutView):
 			self.board.copy(),
 			bot_mark,
 			human_mark,
-			self.bot_difficulty
+			self.bot_difficulty if self.bot_difficulty is not None else 2
 		)
 
 		if move_idx != -1:

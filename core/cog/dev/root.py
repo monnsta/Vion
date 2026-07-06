@@ -7,7 +7,7 @@ from discord import app_commands as app
 from discord.ext import commands
 
 from core.lib.code import Code, status
-from core.lib.utils import is_dev, mt
+from core.lib.utils import is_dev, mt, map_command_mentions
 from meta import load_config, config, emoji
 
 from core.cog.ui_template import Fail, Success, Paginated, UnexpectedError
@@ -168,7 +168,7 @@ class DevRoot(commands.Cog):
 			except (discord.Forbidden, discord.HTTPException):
 				pass
 
-		if initial_message and not (ctx.guild and ctx.guild.get_member(self.bot.user.id)):
+		if initial_message and not (ctx.guild and ctx.guild.get_member(getattr(self.bot.user, 'id'))):
 			await initial_message.reply(message)
 		else:
 			await ctx.send(message)
@@ -301,16 +301,12 @@ class DevRoot(commands.Cog):
 	async def reload_config(self, ctx: commands.Context):
 		original_config = config.to_dict()
 		original_emoji = emoji.to_dict()
-		preserved_cmd = config.get('cmd', None)
 
 		try:
 			config.clear()
 			emoji.clear()
 
-			await load_config()
-
-			if preserved_cmd is not None:
-				config.set('cmd', preserved_cmd)
+			await load_config(reload=True)
 
 			await asyncio.sleep(1)
 
@@ -345,7 +341,7 @@ class DevRoot(commands.Cog):
 		if spec == 'global':
 			synced = await self.bot.tree.sync()
 			if hasattr(self.bot, '_map_command_mentions'):
-				self.bot._map_command_mentions(synced)
+				map_command_mentions(synced, config)
 
 			await ctx.reply(view=Success(
 				"Success",
@@ -358,7 +354,7 @@ class DevRoot(commands.Cog):
 				try:
 					synced = await self.bot.tree.sync(guild=guild)
 					if hasattr(self.bot, '_map_command_mentions'):
-						self.bot._map_command_mentions(synced)
+						map_command_mentions(synced, config)
 					total += len(synced)
 				except discord.HTTPException:
 					await ctx.reply(view=UnexpectedError)

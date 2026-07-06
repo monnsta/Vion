@@ -8,7 +8,7 @@ from core.lib.utils import mt, em
 from core.wrp.blacklist import blacklist
 from meta import config
 
-from core.cog.utils import format_dt, HybridGroup
+from core.cog.utils import format_dt, HybridGroup, hybrid_command
 from core.cog.ui_template import Fail, Success, Generic, Paginated
 
 
@@ -43,7 +43,7 @@ class Blacklist(HybridGroup):
 		if entity_type not in ('user', 'server'):
 			await ctx.reply(view=Fail(
 				"Invalid Scope",
-				f"Scope must be either 'server' or 'user', not '{scope}'."
+				f"Scope must be either 'server' or 'user', not '{entity_type}'."
 			))
 			return None
 
@@ -80,12 +80,12 @@ class Blacklist(HybridGroup):
 		return label, icon
 
 
-	@commands.hybrid_command(
+	@hybrid_command(
 		name='help',
 		aliases=['h'],
 		description='Get help for the blacklist group.'
 	)
-	async def help(self, ctx: commands.Context):
+	async def help_cmd(self, ctx: commands.Context):
 		await ctx.reply(view=Generic(
 			"# Blacklist",
 			"This group is used to manage the global blacklist for users and servers.",
@@ -149,7 +149,7 @@ class Blacklist(HybridGroup):
 		))
 
 
-	@commands.hybrid_command(
+	@hybrid_command(
 		name='add',
 		aliases=['a'],
 		description='Add a user or server to the blacklist.'
@@ -176,7 +176,7 @@ class Blacklist(HybridGroup):
 			await ctx.reply(view=Fail("Failed", msg))
 
 
-	@commands.hybrid_command(
+	@hybrid_command(
 		name='remove',
 		aliases=['r'],
 		description='Remove a user or server from the blacklist.'
@@ -198,7 +198,7 @@ class Blacklist(HybridGroup):
 			await ctx.reply(view=Fail("Failed", msg))
 
 
-	@commands.hybrid_command(
+	@hybrid_command(
 		name='edit',
 		aliases=['e'],
 		description='Edit an already existing blacklisted user or server.'
@@ -237,7 +237,7 @@ class Blacklist(HybridGroup):
 			await ctx.reply(view=Fail("Failed", msg))
 
 
-	@commands.hybrid_command(
+	@hybrid_command(
 		name='view',
 		aliases=['v'],
 		description='Show detailed info about a specific blacklist entry.'
@@ -266,7 +266,7 @@ class Blacklist(HybridGroup):
 		))
 
 
-	@commands.hybrid_command(
+	@hybrid_command(
 		name='list',
 		aliases=['l'],
 		description='List all blacklisted entities.'

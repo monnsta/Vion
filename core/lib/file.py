@@ -8,7 +8,13 @@ import threading
 from abc import ABC, abstractmethod
 from contextlib import asynccontextmanager
 from pathlib import Path
-from typing import cast, AsyncIterator, Generic, TypeVar
+from typing import cast, AsyncIterator, Generic, TypeVar, Any
+
+orjson: Any = None
+yaml: Any = None
+ial: Any = None
+SafeLoader: Any = None
+SafeDumper: Any = None
 
 try:
 	import orjson
@@ -20,17 +26,14 @@ try:
 		except ImportError:
 			from yaml import SafeLoader, SafeDumper
 	except ImportError:
-		yaml = None
+		pass
 
 	try:
 		import ial
 	except ImportError:
-		ial = None
+		pass
 except ImportError:
-	orjson = None
-	yaml = None
-	ial = None
-
+	pass
 
 log = logging.getLogger(__name__)
 
@@ -410,7 +413,7 @@ class BaseFileIO(ABC, Generic[T]):
 
 				if not data:
 					try:
-						data, _mtime = await asyncio.to_thread(self._sync_read, path)
+						data, _ = await asyncio.to_thread(self._sync_read, path)
 					except FileNotFoundError:
 						data = self.clone(self.default_empty)
 					except Exception as e:
@@ -458,11 +461,11 @@ class JSON(BaseFileIO[dict]):
 	def deserialize(self, content: bytes) -> dict:
 		if not content or content.strip() == b"":
 			return self.default_empty
-		return orjson.loads(content)
+		return cast(dict, orjson.loads(content))
 
 	def clone(self, data: dict) -> dict:
 		if not data: return {}
-		return orjson.loads(orjson.dumps(data))
+		return cast(dict, orjson.loads(orjson.dumps(data)))
 
 	@property
 	def default_empty(self) -> dict:
@@ -476,11 +479,11 @@ class YAML(BaseFileIO[dict]):
 	def deserialize(self, content: bytes) -> dict:
 		if not content or content.strip() == b"":
 			return self.default_empty
-		return yaml.load(content.decode("utf-8"), Loader=SafeLoader) or {}
+		return cast(dict, yaml.load(content.decode("utf-8"), Loader=SafeLoader) or {})
 
 	def clone(self, data: dict) -> dict:
 		if not data: return {}
-		return orjson.loads(orjson.dumps(data))
+		return cast(dict, orjson.loads(orjson.dumps(data)))
 
 	@property
 	def default_empty(self) -> dict:
@@ -494,11 +497,11 @@ class IAL(BaseFileIO[dict]):
 	def deserialize(self, content: bytes) -> dict:
 		if not content or content.strip() == b"":
 			return self.default_empty
-		return ial.loads(content.decode("utf-8"))
+		return cast(dict, ial.loads(content.decode("utf-8")))
 
 	def clone(self, data: dict) -> dict:
 		if not data: return {}
-		return orjson.loads(orjson.dumps(data))
+		return cast(dict, orjson.loads(orjson.dumps(data)))
 
 	@property
 	def default_empty(self) -> dict:

@@ -6,7 +6,7 @@ from core.lib.utils import mt
 from core.wrp.extension import extension
 from meta import emoji, config
 
-from core.cog.utils import HybridGroup
+from core.cog.utils import HybridGroup, hybrid_command
 from core.cog.ui_template import Fail, Success, Generic
 
 
@@ -14,7 +14,7 @@ async def autocomplete(interaction: discord.Interaction, current: str):
 	all_extensions = await extension.get_all()
 	choices = []
 
-	loaded_exts = [ext.lower() for ext in interaction.client.extensions]
+	loaded_exts = [ext.lower() for ext in interaction.client.extensions] # type: ignore
 
 	for ext_path in all_extensions:
 		if current.lower() in ext_path.lower():
@@ -72,12 +72,12 @@ class Extension(HybridGroup):
 		await ctx.reply(view=view)
 
 
-	@commands.hybrid_command(
+	@hybrid_command(
 		name='help',
 		aliases=['h'],
 		description='Get help for the extension group.'
 	)
-	async def help(self, ctx: commands.Context):
+	async def help_cmd(self, ctx: commands.Context):
 		await ctx.reply(view=Generic(
 			"# Extension",
 			"This group is used to load, unload, and reload bot cogs/extensions.",
@@ -111,7 +111,7 @@ class Extension(HybridGroup):
 		))
 
 
-	@commands.hybrid_command(
+	@hybrid_command(
 		name='load',
 		aliases=['l'],
 		description='Load a specific cog file.'
@@ -122,7 +122,7 @@ class Extension(HybridGroup):
 		await self._single_handle(ctx, extension.load, path)
 
 
-	@commands.hybrid_command(
+	@hybrid_command(
 		name='unload',
 		aliases=['u'],
 		description='Unload a specific cog file.'
@@ -133,7 +133,7 @@ class Extension(HybridGroup):
 		await self._single_handle(ctx, extension.unload, path)
 
 
-	@commands.hybrid_command(
+	@hybrid_command(
 		name='reload',
 		aliases=['r'],
 		description='Reload a specific cog file.'
@@ -144,7 +144,7 @@ class Extension(HybridGroup):
 		await self._single_handle(ctx, extension.reload, path)
 
 
-	@commands.hybrid_command(
+	@hybrid_command(
 		name='load_all',
 		aliases=['la'],
 		description='Load all cog files found in defined directories.'
@@ -153,7 +153,7 @@ class Extension(HybridGroup):
 		await self._multi_handle(ctx, extension.load_all)
 
 
-	@commands.hybrid_command(
+	@hybrid_command(
 		name='unload_all',
 		aliases=['ua'],
 		description='Unload all loaded cogs except core managers.'
@@ -162,7 +162,7 @@ class Extension(HybridGroup):
 		await self._multi_handle(ctx, extension.unload_all)
 
 
-	@commands.hybrid_command(
+	@hybrid_command(
 		name='reload_all',
 		aliases=['ra'],
 		description='Reload all currently loaded cogs.'
@@ -171,7 +171,7 @@ class Extension(HybridGroup):
 		await self._multi_handle(ctx, extension.reload_all)
 
 
-	@commands.hybrid_command(
+	@hybrid_command(
 		name='list',
 		aliases=['li'],
 		description='List all available cogs.'

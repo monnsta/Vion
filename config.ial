@@ -109,6 +109,7 @@ top_k: [n] 45;
 < DEFUALT SETTINGS >
 < DO NOT EDIT, the code heavily relies on this structure >
 settings: [o(o(l|b|s))] (
+	< These should stay as json in config >
 	server: (
 		prefix: ();
 		chatbot: true;
@@ -125,6 +126,7 @@ settings: [o(o(l|b|s))] (
 );
 
 ai_data: [o(o(l|s))] (
+	< These should stay as json in config >
 	server: (
 		memory: ();
 		previous_response: ();

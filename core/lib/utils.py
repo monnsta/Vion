@@ -6,7 +6,10 @@ import logging
 from typing import Iterable, Any
 from pathlib import Path
 
+import discord
 from discord.ext import commands
+
+from core.lib.dataclass import Data, Repr
 
 
 log = logging.getLogger(__name__)
@@ -77,6 +80,34 @@ def em(*args: Any, chars: str = r"\*_~`|>#-") -> str:
 def mt(*args: str | int, sep: str = "\n") -> str:
 	joined = sep.join(map(str, args))
 	return joined
+
+def map_command_mentions(synced_commands, config):
+	def walk(command, prefix="", root_id=None):
+		root_id = root_id or command.id
+		name = f"{prefix} {command.name}".strip()
+		var_name = name.replace(" ", ".")
+		mention_name = f"</{name}:{root_id}>"
+
+		options = getattr(command, "options", [])
+		has_subcommands = False
+
+		for opt in options:
+			if opt.type in (discord.AppCommandOptionType.subcommand, discord.AppCommandOptionType.subcommand_group):
+				has_subcommands = True
+				walk(opt, prefix=name, root_id=root_id)
+
+		if not has_subcommands:
+			command_data = Data(
+				name=name,
+				mention=mention_name,
+				description=command.description or "No description.",
+				root_id=root_id,
+				parameters=options
+			)
+			config.cmd.set(var_name, Repr(mention_name, command_data))
+
+	for cmd in synced_commands:
+		walk(cmd)
 
 class F:
 	def __init__(self, template: str):

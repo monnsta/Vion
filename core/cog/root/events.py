@@ -80,7 +80,7 @@ class Events(commands.Cog):
 				if activity_class is discord.Activity:
 					kwargs["type"] = discord.ActivityType(config.activity.type)
 				elif activity_class is discord.Streaming:
-					kwargs["url"] = getattr(config.activity.url)
+					kwargs["url"] = config.activity.url
 
 				await self.bot.change_presence(
 					activity=activity_class(**kwargs),
@@ -101,7 +101,7 @@ class Events(commands.Cog):
 			guild.system_channel
 			and isinstance(guild.system_channel, discord.TextChannel)
 			and guild.system_channel.permissions_for(
-				guild.me or guild.get_member(self.bot.user.id)
+				guild.me or guild.get_member(getattr(self.bot.user, 'id'))
 			).send_messages
 		):
 			try:
@@ -112,7 +112,7 @@ class Events(commands.Cog):
 
 		for channel in sorted(guild.text_channels, key=lambda c: c.position):
 			if channel.permissions_for(
-				guild.me or guild.get_member(self.bot.user.id)
+				guild.me or guild.get_member(getattr(self.bot.user, 'id'))
 			).send_messages:
 				if (
 					channel == channel.guild.system_channel or
@@ -140,7 +140,10 @@ class Events(commands.Cog):
 			for folder in servers_path.iterdir():
 				if folder.is_dir() and folder.name not in guild_ids:
 					log.info(f"Removing data for unknown guild: {folder.name}")
-					await server.data.delete(folder.name)
+					try:
+						await server.data.delete(int(folder.name))
+					except ValueError:
+						pass
 
 		current_time = datetime.now(config.timezone)
 		bin_path = Path(sub.trash)
@@ -246,13 +249,21 @@ class Events(commands.Cog):
 		if await blacklist.is_blacklisted(message.author.id, "user"):
 			return
 
-		if self.bot.user in message.mentions and not message.content.startswith(tuple(await self.bot.determine_prefix("", message))):
+		prefixes = await self.bot.get_prefix(message)
+		if isinstance(prefixes, str):
+			prefixes = (prefixes,)
+
+		if self.bot.user and self.bot.user in message.mentions and not message.content.startswith(tuple(prefixes)):
 			guild_name = message.guild.name if message.guild else None
-			log.info(f"bot mentioned in {f'{guild_name} > {message.channel.name}' if guild_name is not None else "DM"} by {message.author.display_name}")
+			channel_name = getattr(message.channel, 'name', 'DM')
+			location = f'{guild_name} > {channel_name}' if guild_name else "DM"
+			
+			log.info(f"bot mentioned in {location} by {message.author.display_name}")
 
 			async with message.channel.typing():
 				await asyncio.sleep(0.5)
-				await message.reply(f"{self.bot.user.name} will be back with you soon! we are going through a huge rebranding and refactors. Untill then, try some of the fun commands, use `{config.default_prefix[0]}fun help`")
+				bot_name = self.bot.user.name if self.bot.user else "The bot"
+				await message.reply(f"{bot_name} will be back with you soon! we are going through a huge rebranding and refactors. Untill then, try some of the fun commands, use `{config.default_prefix[0]}fun help`")
 
 
 	@commands.Cog.listener()
@@ -283,7 +294,8 @@ class Events(commands.Cog):
 			return
 
 		if isinstance(error, commands.CommandNotFound):
-			content = ctx.message.content[len(ctx.prefix):].strip()
+			prefix_len = len(ctx.prefix) if ctx.prefix else 0
+			content = ctx.message.content[prefix_len:].strip()
 			display_attempt = " ".join(content.split())
 
 			def flatten_commands(node, prefix=""):

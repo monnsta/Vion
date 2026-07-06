@@ -8,7 +8,7 @@ from core.wrp.profile import server
 from meta import config, emoji
 
 from core.cog.utils import resolve_target, load_settings, handle_common_errors
-from core.cog.ui_template import Success, Generic, Confirmation, Paginated, UnexpectedError
+from core.cog.ui_template import Success, Fail, Generic, Confirmation, Paginated, UnexpectedError
 from core.cog.setting.gemini_key import GeminiKey
 from core.cog.setting.instruction import Instruction
 from core.cog.setting.prefix import Prefix
@@ -25,7 +25,7 @@ class SettingRoot(commands.Cog):
 
 	@staticmethod
 	async def _update_server_setting(ctx: commands.Context, key: str, value: bool, display_name: str):
-		manager, target_id = await resolve_target(ctx, 'server')
+		manager, _ = await resolve_target(ctx, 'server')
 		if not manager:
 			return
 
@@ -33,6 +33,7 @@ class SettingRoot(commands.Cog):
 		current_value = data[key]
 		target_value = value
 		conf_view = None
+		conf_msg = None
 
 		if current_value == value:
 			target_value = not value
@@ -48,11 +49,19 @@ class SettingRoot(commands.Cog):
 				return
 
 		data[key] = target_value
-		success = await server.settings.save(ctx.guild.id, data)
+		if ctx.guild:
+			success = await server.settings.save(ctx.guild.id, data)
+		else:
+			await ctx.reply(view=Fail(
+				"Invalid Scope",
+				"You must be in a guild to use this command."
+			))
+			return
 
 		if not success:
 			if conf_view:
-				await conf_msg.edit(view=UnexpectedError)
+				if conf_msg:
+					await conf_msg.edit(view=UnexpectedError)
 			else:
 				await ctx.reply(view=UnexpectedError)
 		elif not conf_view:
@@ -205,10 +214,10 @@ class SettingRoot(commands.Cog):
 		if not manager:
 			return
 
-		data = await load_settings(manager, target_id, type)
+		data = await load_settings(manager, target_id, type) # type: ignore
 
 		await ctx.reply(view=Generic(
-			f"# Settings for {ctx.guild.name if type == 'server' else ctx.author.display_name}",
+			f"# Settings for {getattr(ctx.guild, 'name', 'Unknown') if type == 'server' else ctx.author.display_name}",
 			f"**Prefixes:** {' • '.join([f'`{p}`' for p in [*data['prefix'], *config.default_prefix]])}",
 			f"**Chatbot Mode:** {'Yes' if data.get('chatbot', False) else 'No'}",
 			f"**Loading Message:** {'Yes' if data.get('ai_load_message', False) else 'No'}",

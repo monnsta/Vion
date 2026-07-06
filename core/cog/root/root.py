@@ -115,7 +115,7 @@ class Root(commands.Cog):
 		await ctx.reply(view=Generic(
 			"## Important Links",
 			None,
-			f"[Bot Invite]( <{config.bot.invite}> ) • [Suppprt Server]( <{config.dev_servers[0][2]}> )",
+			f"[Bot Invite]( <{config.bot.invite}> ) • [Support Server]( <{config.dev_servers[0][2]}> )",
 			f"[Terms]( <https://{config.domain}/terms> ) • [Privacy]( <https://{config.domain}/privacy> )"
 		))
 
@@ -178,7 +178,7 @@ class Root(commands.Cog):
 		if not manager:
 			return
 
-		view = ManageDataView(ctx, manager, target_id, type)
+		view = ManageDataView(ctx, manager, target_id, type) # type: ignore
 		message = await ctx.reply(view=view, ephemeral=True)
 		view.message = message
 
