@@ -1,40 +1,12 @@
-import asyncio
 import random
 import string
 import time
 import logging
-from typing import Iterable, Any
-from pathlib import Path
-
-import discord
-from discord.ext import commands
-
-from core.lib.dataclass import Data, Repr
+from typing import Any
 
 
 log = logging.getLogger(__name__)
 
-
-def is_dev(devs: Iterable[int]):
-	async def predicate(ctx: commands.Context) -> bool:
-		return any(dev_id == ctx.author.id for dev_id in devs)
-	return commands.check(predicate)
-
-def is_admin(devs: Iterable[int], compare: tuple[str, str] | None = None):
-	async def predicate(ctx: commands.Context) -> bool:
-		if compare and ctx.kwargs.get(compare[0]) == compare[1]:
-			return True
-
-		perms = getattr(ctx.author, "guild_permissions", None)
-		is_owner = (ctx.author.id == ctx.guild.owner_id if ctx.guild else True)
-		is_dev = any(ctx.author.id == dev_id for dev_id in devs)
-		is_admin = (
-			perms.manage_guild or
-			perms.administrator
-			if perms else False
-		)
-		return is_owner or is_dev or is_admin
-	return commands.check(predicate)
 
 def create_id() -> str:
 	BASE62_CHARS = string.digits + string.ascii_lowercase + string.ascii_uppercase
@@ -56,6 +28,7 @@ def create_id() -> str:
 	combined_int = (timestamp_s * (62 * 62)) + random_value
 	id_str = base62_encode(combined_int, 10)
 	return id_str
+
 
 def em(*args: Any, chars: str = r"\*_~`|>#-") -> str:
 	def flatten(items: Any) -> list[str]:
@@ -81,34 +54,6 @@ def mt(*args: str | int, sep: str = "\n") -> str:
 	joined = sep.join(map(str, args))
 	return joined
 
-def map_command_mentions(synced_commands, config):
-	def walk(command, prefix="", root_id=None):
-		root_id = root_id or command.id
-		name = f"{prefix} {command.name}".strip()
-		var_name = name.replace(" ", ".")
-		mention_name = f"</{name}:{root_id}>"
-
-		options = getattr(command, "options", [])
-		has_subcommands = False
-
-		for opt in options:
-			if opt.type in (discord.AppCommandOptionType.subcommand, discord.AppCommandOptionType.subcommand_group):
-				has_subcommands = True
-				walk(opt, prefix=name, root_id=root_id)
-
-		if not has_subcommands:
-			command_data = Data(
-				name=name,
-				mention=mention_name,
-				description=command.description or "No description.",
-				root_id=root_id,
-				parameters=options
-			)
-			config.cmd.set(var_name, Repr(mention_name, command_data))
-
-	for cmd in synced_commands:
-		walk(cmd)
-
 class F:
 	def __init__(self, template: str):
 		self.template = template
@@ -118,31 +63,3 @@ class F:
 			f"f'''{self.template}'''",
 			kwargs,
 		)
-
-class CreatePath:
-	async def process_path(self, path: str | Path, is_dir: bool = False) -> None:
-		path_obj = Path(path)
-		dir_to_create = path_obj if is_dir else path_obj.parent
-
-		try:
-			if dir_to_create and not dir_to_create.exists():
-				log.debug(f"Creating directory: {dir_to_create}")
-				await asyncio.to_thread(dir_to_create.mkdir, parents=True, exist_ok=True)
-
-			if not is_dir:
-				log.debug(f"Touching file: {path_obj}")
-				await asyncio.to_thread(path_obj.touch, exist_ok=True)
-		except Exception:
-			log.error(f"An unexpected error occurred while processing {path}", exc_info=True)
-
-	async def __call__(self, *paths: tuple[str | Path, bool] | str | Path) -> None:
-		log.debug(f"Starting path processing for {len(paths)} paths.")
-		tasks = []
-		for path in paths:
-			if isinstance(path, tuple):
-				tasks.append(self.process_path(*path))
-			else:
-				tasks.append(self.process_path(path))
-		await asyncio.gather(*tasks)
-		log.debug("Path processing batch complete.")
-create_path = CreatePath()

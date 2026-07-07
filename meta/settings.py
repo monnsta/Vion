@@ -110,8 +110,8 @@ class Emoji(Data):
 	avatar_watertribe: str
 
 
-config: Config
-emoji: Emoji
+config: Config = Config()
+emoji: Emoji = Emoji()
 
 
 async def load_config(reload: bool = False):

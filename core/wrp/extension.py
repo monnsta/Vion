@@ -7,11 +7,41 @@ from typing import Dict, List, Tuple, Iterable, Any, cast
 import discord
 from discord.ext import commands
 
-from core.lib.file import text_file
-from meta import config, sub, file, create_path
+from core.lib.file import text_file, create_path
+from core.lib.dataclass import Data, Repr
+from meta import config, sub, file
 
 
 log = logging.getLogger(__name__)
+
+
+def map_command_mentions(synced_commands, config):
+	def walk(command, prefix="", root_id=None):
+		root_id = root_id or command.id
+		name = f"{prefix} {command.name}".strip()
+		var_name = name.replace(" ", ".")
+		mention_name = f"</{name}:{root_id}>"
+
+		options = getattr(command, "options", [])
+		has_subcommands = False
+
+		for opt in options:
+			if opt.type in (discord.AppCommandOptionType.subcommand, discord.AppCommandOptionType.subcommand_group):
+				has_subcommands = True
+				walk(opt, prefix=name, root_id=root_id)
+
+		if not has_subcommands:
+			command_data = Data(
+				name=name,
+				mention=mention_name,
+				description=command.description or "No description.",
+				root_id=root_id,
+				parameters=options
+			)
+			config.cmd.set(var_name, Repr(mention_name, command_data))
+
+	for cmd in synced_commands:
+		walk(cmd)
 
 
 class Extension:

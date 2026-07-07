@@ -2,7 +2,7 @@ import logging
 import sys
 from pathlib import Path
 
-from core.lib.utils import create_path
+from core.lib.file import create_path
 
 
 log = logging.getLogger(__name__)

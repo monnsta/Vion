@@ -11,8 +11,7 @@ from typing import Any, Union
 import discord
 
 from core.lib.converter import convert_guild, convert_user
-from core.lib.file import json_file, text_file
-from core.lib.utils import create_path
+from core.lib.file import json_file, text_file, create_path
 from meta import config, file, sub
 
 

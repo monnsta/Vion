@@ -1,0 +1,335 @@
+#!/bin/bash
+set -u
+
+# --- 1. Configuration ---
+BOT_FILE="bot.py"
+REQUIREMENTS="requirements.txt"
+
+RESTART_WAIT=2
+MAX_CRASHES=2
+CRASH_WINDOW=60
+
+export ANDROID_API_LEVEL=34
+export PYO3_USE_ABI3_FORWARD_COMPATIBILITY=1
+export CARGO_BUILD_JOBS=$(nproc 2>/dev/null || echo 4)
+
+# --- 2. Internal Setup & OS Detection ---
+APP_DIR=$(cd -- "$(dirname -- "${BASH_SOURCE[0]}")/.." &>/dev/null && pwd)
+BOT_PATH="$APP_DIR/$BOT_FILE"
+REQ_PATH="$APP_DIR/$REQUIREMENTS"
+CRASH_TS=()
+
+if [[ "${BASH_SOURCE[0]}" != "${0}" ]]; then
+	IS_SOURCED=true
+else
+	IS_SOURCED=false
+fi
+
+if [[ "$OSTYPE" == "msys" || "$OSTYPE" == "cygwin" || "$OSTYPE" == "win32" ]]; then
+	PYTHON_BIN=".venv/Scripts/python"
+	PIP_BIN=".venv/Scripts/pip"
+else
+	PYTHON_BIN=".venv/bin/python"
+	PIP_BIN=".venv/bin/pip"
+fi
+
+DIM='\033[2m'
+BOLD='\033[1m'
+RED='\033[1;31m'
+GRN='\033[1;32m'
+YLW='\033[1;33m'
+CYN='\033[1;36m'
+MAG='\033[1;35m'
+RES='\033[0m'
+
+# --- 3. Shared Functions ---
+_bot_get_ts() {
+	echo -e "${DIM}$(date '+%H:%M:%S')${RES}"
+}
+
+bot_log() {
+	echo -e "$(_bot_get_ts) ${GRN}I${RES} $1"
+}
+
+bot_warn() {
+	echo -e "$(_bot_get_ts) ${YLW}W${RES} $1"
+}
+
+bot_error() {
+	echo -e "$(_bot_get_ts) ${RED}E${RES} $1" >&2
+}
+
+_bot_safe_exit() {
+	local code=$1
+	if [[ "$IS_SOURCED" == true ]]; then
+		return "$code" 2>/dev/null || true
+	else
+		exit "$code"
+	fi
+}
+
+bot_clean() {
+	bot_log "Cleaning Python cache files..."
+	find "$APP_DIR" -type d -name "__pycache__" -exec rm -rf {} + 2>/dev/null
+	find "$APP_DIR" -type f -name "*.pyc" -delete 2>/dev/null
+	bot_log "Cache cleaned."
+}
+
+bot_check() {
+	bot_log "Checking environment..."
+	if [[ ! -x "$BOT_PATH" && ! -f "$BOT_PATH" ]]; then
+		bot_error "Bot script not found: $BOT_PATH"
+		_bot_safe_exit 1
+	fi
+
+	if [[ ! -x "$APP_DIR/$PYTHON_BIN" ]]; then
+		bot_warn "Virtual environment not found. Attempting to create one..."
+		if command -v python3 &>/dev/null; then
+			python3 -m venv "$APP_DIR/.venv" || bot_error "Failed to create venv."
+		elif command -v python &>/dev/null; then
+			python -m venv "$APP_DIR/.venv" || bot_error "Failed to create venv."
+		else
+			bot_error "No system Python found. Cannot create virtual environment."
+			_bot_safe_exit 1
+		fi
+		bot_log "Virtual environment created successfully."
+	fi
+	bot_log "Environment OK."
+}
+
+_bot_verify_crypto() {
+	if [[ -n "${PREFIX:-}" && "$PREFIX" == *"/com.termux/"* ]]; then
+		local PY_VER
+		PY_VER=$("$APP_DIR/$PYTHON_BIN" -c 'import sys; print(f"{sys.version_info.major}.{sys.version_info.minor}")')
+		local SYS_SITE_PACKAGES="$PREFIX/lib/python$PY_VER/site-packages"
+		local VENV_SITE_PACKAGES="$APP_DIR/.venv/lib/python$PY_VER/site-packages"
+
+		if grep -qi "cryptography" "$REQ_PATH" 2>/dev/null; then
+			if ! "$APP_DIR/$PYTHON_BIN" -c "from cryptography.hazmat.bindings import _rust" 2>/dev/null; then
+				bot_warn "Injecting system cryptography package to bypass compilation..."
+				pkg install -y python-cryptography || bot_warn "Failed to install python-cryptography."
+				if [[ -d "$SYS_SITE_PACKAGES/cryptography" ]]; then
+					mkdir -p "$VENV_SITE_PACKAGES"
+					cp -r "$SYS_SITE_PACKAGES/cryptography" "$VENV_SITE_PACKAGES/"
+					cp -r "$SYS_SITE_PACKAGES"/cryptography-*.dist-info "$VENV_SITE_PACKAGES/" 2>/dev/null || true
+					bot_log "Cryptography successfully injected!"
+				fi
+			fi
+		fi
+
+		if grep -qi "pillow" "$REQ_PATH" 2>/dev/null; then
+			if ! "$APP_DIR/$PYTHON_BIN" -c "from PIL import _imaging" 2>/dev/null; then
+				bot_warn "Injecting system pillow package..."
+				pkg install -y python-pillow || bot_warn "Failed to install python-pillow."
+				if [[ -d "$SYS_SITE_PACKAGES/PIL" ]]; then
+					mkdir -p "$VENV_SITE_PACKAGES"
+					cp -r "$SYS_SITE_PACKAGES/PIL" "$VENV_SITE_PACKAGES/"
+					cp -r "$SYS_SITE_PACKAGES"/Pillow-*.dist-info "$VENV_SITE_PACKAGES/" 2>/dev/null || true
+					bot_log "Pillow successfully injected!"
+				fi
+			fi
+		fi
+	fi
+}
+
+bot_install() {
+	if [[ -f "$REQ_PATH" ]]; then
+		bot_log "Checking/Installing dependencies..."
+		"$APP_DIR/$PYTHON_BIN" -m pip install --retries 5 --upgrade pip --quiet || true
+
+		local TEMP_REQ
+		TEMP_REQ=$(mktemp)
+		if [[ -n "${PREFIX:-}" && "$PREFIX" == *"/com.termux/"* ]]; then
+			grep -Evi "cryptography|pillow" "$REQ_PATH" >"$TEMP_REQ"
+		else
+			cp "$REQ_PATH" "$TEMP_REQ"
+		fi
+
+		if ! "$APP_DIR/$PIP_BIN" install --retries 5 -r "$TEMP_REQ"; then
+			bot_warn "Standard dependency installation failed. Trying fallbacks..."
+			if [[ -n "${PREFIX:-}" && "$PREFIX" == *"/com.termux/"* ]]; then
+				bot_warn "Attempting Termux mathlib fallback..."
+				if ! MATHLIB=m "$APP_DIR/$PIP_BIN" install --retries 5 -r "$TEMP_REQ"; then
+					bot_error "Mathlib fallback failed."
+				else
+					bot_log "Mathlib fallback succeeded."
+				fi
+			else
+				bot_warn "Attempting binary-only installation..."
+				if ! "$APP_DIR/$PIP_BIN" install --retries 5 -r "$TEMP_REQ" --only-binary :all:; then
+					bot_error "All installation fallbacks failed."
+				else
+					bot_log "Binary-only installation succeeded."
+				fi
+			fi
+		fi
+		rm -f "$TEMP_REQ"
+	else
+		bot_warn "No $REQUIREMENTS found."
+	fi
+}
+
+_bot_is_crash_looping() {
+	local now
+	now=$(date +%s)
+	local cutoff=$((now - CRASH_WINDOW))
+	local new_ts=()
+
+	for ts in "${CRASH_TS[@]}"; do
+		if [[ "$ts" -gt "$cutoff" ]]; then
+			new_ts+=("$ts")
+		fi
+	done
+
+	CRASH_TS=("${new_ts[@]}" "$now")
+
+	if [[ ${#CRASH_TS[@]} -gt $MAX_CRASHES ]]; then
+		return 0
+	fi
+	return 1
+}
+
+bot_run() {
+	bot_log "Starting bot..."
+	"$APP_DIR/$PYTHON_BIN" "$BOT_PATH" "$@"
+}
+
+bot_supervise() {
+	while true; do
+		bot_log "Supervisor active. Starting bot..."
+		"$APP_DIR/$PYTHON_BIN" "$BOT_PATH" "$@"
+		local EXIT_CODE=$?
+
+		case $EXIT_CODE in
+		0)
+			bot_log "Clean exit detected. Stopping."
+			break
+			;;
+		10)
+			bot_log "Critical error. Exiting."
+			break
+			;;
+		42)
+			bot_log "System requested immediate restart..."
+			sleep 1
+			;;
+		130 | 143)
+			bot_log "Termination signal ($EXIT_CODE). Exiting."
+			break
+			;;
+		*)
+			bot_error "Bot crashed with code $EXIT_CODE."
+
+			if _bot_is_crash_looping; then
+				bot_error "FATAL: Reached $MAX_CRASHES crashes in ${CRASH_WINDOW}s. Manual intervention required."
+				_bot_safe_exit 1
+			fi
+
+			bot_log "Restarting in ${RESTART_WAIT}s (Failure ${#CRASH_TS[@]}/$MAX_CRASHES)..."
+			sleep "$RESTART_WAIT"
+			;;
+		esac
+	done
+}
+
+bot_help() {
+	echo -e "${MAG}${BOLD}▶ BOT SOURCED COMMANDS${RES}"
+	echo -e "${DIM}----------------------------------------${RES}"
+	echo -e "  ${CYN}bot_run${RES}       Start the bot normally"
+	echo -e "  ${CYN}bot_supervise${RES} Start the bot with auto-restart loop"
+	echo -e "  ${CYN}bot_check${RES}     Verify or create the virtual environment"
+	echo -e "  ${CYN}bot_install${RES}   Install dependencies from requirements.txt"
+	echo -e "  ${CYN}bot_clean${RES}     Remove __pycache__ and .pyc files"
+	echo -e "  ${CYN}bot_help${RES}      Show this menu"
+}
+
+_bot_cli_help() {
+	echo -e "${MAG}${BOLD}▶ BOT EXECUTOR MANAGER${RES}"
+	echo -e "${DIM}----------------------------------------${RES}"
+	echo -e "${BOLD}Usage:${RES} $0 [OPTIONS]\n"
+	echo -e "  ${CYN}-s, --supervise${RES}   Enable auto-restart and crash monitoring loop"
+	echo -e "  ${CYN}-i, --install${RES}     Check and install dependencies before running"
+	echo -e "  ${CYN}-c, --check${RES}       Verify environment (Python, Pip, Script existence)"
+	echo -e "  ${CYN}-x, --clean${RES}       Clean __pycache__ and compiled python files"
+	echo -e "  ${CYN}-r, --restart N${RES}   Set restart wait time in seconds"
+	echo -e "  ${CYN}-m, --max-crashes N${RES} Set max crashes allowed in window"
+	echo -e "  ${CYN}-h, --help${RES}        Show this help message"
+}
+
+# --- 4. Main Execution Wrapper (Only if not sourced) ---
+if [[ "$IS_SOURCED" == false ]]; then
+	SUPERVISE=false
+	INSTALL_DEPS=false
+	CHECK_ENV=false
+	CLEAN_CACHE=false
+
+	while [[ $# -gt 0 ]]; do
+		case "$1" in
+		-[!-]?*)
+			opts="${1#-}"
+			shift
+			while [[ -n "$opts" ]]; do
+				char="${opts:0:1}"
+				opts="${opts:1}"
+				set -- "-$char" "$@"
+			done
+			continue
+			;;
+		-s | --supervise)
+			SUPERVISE=true
+			shift
+			;;
+		-i | --install)
+			INSTALL_DEPS=true
+			shift
+			;;
+		-c | --check)
+			CHECK_ENV=true
+			shift
+			;;
+		-x | --clean)
+			CLEAN_CACHE=true
+			shift
+			;;
+		-r | --restart)
+			RESTART_WAIT="$2"
+			shift 2
+			;;
+		-m | --max-crashes)
+			MAX_CRASHES="$2"
+			shift 2
+			;;
+		-h | --help)
+			_bot_cli_help
+			exit 0
+			;;
+		*)
+			bot_error "Unknown option: $1"
+			_bot_cli_help
+			exit 1
+			;;
+		esac
+	done
+
+	[[ "$CLEAN_CACHE" == true ]] && bot_clean
+	[[ "$INSTALL_DEPS" == true ]] && CHECK_ENV=true
+
+	[[ "$CHECK_ENV" == true ]] && bot_check
+	if [[ "$INSTALL_DEPS" == true ]]; then
+		_bot_verify_crypto
+		bot_install
+	fi
+
+	if [[ "$SUPERVISE" == true ]] || [[ "$CHECK_ENV" == false && "$CLEAN_CACHE" == false && "$INSTALL_DEPS" == false ]]; then
+		clear
+		trap "bot_log 'Manual interruption detected. Exiting...'; exit 0" SIGINT SIGTERM
+
+		if [[ "$SUPERVISE" == true ]]; then
+			bot_supervise
+		else
+			bot_run
+		fi
+	fi
+else
+	bot_log "Script sourced. Type 'bot_help' for commands."
+fi

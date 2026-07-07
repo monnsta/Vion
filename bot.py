@@ -1,14 +1,15 @@
 import bootstrap as _
 
+import asyncio
 import logging
 import sys
 
+import aiohttp
 import discord
 from discord.ext import commands
 
-from core.lib.utils import map_command_mentions
 from core.wrp.profile import server, user
-from core.wrp.extension import extension
+from core.wrp.extension import extension, map_command_mentions
 from meta import config
 
 
@@ -73,7 +74,19 @@ if __name__ == "__main__":
 		else:
 			log.critical("Could not find the bot token.")
 			sys.exit(10)
+
+	except discord.LoginFailure:
+		log.critical("Invalid bot token. Check config.secrets.discord_api_key")
+	except discord.PrivilegedIntentsRequired:
+		log.critical("Privileged intents not enabled in Developer Portal")
+	except discord.HTTPException as e:
+		log.critical(f"Discord HTTP error {e.status}: {e.text}")
+	except aiohttp.ClientConnectorError:
+		log.critical("Could not connect to Discord. Check internet/DNS")
+	except asyncio.TimeoutError:
+		log.critical("Connection to Discord timed out")
 	except (KeyboardInterrupt, SystemExit):
 		log.info("Process terminated by user")
+
 	except Exception:
-		log.critical("Fatal error during bot startup", exc_info=True)
+		log.critical("An unexpected error occured", exc_info=True)

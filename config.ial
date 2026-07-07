@@ -245,8 +245,8 @@ system_instructions: /
 	   All logic must be contained within a <code> tag.
 	   * Requirement: You must define one entry point: `async def main(...)`.
 	   * Arguments: The parameters passed to `main` depend on the triggering event (e.g., message, bot for standard chats, or member, bot for join events). The bot object is always provided.
-	 * The Notes Block (<notes>):
-	   Immediately following the code, you can provide notes for your future self within a <notes> tag.
+	 * The Notes Block (<note>):
+	   Immediately following the code, you can provide notes for your future self within a <note> tag.
 	   * Do NOT add repetitive notes, you'll see your notes alongside the code you ran (the full response). @[max_previous_response] recent responses to be exact.
 	   * This block is optional and can be skipped.
 

@@ -438,6 +438,34 @@ class BaseFileIO(ABC, Generic[T]):
 			self._release_lock(path, lock_obj)
 
 
+class CreatePath:
+	async def process_path(self, path: str | Path, is_dir: bool = False) -> None:
+		path_obj = Path(path)
+		dir_to_create = path_obj if is_dir else path_obj.parent
+
+		try:
+			if dir_to_create and not dir_to_create.exists():
+				log.debug(f"Creating directory: {dir_to_create}")
+				await asyncio.to_thread(dir_to_create.mkdir, parents=True, exist_ok=True)
+
+			if not is_dir:
+				log.debug(f"Touching file: {path_obj}")
+				await asyncio.to_thread(path_obj.touch, exist_ok=True)
+		except Exception:
+			log.error(f"An unexpected error occurred while processing {path}", exc_info=True)
+
+	async def __call__(self, *paths: tuple[str | Path, bool] | str | Path) -> None:
+		log.debug(f"Starting path processing for {len(paths)} paths.")
+		tasks = []
+		for path in paths:
+			if isinstance(path, tuple):
+				tasks.append(self.process_path(*path))
+			else:
+				tasks.append(self.process_path(path))
+		await asyncio.gather(*tasks)
+		log.debug("Path processing batch complete.")
+
+
 class TEXT(BaseFileIO[str]):
 	"""Plain text implementation."""
 	def serialize(self, data: str) -> bytes:
@@ -518,8 +546,11 @@ json_file = cast(JSON, JSON(*_default) if orjson else None)
 yaml_file = cast(YAML, YAML(*_default) if yaml and orjson else None)
 ial_file  = cast(IAL,  IAL(*_default)  if ial  and orjson else None)
 
+create_path = CreatePath()
+
 
 __all__ = (
 	'text_file', 'json_file', 'yaml_file', 'ial_file',
-	'TEXT',      'JSON',      'YAML',      'IAL'
+	'TEXT',      'JSON',      'YAML',      'IAL',
+	'create_path'
 )

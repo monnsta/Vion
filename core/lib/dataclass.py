@@ -124,7 +124,7 @@ class Observed:
 # Core Data Object
 class Data:
 	"""
-	BttrDict (Data): A nested, observable, and freezable data container
+	Data: A nested, observable, and freezable data container
 	supporting dot-notation, computed properties, and custom representations.
 	"""
 	__slots__ = ("_data", "_watchers", "_frozen", "_anti_freeze")

@@ -28,20 +28,20 @@ status = Data(
 )
 
 def extract(text: str) -> Data:
-	log.debug("Extracting code and monologue from text")
-	py = re.search(
+	log.debug("Extracting code and note from text")
+	code = re.search(
 		r"<code>\s*(.*?)\s*</code>",
 		text, re.DOTALL
 	)
-	mo = re.search(
-		r"<monologue>\s*(.*?)\s*</monologue>",
+	note = re.search(
+		r"<note>\s*(.*?)\s*</note>",
 		text, re.DOTALL
 	)
-	log.debug(f"Extracted Code:\n{py}\n\nExtracted Monologue:\n{mo}")
+	log.debug(f"Extracted Code:\n{py}\n\nExtracted Note:\n{mo}")
 
 	return Data(
-		code = py.group(1).strip() if py else "",
-		monologue = mo.group(1).strip() if mo else ""
+		code = code.group(1).strip() if code else "",
+		note = note.group(1).strip() if note else ""
 	)
 
 class StreamInterceptor(io.StringIO):
