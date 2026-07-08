@@ -3,11 +3,11 @@ from typing import Literal
 from discord import app_commands as app
 from discord.ext import commands
 
-from core.lib.utils import is_admin, mt, em
+from core.lib.utils import mt, em
 from core.wrp.profile import server
 from meta import config, emoji
 
-from core.cog.utils import resolve_target, load_settings, handle_common_errors
+from core.cog.utils import resolve_target, load_settings, handle_common_errors, is_admin
 from core.cog.ui_template import Success, Fail, Generic, Confirmation, Paginated, UnexpectedError
 from core.cog.setting.gemini_key import GeminiKey
 from core.cog.setting.instruction import Instruction

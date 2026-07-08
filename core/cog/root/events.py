@@ -5,12 +5,16 @@ import random
 import shutil
 from datetime import datetime, timedelta
 from pathlib import Path
+from typing import Any
 
 import discord
 from discord.ext import commands, tasks
 
+from core.cog.utils import should_respond
 from core.lib.file import json_file
-from core.wrp.profile import server
+from core.wrp.ai import ai
+from core.wrp.memory import guild_memory, user_memory
+from core.wrp.profile import server, user
 from core.wrp.blacklist import blacklist, BlacklistedError
 from meta import config, file, sub
 
@@ -35,6 +39,7 @@ class Events(commands.Cog):
 		if self.random_status_task:
 			self.random_status_task.cancel()
 		return super().cog_unload()
+
 
 	async def verify_subcommand(self, ctx: commands.Context):
 		is_blocked, data = await blacklist.get(ctx.author.id, "user")
@@ -73,9 +78,15 @@ class Events(commands.Cog):
 					4: discord.CustomActivity,
 					5: discord.Activity,
 				}
+				status_map = {
+					"online": discord.Status.online,
+					"idle": discord.Status.idle,
+					"dnd": discord.Status.dnd,
+					"invisible": discord.Status.invisible
+				}
 
 				activity_class = activity_mapping.get(config.activity.type, discord.Activity)
-				kwargs = {"name": new_status}
+				kwargs: dict[str, Any] = {"name": new_status}
 
 				if activity_class is discord.Activity:
 					kwargs["type"] = discord.ActivityType(config.activity.type)
@@ -84,7 +95,7 @@ class Events(commands.Cog):
 
 				await self.bot.change_presence(
 					activity=activity_class(**kwargs),
-					status=config.activity.status
+					status=status_map.get(config.activity.status)
 				)
 
 				wait_seconds = random.randint(*config.activity.range)
@@ -95,6 +106,7 @@ class Events(commands.Cog):
 			except Exception:
 				log.error("An unexpected error occurred in random_status_change", exc_info=True)
 				await asyncio.sleep(10)
+
 
 	async def safe_send(self, guild: discord.Guild, view):
 		if (
@@ -189,8 +201,8 @@ class Events(commands.Cog):
 			if await blacklist.is_blacklisted(guild.id, "server"):
 				log.warning(f"Found blacklisted guild {guild.name} ({guild.id}). Leaving...")
 				await guild.leave()
-			# if not await server.is_setup(guild.id):
-			# 	await server.setup(guild)
+			if not await server.is_setup(guild.id):
+				await server.setup(guild)
 
 		if not self.cleanup_old_data.is_running():
 			self.cleanup_old_data.start()
@@ -243,27 +255,45 @@ class Events(commands.Cog):
 
 	@commands.Cog.listener()
 	async def on_message(self, message: discord.Message):
-		if message.author.bot:
-			return
-
 		if await blacklist.is_blacklisted(message.author.id, "user"):
 			return
+		if message.guild and await blacklist.is_blacklisted(message.guild.id, "server"):
+			await message.guild.leave()
 
-		prefixes = await self.bot.get_prefix(message)
-		if isinstance(prefixes, str):
-			prefixes = (prefixes,)
+		if message.guild:
+			if not await server.is_setup(message.guild.id):
+				await server.setup(message.guild)
+			_, current_memories = await guild_memory.get(message.guild.id)
+			if not current_memories:
+				async for msg in message.channel.history(limit=50):
+					await guild_memory.add(message.guild.id, msg)
+			else:
+				await guild_memory.add(message.guild.id, message)
+		else:
+			if not await user.is_setup(message.author.id):
+				await user.setup(message.author)
+			_, current_memories = await user_memory.get(message.author.id)
+			if not current_memories:
+				async for msg in message.channel.history(limit=50):
+					await user_memory.add(message.author.id, msg)
+			else:
+				await user_memory.add(message.author.id, message)
 
-		if self.bot.user and self.bot.user in message.mentions and not message.content.startswith(tuple(prefixes)):
-			guild_name = message.guild.name if message.guild else None
-			channel_name = getattr(message.channel, 'name', 'DM')
-			location = f'{guild_name} > {channel_name}' if guild_name else "DM"
-			
-			log.info(f"bot mentioned in {location} by {message.author.display_name}")
+		_, guild_settings = await server.settings.load(message.guild.id) if message.guild else '', {}
 
-			async with message.channel.typing():
-				await asyncio.sleep(0.5)
-				bot_name = self.bot.user.name if self.bot.user else "The bot"
-				await message.reply(f"{bot_name} will be back with you soon! we are going through a huge rebranding and refactors. Untill then, try some of the fun commands, use `{config.default_prefix[0]}fun help`")
+		prefixes = await self.bot.determine_prefix(None, message) # type: ignore
+		free_will = guild_settings.get("free_will", True)
+
+		if should_respond(self.bot, free_will, prefixes, message):
+			log.info(f"Responding to message: {message.content if message.content != '' else '*empty message*'}")
+			await ai.do_action(
+				"on_message",
+				message.guild,
+				message.author,
+
+				message=message,
+				bot=self.bot
+			)
 
 
 	@commands.Cog.listener()
@@ -279,8 +309,8 @@ class Events(commands.Cog):
 				try:
 					dt = datetime.fromisoformat(error.expires_at)
 					duration_str = f"Expires <t:{int(dt.timestamp())}:R>"
-				except Exception:
-					duration_str = "Temporary"
+				except ValueError:
+					duration_str = "Temporary (The date got corrupted)"
 
 			await ctx.reply(
 				view=Fail(
@@ -293,90 +323,169 @@ class Events(commands.Cog):
 			)
 			return
 
-		if isinstance(error, commands.CommandNotFound):
+		elif isinstance(error, commands.CommandNotFound):
 			prefix_len = len(ctx.prefix) if ctx.prefix else 0
 			content = ctx.message.content[prefix_len:].strip()
 			display_attempt = " ".join(content.split())
 
 			def flatten_commands(node, prefix=""):
 				cmds = {}
+				if not isinstance(node, dict):
+					return cmds
+
 				for k, v in node.items():
 					path = f"{prefix} {k}".strip()
 					if hasattr(v, "mention") and isinstance(getattr(v, "mention"), str):
-						cmds[path] = v
-					elif hasattr(v, "items"):
+						cmds[path] = v.mention
+					elif isinstance(v, dict):
 						cmds.update(flatten_commands(v, path))
 				return cmds
 
-			flat_cmds = flatten_commands(config.cmd)
-			matches = difflib.get_close_matches(display_attempt, list(flat_cmds), n=1, cutoff=0.6)
+			flat_cmds_map = flatten_commands(config.cmd)
+			matches = difflib.get_close_matches(display_attempt, list(flat_cmds_map.keys()), n=1, cutoff=0.6)
 
 			if matches:
 				suggestion_name = matches[0]
-				suggestion_mention = flat_cmds[suggestion_name]
-				description = f"The command `{display_attempt}` does not exist. Did you mean {suggestion_mention}?"
+				suggestion_mention_str = flat_cmds_map[suggestion_name]
+				description = f"The command `{display_attempt}` does not exist. Did you mean {suggestion_mention_str}?"
 			else:
 				description = "The command you entered does not exist."
 
-			await ctx.reply(view=Fail("Invalid Command", description))
+			await ctx.reply(view=Fail("Invalid Command", description), ephemeral=True)
+			return
 
-		elif isinstance(error, commands.MissingRequiredArgument):
+		elif isinstance(error, commands.DisabledCommand):
 			await ctx.reply(view=Fail(
-				"Missing Argument",
-				f"You missed the `{error.param.name}` parameter."
-			))
+				"Command Disabled",
+				"This command is currently disabled."
+			), ephemeral=True)
+			return
 
 		elif isinstance(error, commands.CommandOnCooldown):
 			await ctx.reply(view=Fail(
 				"On Cooldown",
 				f"You can try this again in **{error.retry_after:.1f}s**."
-			))
+			), ephemeral=True)
+			return
 
-		elif isinstance(error, commands.MissingPermissions):
-			perms = ", ".join(
-				f"`{p.replace('_', ' ').title()}`"
-				for p in error.missing_permissions
-			)
-
+		elif isinstance(error, commands.MaxConcurrencyReached):
 			await ctx.reply(view=Fail(
-				"Missing Permissions",
-				f"You need the following permission(s) to do that: {perms}"
-			))
+				"Too Many Uses",
+				f"This command is currently being used by too many people. Please try again later."
+			), ephemeral=True)
+			return
 
-		elif isinstance(error, commands.BotMissingPermissions):
-			perms = ", ".join([f"`{p.replace('_', ' ').title()}`" for p in error.missing_permissions])
+		elif isinstance(error, commands.MissingRequiredArgument):
 			await ctx.reply(view=Fail(
-				"Missing Permissions",
-				f"I don't have the permissions required to run this: {perms}"
-			))
+				"Missing Argument",
+				f"You missed the `{error.param.name}` parameter. Please provide all required arguments."
+			), ephemeral=True)
+			return
 
 		elif isinstance(error, commands.BadLiteralArgument):
 			literals = ", ".join(f"`{l}`" for l in error.literals)
 			await ctx.reply(view=Fail(
 				"Invalid Option",
 				f"Invalid option for `{error.param.name}`. Must be one of: {literals}"
-			))
+			), ephemeral=True)
+			return
 
 		elif isinstance(error, commands.BadUnionArgument):
 			await ctx.reply(view=Fail(
 				"Invalid Input",
-				f"The argument provided for `{error.param.name}` could not be parsed."
-			))
+				f"The argument provided for `{error.param.name}` could not be parsed. Please check the format."
+			), ephemeral=True)
+			return
 
 		elif isinstance(error, (commands.UserNotFound, commands.MemberNotFound)):
 			await ctx.reply(view=Fail(
 				"User Not Found",
-				"I couldn't find that user. Please provide a valid username, ID, or mention."
-			))
+				"I couldn't find that user. Please provide a valid username,ID, or mention."
+			), ephemeral=True)
+			return
+
+		elif isinstance(error, commands.ChannelNotFound):
+			await ctx.reply(view=Fail(
+				"Channel Not Found",
+				"I couldn't find that channel. Please provide a valid channel name, ID, or mention."
+			), ephemeral=True)
+			return
+
+		elif isinstance(error, commands.RoleNotFound):
+			await ctx.reply(view=Fail(
+				"Role Not Found",
+				"I couldn't find that role. Please provide a valid role name, ID, or mention."
+			), ephemeral=True)
+			return
+
+		elif isinstance(error, commands.GuildNotFound):
+			await ctx.reply(view=Fail(
+				"Server Not Found",
+				"I couldn't find that server. Please provide a valid server ID."
+			), ephemeral=True)
+			return
+
+		elif isinstance(error, commands.EmojiNotFound):
+			await ctx.reply(view=Fail(
+				"Emoji Not Found",
+				"I couldn't find that emoji. Please provide a valid emoji (custom or unicode)."
+			), ephemeral=True)
+			return
+
+		elif isinstance(error, commands.BadArgument):
+			await ctx.reply(view=Fail(
+				"Invalid Argument",
+				f"There was an issue with one of the arguments you provided: {error}"
+			), ephemeral=True)
+			return
 
 		elif isinstance(error, commands.NotOwner):
 			await ctx.reply(view=Fail(
 				"Restricted Command",
 				"Only the bot owner can use this command."
-			))
+			), ephemeral=True)
+			return
 
-		elif isinstance(error, (commands.CheckFailure, commands.BadArgument)):
-			await ctx.reply(view=UnexpectedError)
+		elif isinstance(error, commands.MissingPermissions):
+			perms = ", ".join(
+				f"`{p.replace('_', ' ').title()}`"
+				for p in error.missing_permissions
+			)
+			await ctx.reply(view=Fail(
+				"Missing Permissions",
+				f"You need the following permission(s) to do that: {perms}"
+			), ephemeral=True)
+			return
+
+		elif isinstance(error, commands.BotMissingPermissions):
+			perms = ", ".join([f"`{p.replace('_', ' ').title()}`" for p in error.missing_permissions])
+			await ctx.reply(view=Fail(
+				"Missing Permissions",
+				f"I don't have the permissions required to run this: {perms}"
+			), ephemeral=True)
+			return
+
+		elif isinstance(error, commands.NoPrivateMessage):
+			await ctx.reply(view=Fail(
+				"Server Only",
+				"This command can only be used in a server."
+			), ephemeral=True)
+			return
+
+		elif isinstance(error, commands.PrivateMessageOnly):
+			await ctx.reply(view=Fail(
+				"DM Only",
+				"This command can only be used in a private message."
+			), ephemeral=True)
+			return
+
+		elif isinstance(error, commands.CheckFailure):
+			await ctx.reply(view=Fail(
+				"Permission Denied",
+				"You do not have permission to use this command."
+			), ephemeral=True)
+			return
 
 		else:
+			await ctx.reply(view=UnexpectedError, ephemeral=True)
 			log.error(f"Ignoring exception in command {ctx.command}:", exc_info=error)

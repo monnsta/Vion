@@ -3,10 +3,10 @@ from typing import Literal
 from discord import app_commands as app
 from discord.ext import commands
 
-from core.lib.utils import mt, is_admin
+from core.lib.utils import mt
 from meta import config
 
-from core.cog.utils import resolve_target, load_settings, handle_common_errors, HybridGroup, hybrid_command
+from core.cog.utils import resolve_target, load_settings, handle_common_errors, HybridGroup, hybrid_command, is_admin
 from core.cog.ui_template import Success, Fail, Generic, Confirmation, TextForm, UnexpectedError
 
 

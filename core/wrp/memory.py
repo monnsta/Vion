@@ -7,8 +7,8 @@ from core.lib.file import json_file
 from meta import config, file
 
 
-
 log = logging.getLogger(__name__)
+
 
 class _EntityListStore:
 	def __init__(self, key: str, max_items: int, entity_type: str = "guild"):
@@ -49,6 +49,7 @@ class _EntityListStore:
 			if not success:
 				log.warning(f"Failed to load data for {self.entity_type} {entity_id} while getting {self.key}")
 				return False, []
+			log.debug(f"Loaded {self.key} for {self.entity_type} {entity_id}")
 			return True, data.get(self.key, [])
 		except Exception as e:
 			log.error(f"Error retrieving {self.key} for {self.entity_type} {entity_id}: {e}", exc_info=True)
@@ -61,7 +62,7 @@ class _EntityListStore:
 				return False
 			data[self.key] = []
 			await self._save(entity_id, data)
-			log.info(f"Cleared {self.key} for {self.entity_type} {entity_id}")
+			log.debug(f"Cleared {self.key} for {self.entity_type} {entity_id}")
 			return True
 		except Exception as e:
 			log.error(f"Error clearing {self.key} for {self.entity_type} {entity_id}: {e}")
@@ -84,7 +85,7 @@ class Memory(_EntityListStore):
 			data[self.key] = self._trim(items)
 
 			await self._save(entity_id, data)
-			log.info(f"Added memory entry for {self.entity_type} {entity_id}")
+			log.debug(f"Added memory entry for {self.entity_type} {entity_id}")
 			return True
 		except Exception as e:
 			log.error(f"Error adding memory for {self.entity_type} {entity_id}: {e}")
@@ -106,7 +107,7 @@ class Audit(_EntityListStore):
 			data[self.key] = self._trim(items)
 
 			await self._save(entity_id, data)
-			log.info(f"Added audit entry for {self.entity_type} {entity_id}")
+			log.debug(f"Added audit entry for {self.entity_type} {entity_id}")
 			return True
 		except Exception as e:
 			log.error(f"Error adding audit for {self.entity_type} {entity_id}: {e}")
@@ -127,7 +128,7 @@ class Response(_EntityListStore):
 			data[self.key] = self._trim(items)
 
 			await self._save(entity_id, data)
-			log.info(f"Updated previous response for {self.entity_type} {entity_id}")
+			log.debug(f"Added previous response entry for {self.entity_type} {entity_id}")
 			return True
 		except Exception as e:
 			log.error(f"Error adding response for {self.entity_type} {entity_id}: {e}")

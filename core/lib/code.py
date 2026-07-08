@@ -3,6 +3,7 @@ import inspect
 import io
 import logging
 import re
+import html
 import traceback
 import types
 from contextlib import redirect_stderr, redirect_stdout
@@ -27,22 +28,20 @@ status = Data(
 	TIMED_OUT = Repr("TIMED_OUT", 6)
 )
 
-def extract(text: str) -> Data:
-	log.debug("Extracting code and note from text")
-	code = re.search(
-		r"<code>\s*(.*?)\s*</code>",
-		text, re.DOTALL
-	)
-	note = re.search(
-		r"<note>\s*(.*?)\s*</note>",
-		text, re.DOTALL
-	)
-	log.debug(f"Extracted Code:\n{py}\n\nExtracted Note:\n{mo}")
 
-	return Data(
-		code = code.group(1).strip() if code else "",
-		note = note.group(1).strip() if note else ""
-	)
+
+
+def extract(text: str) -> Data:
+    code_match = re.search(r"<code>\s*(.*?)\s*</code>", text, re.DOTALL)
+    note_match = re.search(r"<note>\s*(.*?)\s*</note>", text, re.DOTALL)
+
+    code = html.unescape(code_match.group(1).strip()) if code_match else ""
+    note = html.unescape(note_match.group(1).strip()) if note_match else ""
+
+    log.debug(f"Extracted Code:\n{code}\n\nExtracted Note:\n{note}")
+
+    return Data(code=code, note=note)
+
 
 class StreamInterceptor(io.StringIO):
 	def __init__(self, callback: Optional[Callable[[str], None]] = None):

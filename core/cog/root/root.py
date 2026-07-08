@@ -4,10 +4,9 @@ import discord
 from discord import app_commands as app
 from discord.ext import commands
 
-from core.lib.utils import is_admin
 from meta import config, emoji
 
-from core.cog.utils import resolve_target, handle_common_errors
+from core.cog.utils import resolve_target, handle_common_errors, is_admin
 from core.cog.ui_template import Generic
 from core.cog.root.ui import ManageDataView
 

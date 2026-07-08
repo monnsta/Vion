@@ -3,7 +3,7 @@ import ial
 import json
 import logging
 import sys
-from typing import List, Tuple, Dict, Any, Callable, cast
+from typing import List, Tuple, Dict, Any, Callable, Literal, cast
 
 import pytz
 
@@ -25,7 +25,7 @@ class Config(Data):
 		invite: str
 
 	class Activity(Data):
-		status: str
+		status: Literal["online", "idle", "dnd", "invisible"]
 		type: int
 		url: str
 		range: Tuple[int, ...]
@@ -156,10 +156,13 @@ async def load_config(reload: bool = False):
 
 	for obj in [config.devs, config.dev_servers]:
 		for i in range(len(obj)):
-			obj[i] = tuple(obj[i])
+			if len(obj[i]) == 3:
+				obj[i] = (obj[i][0], int(obj[i][1]), obj[i][2])
+			else:
+				obj[i] = (obj[i][0], int(obj[i][1]))
 
-	config.dev_server_ids = [dsid for _, dsid, _ in config.dev_servers]
-	config.dev_ids = [did for _, did in config.devs]
+	config.dev_server_ids = [int(dsid) for _, dsid, _ in config.dev_servers]
+	config.dev_ids = [int(did) for _, did in config.devs]
 
 	emoji.update(Data.load(config.emoji.to_dict(update_self=False)))
 	config.delete("emoji")

@@ -7,10 +7,12 @@ from discord import app_commands as app
 from discord.ext import commands
 
 from core.lib.code import Code, status
-from core.lib.utils import is_dev, mt, map_command_mentions
+from core.lib.utils import mt
+from core.wrp.extension import map_command_mentions
 from meta import load_config, config, emoji
 
 from core.cog.ui_template import Fail, Success, Paginated, UnexpectedError
+from core.cog.utils import is_dev
 from core.cog.dev.blacklist import Blacklist
 from core.cog.dev.extension import Extension
 
@@ -21,8 +23,30 @@ class DevRoot(commands.Cog):
 		self.p = config.default_prefix[0]
 		self.dev_only = True
 
-		self.dev.add_command(Blacklist(self.bot))
-		self.dev.add_command(Extension(self.bot))
+		blacklist_group = Blacklist(self.bot)
+		blacklist_group.cog = self
+
+		ext_group = Extension(self.bot)
+		ext_group.cog = self
+
+		self.dev.add_command(blacklist_group)
+		self.dev.add_command(ext_group)
+
+	async def cog_check(self, ctx: commands.Context) -> bool:
+		return any(ctx.author.id == dev_id for dev_id in config.dev_ids)
+
+	async def cog_command_error(self, ctx: commands.Context, error: Exception):
+		if isinstance(error, commands.CommandInvokeError):
+			error = getattr(error, 'original', error)
+
+		if isinstance(error, commands.CheckFailure):
+			await ctx.reply(view=Fail(
+				"Permission Denied",
+				"Only developers can use this command."
+			), ephemeral=True)
+
+			setattr(ctx, 'handled', True)
+			return
 
 
 	@commands.hybrid_group(
@@ -30,7 +54,6 @@ class DevRoot(commands.Cog):
 		aliases=['d'],
 		description='Dev commands.'
 	)
-	@is_dev(config.dev_ids)
 	async def dev(self, ctx: commands.Context):
 		if ctx.invoked_subcommand is None:
 			await ctx.reply(view=Fail(

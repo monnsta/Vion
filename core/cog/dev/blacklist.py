@@ -96,12 +96,12 @@ class Blacklist(HybridGroup):
 				"Params:",
 				"* type: Whether this is a user or server",
 				"* target_id: The ID or mention of the user/server",
-				"* reason: Reason for blacklisting",
 				"* duration: Duration (e.g., 7d, 12h, 30m). 0 for permanent",
+				"* reason: Reason for blacklisting",
 				"Usage:",
-				f"* `{self.p}dev blacklist add user 123456789 \"Spamming\" 7d`",
-				f"* `{self.p}d b a user 123456789 \"Spamming\" 7d`",
-				f"* {config.cmd.dev.blacklist.add} `type:` user `target_id:` 123456789 `reason:` Spamming `duration:` 7d"
+				f"* `{self.p}dev blacklist add user 123456789 7d Spamming`",
+				f"* `{self.p}d b a user 123456789 7d Spamming`",
+				f"* {config.cmd.dev.blacklist.add} `type:` user `target_id:` 123456789 `duration:` 7d `reason:` Spamming"
 			), None,
 			mt(
 				"## Remove:",
@@ -120,10 +120,12 @@ class Blacklist(HybridGroup):
 				"Params:",
 				"* type: Whether this is a user or server",
 				"* target_id: The ID or mention of the user/server",
+				"* duration: Duration (e.g., 7d, 12h, 30m). 0 for permanent",
+				"* new_reason: Reason for blacklisting",
 				"Usage:",
-				f"* `{self.p}dev blacklist edit user 123456789 \"Spamming + Arguing with mods\" 8d`",
-				f"* `{self.p}d b e user 123456789 \"Spamming + Arguing with mods\" 8d`",
-				f"* {config.cmd.dev.blacklist.edit} `type:` user `target_id:` 123456789 `new_reason:` Spamming + Arguing with mods `new_duration:` 8d"
+				f"* `{self.p}dev blacklist edit user 123456789 8d Spamming + Arguing with mods`",
+				f"* `{self.p}d b e user 123456789 8d Spamming + Arguing with mods`",
+				f"* {config.cmd.dev.blacklist.edit} `type:` user `target_id:` 123456789 `new_duration:` 8d `new_reason:` Spamming + Arguing with mods"
 			), None,
 			mt(
 				"## View:",
@@ -157,10 +159,10 @@ class Blacklist(HybridGroup):
 	@app.describe(
 		type='Whether this is a user or server',
 		target_id='The ID or mention of the user or server',
-		reason='Reason for blacklisting',
-		duration='Duration (e.g., 7d, 12h, 30m). 0 for permanent'
+		duration='Duration (e.g., 7d, 12h, 30m). 0 for permanent',
+		reason='Reason for blacklisting'
 	)
-	async def add(self, ctx: commands.Context, type: Literal['user', 'server'], target_id: str, reason: str, duration: Optional[str] = None):
+	async def add(self, ctx: commands.Context, type: Literal['user', 'server'], target_id: str, duration: str, *, reason: str):
 		tid = await self._validate_args(ctx, type, target_id)
 		if not tid: return
 
@@ -206,10 +208,10 @@ class Blacklist(HybridGroup):
 	@app.describe(
 		type='Whether this is a user or server',
 		target_id='The ID or mention of the user or server',
-		new_reason='The modified reason for the blacklist',
-		new_duration='The modified duration (e.g., 7d, 12h, 30m). 0 for permanent'
+		new_duration='The modified duration (e.g., 7d, 12h, 30m). 0 for permanent',
+		new_reason='The modified reason for the blacklist'
 	)
-	async def edit(self, ctx: commands.Context, type: Literal['user', 'server'], target_id: str, new_reason: Optional[str] = None, new_duration: Optional[str] = None):
+	async def edit(self, ctx: commands.Context, type: Literal['user', 'server'], target_id: str, new_duration: Optional[str] = None, *, new_reason: Optional[str] = None):
 		if not new_reason and not new_duration:
 			return await ctx.reply(view=Fail(
 				"Error",

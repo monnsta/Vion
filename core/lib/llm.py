@@ -1,6 +1,7 @@
 import asyncio
 import logging
 import tempfile
+import time
 from pathlib import Path
 from typing import Tuple, List, Optional, Any
 
@@ -22,8 +23,8 @@ async def validate_key(api_key: str) -> bool | None:
 		if e.code in (400, 401, 403):
 			log.error(f"API key validation failed: {e}")
 			return False
-		elif e.code in (500, 503, 504):
-			log.warning(f"Validation inconclusive due to network/service error: {e}")
+		elif e.code in (429, 500, 503, 504):
+			log.warning(f"Validation inconclusive due to network/rate/service error: {e}")
 			return None
 		log.error(f"API key validation failed with unexpected API status: {e}")
 		return False
@@ -42,8 +43,10 @@ class GenerateContent:
 		top_k: int = 45
 	):
 		log.debug(f"Initializing GenerateContent with model: {model_name}")
+		self.api_key = api_key
 		self.client = genai.Client(api_key=api_key)
 		self.model_name = model_name
+		self.cooldown_until: float = 0.0
 
 		self.config = types.GenerateContentConfig(
 			temperature=temperature,
@@ -51,6 +54,13 @@ class GenerateContent:
 			top_k=top_k,
 			system_instruction=system_instruction
 		)
+
+	@property
+	def is_cooling_down(self) -> bool:
+		return time.time() < self.cooldown_until
+
+	def set_cooldown(self, seconds: float):
+		self.cooldown_until = time.time() + seconds
 
 	async def _upload_and_wait(self, path: str) -> Any:
 		log.debug(f"Uploading file: {path}")
@@ -106,6 +116,10 @@ class GenerateContent:
 		return item
 
 	async def call(self, prompt: str, inputs: Optional[List[Any]] = None) -> Tuple[bool, str]:
+		if self.is_cooling_down:
+			remaining = self.cooldown_until - time.time()
+			return False, f"Rate limited. Cooldown remaining: {remaining:.1f}s"
+
 		log.debug("Starting content generation call")
 		try:
 			processed_parts = []
@@ -133,8 +147,33 @@ class GenerateContent:
 			log.warning("AI returned no candidates or content")
 			return False, "AI returned no content."
 
+		except APIError as e:
+			if e.code == 429:
+				cooldown_seconds = 20.0
+
+				try:
+					if hasattr(e, 'message') or (isinstance(e.message, dict)):
+						error_details = e.message if isinstance(e.message, dict) else None
+						if error_details and 'error' in error_details:
+							for detail in error_details['error'].get('details', []): # type: ignore
+								if 'retryDelay' in detail:
+									cooldown_seconds = float(detail['retryDelay'].rstrip('s'))
+									break
+				except Exception:
+					pass
+
+				self.set_cooldown(cooldown_seconds)
+				return False, f"Rate limit reached (429). Retry after {cooldown_seconds}s"
+
+			elif e.code in (401, 403):
+				log.error(f"Auth error (Code {e.code}). Key might be invalid.")
+				return False, f"Authentication error: {e.message}"
+
+			log.error(f"Gemini API error occurred (Status {e.code}): {e}")
+			return False, f"API Error ({e.code}): {e.message}"
+
 		except Exception as e:
-			log.error("Error during call execution", exc_info=True)
+			log.error("Unexpected error during call execution", exc_info=True)
 			return False, f"Utility Error: {str(e)}"
 
 
