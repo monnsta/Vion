@@ -117,7 +117,12 @@ class GeminiKey(HybridGroup):
 			await ctx.reply(view=Success(
 				"API Key Added",
 				f"Your key has been successfully added to your {type} profile."
-			))
+			), ephemeral=True)
+			if not ctx.interaction:
+				try:
+					await ctx.message.delete()
+				except (discord.Forbidden, discord.NotFound, discord.HTTPException):
+					pass
 			return
 		await ctx.reply(view=UnexpectedError)
 

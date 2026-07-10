@@ -62,6 +62,7 @@ class AI:
 		
 		g_msg, u_msg = None, None
 		g_obj, u_obj = None, None
+		g_ins = None
 		pipeline = list(self.base_modules)
 
 		if event == "on_message":
@@ -69,6 +70,8 @@ class AI:
 				log.debug(f"Fetching context for Guild ID: {guild.id}")
 				_, g_msg = await guild_memory.get(guild.id)
 				_, g_obj = await server.info.load(guild.id)
+				_, g_settings = await server.settings.load(guild.id)
+				g_ins = g_settings.get("instructions")
 				if not g_obj:
 					await server.info.save(guild)
 					_, g_obj = await server.info.load(guild.id)
@@ -96,6 +99,7 @@ class AI:
 		success, response = False, config.fallback_response
 		prompt = config.prompt_template.format(
 			guild=g_obj,
+			instructions=g_ins,
 			user=u_obj,
 			guild_messages=g_msg,
 			user_messages=u_msg,
@@ -144,7 +148,6 @@ class AI:
 					response += f"**Error:**\n```text\n{exec_result.error}\n```\n"
 
 		except Exception as e:
-			log.error("Failed to execute generated code.", exc_info=True)
 			response += f"\n\n---\n### Code Execution Failure\n```text\n{e}\n```\n"
 
 		if manager and entity_id is not None:

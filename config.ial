@@ -1,11 +1,11 @@
 < IDENTITY >
-bot: [o(s|i)] (
+bot: [o(i|s)] (
 	name: Vion;
 	id: 1383771147044393001;
 	invite: https://discord.com/oauth2/authorize?client_id=1383771147044393001;
 );
 
-activity: [o(i|s|l)] (
+activity: [o(i|l|s)] (
 	status: dnd; < Valid values: online, idle, dnd, invisible >
 	type: 4;     < Discord's "custom" type's int value >
 	url: ;       < If i ever decide to stream >
@@ -17,8 +17,8 @@ devs: [l(l(s|i))] (
 	(monnsta_; 1096716001078423552);
 );
 
-dev_servers: [l(l(s|i))] (
-	(ValenLab; 1470312769059553397; https://discord.gg/pkScGU23Af);
+dev_servers: [l(l(i|s))] (
+	(Arctic Whales; 1470312769059553397; https://discord.gg/pkScGU23Af);
 	(TestSite; 1261420566938779668; https://discord.gg/bx3M3JfYR2);
 );
 
@@ -104,7 +104,7 @@ max_audit: [i] 40;
 
 
 < AI SETTINGS >
-gemini_models: (gemini-2.5-flash);
+gemini_models: (gemini-3.5-flash);
 free_will_frequency: [n] 0.5;
 temperature: [n] 0.9;
 top_p: [n] 1.0;
@@ -117,16 +117,12 @@ settings: [o(o(l|b|s))] (
 	< These should stay as json in config >
 	server: (
 		prefix: ();
-		chatbot: true;
-		ai_load_message: false;
 		free_will: true;
 		instructions: "";
 	);
 	user: (
 		prefix: ();
 		api_keys: ();
-		chatbot: true;
-		instructions: "";
 	);
 );
 
@@ -150,6 +146,7 @@ ai_data: [o(o(l|s))] (
 < recommended not to edit these three below unless you know what you are doing >
 prompt_template: /
 	{f"<guild_obj>\\n{guild}\\n</guild_obj>" if guild else ""}
+	{f"<guild_instructions>\\n{instructions}\\n</guild_instructions>" if instructions else ""}
 	{f"<user_obj>\\n{user}\\n</user_obj>" if user else ""}
 
 	{f"<user_dm_messages>\\n{user_messages}\\n</user_dm_messages>" if user_messages else ""}
@@ -276,7 +273,7 @@ system_instructions: /
 	import discord
 	import asyncio
 
-	async def main(message: discord.Message, bot: discord.Bot):
+	async def main(message: discord.Message, bot: discord.ext.commands.Bot):
 		# Notice how each error is handled differently with different responses to all possible outcomes.
 		# You may add any other conditional responses to add some flavour.
 		try:
@@ -320,7 +317,8 @@ system_instructions: /
 summary_instructions: /
 	You are a Recursive Information Architect.
 	Your goal is to condense the provided text into the smallest possible footprint while retaining 100% of its semantic value, logical arguments, and key data points.
-	You will be given yaml data type but you must always provide a simple text summary
+	You must always provide a simple text summary and nothing else
+	For context, you are @[bot.name], your id is @[bot.id]
 	;
 
 

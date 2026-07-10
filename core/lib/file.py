@@ -35,6 +35,7 @@ try:
 except ImportError:
 	pass
 
+
 log = logging.getLogger(__name__)
 
 T = TypeVar("T")
@@ -484,7 +485,7 @@ class TEXT(BaseFileIO[str]):
 class JSON(BaseFileIO[dict]):
 	"""JSON implementation."""
 	def serialize(self, data: dict) -> bytes:
-		return orjson.dumps(data if data is not None else {})
+		return orjson.dumps(data if data is not None else {}, option=orjson.OPT_INDENT_2)
 
 	def deserialize(self, content: bytes) -> dict:
 		if not content or content.strip() == b"":

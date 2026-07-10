@@ -277,9 +277,6 @@ class Blacklist(HybridGroup):
 		type='Filter by user or server'
 	)
 	async def list(self, ctx: commands.Context, type: Optional[Literal['user', 'server']] = None):
-		if type and type not in ('user', 'server'):
-			return await ctx.reply(view=Fail("Filter type must be 'user' or 'server'."))
-
 		entries = await blacklist.list_all(type)
 
 		if not entries:

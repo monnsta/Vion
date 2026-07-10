@@ -122,6 +122,11 @@ def should_respond(
 	if message and (message.content.startswith(tuple(prefixes)) or message.author == bot.user):
 		return False
 
+	if message and isinstance(message.channel, discord.DMChannel):
+		if message.flags.silent:
+			return get_random(0.3)
+		return True
+
 	is_reply_to_bot = False
 	mention_is_on = False
 
@@ -141,7 +146,7 @@ def should_respond(
 		if not message:
 			return get_random()
 		if message.mention_everyone:
-			return get_random(0.07)
+			return get_random(0.2)
 
 	if message and bot.user:
 		bot_names = (bot.user.display_name, bot.user.name, config.bot.name)

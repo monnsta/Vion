@@ -132,19 +132,18 @@ class Root(commands.Cog):
 		t2 = discord.utils.utcnow()
 		rest_latency = round((t2 - t1).total_seconds() * 1000)
 
-		total_latency = ws_latency + rest_latency
-		lower_limit = 150
-		upper_limit = 450
+		lower_limit = 50
+		upper_limit = 250
 
-		if total_latency < lower_limit:
+		if ws_latency < lower_limit:
 			status = "🟢 Stable"
 		else:
-			severity = (total_latency - lower_limit) / (upper_limit - lower_limit)
+			severity = min((ws_latency - lower_limit) / (upper_limit - lower_limit), 1.0)
 
 			thresholds = (
-				(0.3, "🟡 Slow"),
-				(0.7, "🟠 Very Slow"),
-				(float('inf'), "🔴 Critically Slow (Running on a potato??)")
+				(0.4, "🟡 Slow"),
+				(0.8, "🟠 Very Slow"),
+				(1.0, "🔴 Critically Slow (Running on a potato??)")
 			)
 
 			status = next(text for limit, text in thresholds if severity <= limit)

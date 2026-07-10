@@ -1,6 +1,5 @@
 import asyncio
 import datetime
-import json
 import logging
 import sys
 import warnings
@@ -154,7 +153,7 @@ class Convert:
 			if self.output_format == "yaml":
 				return yaml.dump(raw_dict, default_flow_style=False, sort_keys=False) # type: ignore
 			elif self.output_format == "json":
-				return json.dumps(raw_dict)
+				return raw_dict
 
 			return raw_dict
 
@@ -187,7 +186,7 @@ convert_message = Convert(
 		'activity', 'flags', 'public_flags', 'interaction'
 	],
 	max_depth = 5,
-	output_format = "yaml"
+	output_format = "json"
 )
 
 convert_guild = Convert(
@@ -198,7 +197,7 @@ convert_guild = Convert(
 		'interaction', 'mutual_guilds'
 	],
 	max_depth = 5,
-	output_format = "yaml"
+	output_format = "json"
 )
 
 convert_user = Convert(
@@ -209,7 +208,7 @@ convert_user = Convert(
 		'colour'
 	],
 	max_depth = 3,
-	output_format = "yaml"
+	output_format = "json"
 )
 
 convert_bot = Convert(
@@ -220,5 +219,5 @@ convert_bot = Convert(
 		'stickers', 'interaction'
 	],
 	max_depth = 3,
-	output_format = "yaml"
+	output_format = "json"
 )

@@ -81,8 +81,6 @@ class SettingRoot(commands.Cog):
 				"```",
 				"* view         (v)",
 				"* freewill     (f)",
-				"* show_loading (s)",
-				"* chatbot_only (c)",
 				"* help         (h)",
 				"",
 				"* prefix       (p)",
@@ -124,26 +122,6 @@ class SettingRoot(commands.Cog):
 					f"* `{self.p}setting freewill False`",
 					f"* `{self.p}s f n`",
 					f"* {config.cmd.setting.freewill} `value:` False"
-				),
-				mt(
-					"## Show Loading:",
-					"Toggle AI loading message for the current server. Makes the bot send a loading message before replying.",
-					"Params:",
-					"* value: Whether to turn loading message on or off (True or False)",
-					"Usage:",
-					f"* `{self.p}setting show_loading False`",
-					f"* `{self.p}s s n`",
-					f"* {config.cmd.setting.show_loading} `value:` False"
-				),
-				mt(
-					"## Chatbot Only:",
-					"Toggle chat bot only mode for the current server. Makes the bot not able to do any actions except sending messages.",
-					"Params:",
-					"* value: Whether to turn chatbot mode on or off (True or False)",
-					"Usage:",
-					f"* `{self.p}setting chatbot_only False`",
-					f"* `{self.p}s c n`",
-					f"* {config.cmd.setting.chatbot_only} `value:` False"
 				),
 				mt(
 					"## Prefix:",
@@ -216,14 +194,22 @@ class SettingRoot(commands.Cog):
 
 		data = await load_settings(manager, target_id, type) # type: ignore
 
-		await ctx.reply(view=Generic(
-			f"# Settings for {getattr(ctx.guild, 'name', 'Unknown') if type == 'server' else ctx.author.display_name}",
-			f"**Prefixes:** {' • '.join([f'`{p}`' for p in [*data['prefix'], *config.default_prefix]])}",
-			f"**Chatbot Mode:** {'Yes' if data.get('chatbot', False) else 'No'}",
-			f"**Loading Message:** {'Yes' if data.get('ai_load_message', False) else 'No'}",
-			f"**Freewill:** {'Yes' if data.get('free_will', False) else 'No'}",
-			f"**Instructions:**\n{data.get('instructions', 'None')}"
-		))
+		lines = []
+		if type == 'server':
+			lines.append(f"# Settings for {getattr(ctx.guild, 'name', 'Unknown')}")
+			lines.append(f"**Prefixes:** {' '.join([f'`{p}`' for p in [*data.get('prefix', []), *config.default_prefix]])}")
+			lines.append(f"**Freewill:** {'Yes' if data.get('free_will', False) else 'No'}")
+			lines.append(
+				"**Instructions:**\n"
+				f"```{em(data.get('instructions', 'None'), chars='`')}```"
+				f"{f'{emoji.info} The `` ` `` (backtick) here are escaped for proper rendering, your instructions doesn\'t actually contain a `` \\` ``' if '`' in data.get('instructions', '') else ''}"
+			)
+		else:
+			lines.append(f"# Settings for {ctx.author.display_name}")
+			lines.append(f"**Prefixes:** {' '.join([f'`{p}`' for p in [*data.get('prefix', []), *config.default_prefix]])}")
+			lines.append(f"**API Keys:** *Hidden for privacy.* Use {config.cmd.setting.gemini_key.list} to view them.")
+
+		await ctx.reply(view=Generic(*lines))
 
 
 	@setting.command(
@@ -241,40 +227,4 @@ class SettingRoot(commands.Cog):
 
 	@freewill.error
 	async def freewill_error(self, ctx: commands.Context, error):
-		await handle_common_errors(ctx, error)
-
-
-	@setting.command(
-		name='show_loading',
-		aliases=['s'],
-		description='Toggle AI loading message for the current server'
-	)
-	@app.describe(
-		value='Whether to turn loading message on or off (True or False)'
-	)
-	@app.guild_only
-	@is_admin(config.dev_ids)
-	async def show_loading(self, ctx: commands.Context, value: bool):
-		await self._update_server_setting(ctx, "ai_load_message", value, "Loading Message")
-
-	@show_loading.error
-	async def show_loading_error(self, ctx: commands.Context, error):
-		await handle_common_errors(ctx, error)
-
-
-	@setting.command(
-		name='chatbot_only',
-		aliases=['c'],
-		description='Toggle chat bot only mode for the current server'
-	)
-	@app.describe(
-		value='Whether to turn chatbot mode on or off (True or False)'
-	)
-	@app.guild_only
-	@is_admin(config.dev_ids)
-	async def chatbot_only(self, ctx: commands.Context, value: bool):
-		await self._update_server_setting(ctx, "chatbot", value, "Chatbot Mode")
-
-	@chatbot_only.error
-	async def chatbot_only_error(self, ctx: commands.Context, error):
 		await handle_common_errors(ctx, error)

@@ -10,7 +10,6 @@ from typing import Any
 import discord
 from discord.ext import commands, tasks
 
-from core.cog.utils import should_respond
 from core.lib.file import json_file
 from core.wrp.ai import ai
 from core.wrp.memory import guild_memory, user_memory
@@ -18,6 +17,7 @@ from core.wrp.profile import server, user
 from core.wrp.blacklist import blacklist, BlacklistedError
 from meta import config, file, sub
 
+from core.cog.utils import should_respond
 from core.cog.ui_template import Fail, Generic, UnexpectedError
 
 
@@ -140,6 +140,36 @@ class Events(commands.Cog):
 					continue
 		log.warning(f"Could not find a suitable channel to send join message in {guild.id}")
 
+	async def do_memory_actions(self, message, manager, memory_manager, context):
+		entity = None
+
+		if context == "server" and message.guild:
+			entity = message.guild
+		elif context == "user":
+			entity = message.author
+		elif context == "self":
+			entity = getattr(message.channel, "recipient", None)
+			
+			if not entity and getattr(message.channel, "type", None) == discord.ChannelType.private:
+				async for msg in message.channel.history(limit=10):
+					if msg.author.id != config.bot.id:
+						entity = msg.author
+						break
+
+		if not entity:
+			log.error("Could not resolve entity.")
+			return
+
+		if not await manager.is_setup(entity.id):
+			await manager.setup(entity)
+
+		_, current_memories = await memory_manager.get(entity.id)
+
+		if not current_memories:
+			async for msg in message.channel.history(limit=50):
+				await memory_manager.add(entity.id, msg)
+		else:
+			await memory_manager.add(entity.id, message)
 
 	# --- Background Tasks ---
 	@tasks.loop(hours=24)
@@ -259,25 +289,21 @@ class Events(commands.Cog):
 			return
 		if message.guild and await blacklist.is_blacklisted(message.guild.id, "server"):
 			await message.guild.leave()
+			return
 
 		if message.guild:
-			if not await server.is_setup(message.guild.id):
-				await server.setup(message.guild)
-			_, current_memories = await guild_memory.get(message.guild.id)
-			if not current_memories:
-				async for msg in message.channel.history(limit=50):
-					await guild_memory.add(message.guild.id, msg)
-			else:
-				await guild_memory.add(message.guild.id, message)
+			await self.do_memory_actions(
+				message, server, guild_memory, "server"
+			)
 		else:
-			if not await user.is_setup(message.author.id):
-				await user.setup(message.author)
-			_, current_memories = await user_memory.get(message.author.id)
-			if not current_memories:
-				async for msg in message.channel.history(limit=50):
-					await user_memory.add(message.author.id, msg)
+			if message.author.id != config.bot.id:
+				await self.do_memory_actions(
+					message, user, user_memory, "user"
+				)
 			else:
-				await user_memory.add(message.author.id, message)
+				await self.do_memory_actions(
+					message, user, user_memory, "self"
+				)
 
 		_, guild_settings = await server.settings.load(message.guild.id) if message.guild else '', {}
 

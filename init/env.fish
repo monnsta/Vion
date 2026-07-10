@@ -289,7 +289,7 @@ function bot_run
         bot_error "Pre-run check failed. Please resolve environment issues before running the bot."
         return 1
     end
-    bot_log "Starting bot via '$PYTHON_VENV_BIN $BOT_PATH'..."
+    bot_log "Starting bot..."
     $PYTHON_VENV_BIN "$BOT_PATH" $argv
     set -l RUN_STATUS $status
     if test $RUN_STATUS -ne 0
