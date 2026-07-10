@@ -12,7 +12,7 @@ from discord.ext import commands, tasks
 
 from core.lib.file import json_file
 from core.wrp.ai import ai
-from core.wrp.memory import guild_memory, user_memory
+from core.wrp.memory import guild_stm, user_stm
 from core.wrp.profile import server, user
 from core.wrp.blacklist import blacklist, BlacklistedError
 from meta import config, file, sub
@@ -292,18 +292,15 @@ class Events(commands.Cog):
 			return
 
 		if message.guild:
-			await self.do_memory_actions(
-				message, server, guild_memory, "server"
-			)
+			await self.do_memory_actions(message, server, guild_stm, "server")
+
+			if message.author.id != config.bot.id:
+				await self.do_memory_actions(message, user, user_stm, "user")
 		else:
 			if message.author.id != config.bot.id:
-				await self.do_memory_actions(
-					message, user, user_memory, "user"
-				)
+				await self.do_memory_actions(message, user, user_stm, "user")
 			else:
-				await self.do_memory_actions(
-					message, user, user_memory, "self"
-				)
+				await self.do_memory_actions(message, user, user_stm, "self")
 
 		_, guild_settings = await server.settings.load(message.guild.id) if message.guild else '', {}
 

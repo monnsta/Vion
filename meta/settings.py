@@ -57,7 +57,8 @@ class Config(Data):
 	sandbox: Sandbox
 	logging: Logging
 	max_prefix: int
-	max_memory: int
+	max_stm: int
+	max_ltm: int
 	max_previous_response: int
 	max_audit: int
 	gemini_models: Tuple[str, ...]

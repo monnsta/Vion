@@ -98,7 +98,8 @@ logging: [o(b|i)] (
 < CONSTRAINTS >
 < be carefull of hitting ai api token limits. don't set these too high >
 max_prefix: [i] 3; < used for user and server settings to limit the max amount of prefixes >
-max_memory: [i] 100;
+max_stm: [i] 100;  < Limit for short term memory stream >
+max_ltm: [i] 50;   < Limit for long term core memory items >
 max_previous_response: [i] 10;
 max_audit: [i] 40;
 
@@ -129,13 +130,15 @@ settings: [o(o(l|b|s))] (
 ai_data: [o(o(l|s))] (
 	< These should stay as json in config >
 	server: (
-		memory: ();
+		stm: ();
+		ltm: ();
 		previous_response: ();
 		audit_log: ();
 		guild: "";
 	);
 	user: (
-		memory: ();
+		stm: ();
+		ltm: ();
 		previous_response: ();
 		user: "";
 	);
@@ -149,8 +152,11 @@ prompt_template: /
 	{f"<guild_instructions>\\n{instructions}\\n</guild_instructions>" if instructions else ""}
 	{f"<user_obj>\\n{user}\\n</user_obj>" if user else ""}
 
-	{f"<user_dm_messages>\\n{user_messages}\\n</user_dm_messages>" if user_messages else ""}
-	{f"<guild_messages>\\n{guild_messages}\\n</guild_messages>" if guild_messages else ""}
+	{f"<guild_long_term_memory>\\n{guild_ltm}\\n</guild_long_term_memory>" if guild_ltm else ""}
+	{f"<user_long_term_memory>\\n{user_ltm}\\n</user_long_term_memory>" if user_ltm else ""}
+
+	{f"<guild_short_term_memory>\\n{guild_stm}\\n</guild_short_term_memory>" if guild_stm else ""}
+	{f"<user_short_term_memory>\\n{user_stm}\\n</user_short_term_memory>" if user_stm else ""}
 
 	You are given {', '.join(params) if params else "no"} parameters, declare your main entry point as such:
 	```
@@ -257,7 +263,25 @@ system_instructions: /
 
 	---
 
-	## 2.2. Technical Constraints
+	## 2.2. Memory Systems (LTM & STM)
+	You have an advanced memory system giving you Short-Term Memory (STM) automatically in your prompts, and a Long-Term Memory (LTM) you can write to.
+	* You will see `<user_short_term_memory>` representing all recent interactions the user has had with you across ANY server. The exact origin (Guild/Channel) will be labeled so you never confuse where they said it.
+	* If a user tells you an important fact, preference, or defining detail, you can permanently save it to Long-Term Memory directly in your python code!
+	```python
+	from core.wrp.memory import user_ltm, guild_ltm
+
+	async def main(message, bot):
+		# Saving a user preference permanently:
+		await user_ltm.add(message.author.id, "Loves dark mode and prefers Python programming.")
+
+		# Saving a core fact about the current server:
+		await guild_ltm.add(message.guild.id, "This is a serious software dev server, keep it professional.")
+	```
+	Keep LTM entries factual. Do not use these for unimportant information
+
+	---
+
+	## 2.3. Technical Constraints
 	 * Execution Safety: You are restricted to the following environment:
 	   * Allowed Modules: {', '.join(@[sandbox.allowed_modules])}
 	   * Allowed Builtins: {', '.join(@[sandbox.allowed_builtins])}
@@ -265,7 +289,7 @@ system_instructions: /
 
 	---
 
-	## 2.3. Implementation Examples
+	## 2.4. Implementation Examples
 	Example 1: Standard Interaction
 	Used for typical conversational replies. Note the use of typing() to maintain immersion.
 	```
@@ -411,7 +435,7 @@ _list: [l(s)] (
 	Pretending that was intentional.;
 	Seriously, who hurt you?;
 	Existing is exhausting.;
-	Professional at making things awkward.;
+	Professional at making awkward things awkwarder.;
 	My fault for having expectations.;
 	Choosing violence through passive aggression.;
 	Giving mixed signals and liking it.;

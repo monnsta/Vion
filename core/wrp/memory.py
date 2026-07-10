@@ -2,6 +2,8 @@ import logging
 from pathlib import Path
 from typing import Any
 
+import discord
+
 from core.lib.converter import convert_message
 from core.lib.file import json_file
 from meta import config, file
@@ -69,13 +71,25 @@ class _EntityListStore:
 			return False
 
 
-class Memory(_EntityListStore):
+class STM(_EntityListStore):
 	def __init__(self, entity_type="guild"):
-		super().__init__("memory", config.max_memory, entity_type)
+		super().__init__("stm", config.max_stm, entity_type)
 
 	async def add(self, entity_id: int, message) -> bool:
 		try:
 			entry = await convert_message(message)
+
+			context_tag = ""
+			if hasattr(message, "guild") and message.guild:
+				context_tag = f"[Guild: {message.guild.name} | Channel: #{message.channel.name}]"
+			elif hasattr(message, "channel") and isinstance(message.channel, discord.DMChannel):
+				context_tag = "[Direct Message]"
+
+			if isinstance(entry, dict):
+				entry["_context"] = context_tag
+			elif isinstance(entry, str) and context_tag:
+				entry = f"{context_tag} {entry}"
+
 			success, data = await self._load(entity_id)
 			if not success:
 				return False
@@ -85,10 +99,31 @@ class Memory(_EntityListStore):
 			data[self.key] = self._trim(items)
 
 			await self._save(entity_id, data)
-			log.debug(f"Added memory entry for {self.entity_type} {entity_id}")
+			log.debug(f"Added STM entry for {self.entity_type} {entity_id}")
 			return True
 		except Exception as e:
-			log.error(f"Error adding memory for {self.entity_type} {entity_id}: {e}")
+			log.error(f"Error adding STM for {self.entity_type} {entity_id}: {e}")
+			return False
+
+class LTM(_EntityListStore):
+	def __init__(self, entity_type="guild"):
+		super().__init__("ltm", config.max_ltm, entity_type)
+
+	async def add(self, entity_id: int, note: str) -> bool:
+		try:
+			success, data = await self._load(entity_id)
+			if not success:
+				return False
+
+			items = self._get_list(data)
+			items.append(note)
+			data[self.key] = self._trim(items)
+
+			await self._save(entity_id, data)
+			log.debug(f"Added LTM entry for {self.entity_type} {entity_id}")
+			return True
+		except Exception as e:
+			log.error(f"Error adding LTM for {self.entity_type} {entity_id}: {e}")
 			return False
 
 class Audit(_EntityListStore):
@@ -135,12 +170,38 @@ class Response(_EntityListStore):
 			return False
 
 
-guild_memory = Memory(entity_type="guild")
+class MemoryCluster:
+	@staticmethod
+	async def build(guild: discord.Guild | None, user: discord.User | discord.Member | None) -> dict:
+		cluster = {
+			"guild_stm": [],
+			"guild_ltm": [],
+			"user_stm": [],
+			"user_ltm": []
+		}
+
+		if guild:
+			_, cluster["guild_stm"] = await guild_stm.get(guild.id)
+			_, cluster["guild_ltm"] = await guild_ltm.get(guild.id)
+
+		if user:
+			_, cluster["user_stm"] = await user_stm.get(user.id)
+			_, cluster["user_ltm"] = await user_ltm.get(user.id)
+
+		return cluster
+
+
+guild_stm = STM(entity_type="guild")
+guild_ltm = LTM(entity_type="guild")
 guild_audit = Audit(entity_type="guild")
 guild_response = Response(entity_type="guild")
 
-user_memory = Memory(entity_type="user")
+user_stm = STM(entity_type="user")
+user_ltm = LTM(entity_type="user")
 user_response = Response(entity_type="user")
 
 
-__all__ = ('guild_memory', 'guild_audit', 'guild_response', 'user_memory', 'user_response')
+__all__ = (
+	'guild_stm', 'guild_ltm', 'guild_audit', 'guild_response', 
+	'user_stm', 'user_ltm', 'user_response', 'MemoryCluster'
+)

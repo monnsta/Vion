@@ -5,10 +5,9 @@ import discord
 
 from core.lib.llm import GenerateContent
 from core.lib.code import Code, extract
-from core.wrp.memory import guild_memory, user_memory, guild_response, user_response
+from core.wrp.memory import MemoryCluster, guild_response, user_response
 from core.wrp.profile import server, user
 from meta import config
-
 
 
 log = logging.getLogger(__name__)
@@ -60,15 +59,13 @@ class AI:
 	) -> None:
 		log.info(f"Processing action for event: '{event}' (Guild: {guild.id if guild else 'None'}, Member: {member.id if member else 'None'})")
 		
-		g_msg, u_msg = None, None
 		g_obj, u_obj = None, None
 		g_ins = None
 		pipeline = list(self.base_modules)
 
 		if event == "on_message":
 			if guild:
-				log.debug(f"Fetching context for Guild ID: {guild.id}")
-				_, g_msg = await guild_memory.get(guild.id)
+				log.debug(f"Fetching config objects for Guild ID: {guild.id}")
 				_, g_obj = await server.info.load(guild.id)
 				_, g_settings = await server.settings.load(guild.id)
 				g_ins = g_settings.get("instructions")
@@ -76,8 +73,7 @@ class AI:
 					await server.info.save(guild)
 					_, g_obj = await server.info.load(guild.id)
 			if member:
-				log.debug(f"Fetching context for Member ID: {member.id}")
-				_, u_msg = await user_memory.get(member.id)
+				log.debug(f"Fetching config objects for Member ID: {member.id}")
 				_, u_obj = await user.info.load(member.id)
 				if not u_obj:
 					await user.info.save(member)
@@ -90,6 +86,9 @@ class AI:
 					user_modules = self._get_user_modules(user_keys)
 					pipeline = user_modules + pipeline
 
+		log.debug("Building Memory Cluster...")
+		cluster = await MemoryCluster.build(guild, member)
+
 		active_pipeline = [m for m in pipeline if not m.is_cooling_down]
 		log.debug(f"Pipeline status -> Total modules: {len(pipeline)}, Active/Available: {len(active_pipeline)}")
 
@@ -101,8 +100,7 @@ class AI:
 			guild=g_obj,
 			instructions=g_ins,
 			user=u_obj,
-			guild_messages=g_msg,
-			user_messages=u_msg,
+			**cluster, # Unpacks: guild_stm, user_stm, guild_ltm, user_ltm
 			params=kwargs.keys(),
 			event=event,
 			extra=extra
@@ -153,5 +151,6 @@ class AI:
 		if manager and entity_id is not None:
 			log.debug(f"Persisting model response for entity ID: {entity_id}")
 			await manager.add(entity_id, response)
+
 
 ai = AI()
