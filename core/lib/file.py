@@ -12,7 +12,6 @@ from typing import cast, AsyncIterator, Generic, TypeVar, Any
 
 orjson: Any = None
 yaml: Any = None
-ial: Any = None
 SafeLoader: Any = None
 SafeDumper: Any = None
 
@@ -25,11 +24,6 @@ try:
 			from yaml import CSafeLoader as SafeLoader, CSafeDumper as SafeDumper
 		except ImportError:
 			from yaml import SafeLoader, SafeDumper
-	except ImportError:
-		pass
-
-	try:
-		import ial
 	except ImportError:
 		pass
 except ImportError:
@@ -518,24 +512,6 @@ class YAML(BaseFileIO[dict]):
 	def default_empty(self) -> dict:
 		return {}
 
-class IAL(BaseFileIO[dict]):
-	"""IAL implementation. (new language)"""
-	def serialize(self, data: dict) -> bytes:
-		return ial.dumps(data if data is not None else {}, lazy=True).encode("utf-8")
-
-	def deserialize(self, content: bytes) -> dict:
-		if not content or content.strip() == b"":
-			return self.default_empty
-		return cast(dict, ial.loads(content.decode("utf-8")))
-
-	def clone(self, data: dict) -> dict:
-		if not data: return {}
-		return cast(dict, orjson.loads(orjson.dumps(data)))
-
-	@property
-	def default_empty(self) -> dict:
-		return {}
-
 
 _default = (
 	1800, # cache_ttl_seconds
@@ -545,13 +521,12 @@ _default = (
 text_file = TEXT(*_default)
 json_file = cast(JSON, JSON(*_default) if orjson else None)
 yaml_file = cast(YAML, YAML(*_default) if yaml and orjson else None)
-ial_file  = cast(IAL,  IAL(*_default)  if ial  and orjson else None)
 
 create_path = CreatePath()
 
 
 __all__ = (
-	'text_file', 'json_file', 'yaml_file', 'ial_file',
-	'TEXT',      'JSON',      'YAML',      'IAL',
+	'text_file', 'json_file', 'yaml_file',
+	'TEXT',      'JSON',      'YAML',
 	'create_path'
 )

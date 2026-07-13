@@ -130,23 +130,19 @@ class Root(commands.Cog):
 		t1 = discord.utils.utcnow()
 		msg = await ctx.reply(view=Generic("Running diagnostic..."))
 		t2 = discord.utils.utcnow()
+
 		rest_latency = round((t2 - t1).total_seconds() * 1000)
 
-		lower_limit = 50
-		upper_limit = 250
+		thresholds = [
+			(100, "🟢 Optimal"),
+			(150, "🟡 Good"),
+			(250, "🟠 Minor Latency"),
+			(400, "🔴 Slow"),
+			(800, "🟤 Very Slow"),
+			(float('inf'), "💀 Critically Slow (Running on a potato??)")
+		]
 
-		if ws_latency < lower_limit:
-			status = "🟢 Stable"
-		else:
-			severity = min((ws_latency - lower_limit) / (upper_limit - lower_limit), 1.0)
-
-			thresholds = (
-				(0.4, "🟡 Slow"),
-				(0.8, "🟠 Very Slow"),
-				(1.0, "🔴 Critically Slow (Running on a potato??)")
-			)
-
-			status = next(text for limit, text in thresholds if severity <= limit)
+		status = next(text for limit, text in thresholds if ws_latency <= limit)
 
 		guild_count = len(self.bot.guilds)
 		user_count = len(self.bot.users)

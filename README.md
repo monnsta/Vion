@@ -1,7 +1,7 @@
 <div align="center">
-    <img src="icon.png" alt="Vion Logo" width="120" height="120" />
-    <h1>Vion: The Unrestricted AI Discord Agent</h1>
-    <p><em>An advanced AI agent designed with robust modularity and sandboxed execution capabilities, capable of doing ANYTHING within Discord.</em></p>
+	<img src="icon.png" alt="Vion Logo" width="120" height="120" />
+	<h1>Vion: The Unrestricted AI Discord Agent</h1>
+	<p><em>An advanced AI agent designed with robust modularity and sandboxed execution capabilities, capable of doing ANYTHING within Discord.</em></p>
 </div>
 
 ---
@@ -82,7 +82,7 @@ init/env --install --supervise
 
 Vion's behavior is primarily driven by configuration files, ensuring a clear separation between logic and dynamic settings.
 
-* **`config.ial`**: This file, located in the project root, is the brain of Vion. It defines the bot's identity, personality (via `system_instructions`), operational parameters, AI models, constraints (e.g., `max_memory`), and default settings for servers and users. It allows for fine-grained control over how the AI perceives itself and interacts with the world.
+*   **`config.yml`**: This file, located in the project root, is the brain of Vion. It defines the bot's identity, personality (via `system_instructions`), operational parameters, AI models, constraints (e.g., `max_memory`), and default settings for servers and users. It allows for fine-grained control over how the AI perceives itself and interacts with the world.
 
 * **`.env`**: Contains sensitive API keys (Discord, Gemini, AssemblyAI) that should *never* be committed to version control. This file is loaded at runtime to securely access external services. Make sure to populate it as described in [Installation](#installation).
 
@@ -131,7 +131,7 @@ The repository is highly modular, ensuring clear separation between core logic, 
 ├── .env.template          # Template for .env file
 ├── bootstrap.py           # Initialization script (Logging setup, early config loading)
 ├── bot.py                 # Main application entry point
-├── config.ial             # Primary bot configuration and behavior settings (IAL language)
+├── config.yml             # Primary bot configuration and behavior settings
 ├── icon.png               # Bot's icon
 └── requirements.txt       # Python dependencies
 ```

@@ -195,14 +195,15 @@ class SettingRoot(commands.Cog):
 		data = await load_settings(manager, target_id, type) # type: ignore
 
 		lines = []
+		inst = data.get('instructions', '')
 		if type == 'server':
 			lines.append(f"# Settings for {getattr(ctx.guild, 'name', 'Unknown')}")
 			lines.append(f"**Prefixes:** {' '.join([f'`{p}`' for p in [*data.get('prefix', []), *config.default_prefix]])}")
 			lines.append(f"**Freewill:** {'Yes' if data.get('free_will', False) else 'No'}")
 			lines.append(
 				"**Instructions:**\n"
-				f"```{em(data.get('instructions', 'None'), chars='`')}```"
-				f"{f'{emoji.info} The `` ` `` (backtick) here are escaped for proper rendering, your instructions doesn\'t actually contain a `` \\` ``' if '`' in data.get('instructions', '') else ''}"
+				f"```{em(inst if inst else 'None', chars='`')}```"
+				f"{f'{emoji.info} The `` ` `` (backtick) here are escaped for proper rendering, your instructions doesn\'t actually contain a `` \\` ``' if '`' in inst else ''}"
 			)
 		else:
 			lines.append(f"# Settings for {ctx.author.display_name}")

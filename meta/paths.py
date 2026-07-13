@@ -17,10 +17,6 @@ class Base:
 		self.data = root / "data"
 		self.logs = root / "logs"
 
-	@property
-	def asset(self) -> Path:
-		return self.meta / "asset"
-
 
 class Sub:
 	def __init__(self, base: Base) -> None:
@@ -30,11 +26,8 @@ class Sub:
 		self.glob    = base.data / "global"
 		self.servers = base.data / "servers"
 		self.users   = base.data / "users"
-		self.cog     = base.core / "cog"
 
-	@property
-	def avatar(self) -> Path:
-		return self.base.asset / "avatars"
+		self.cog     = base.core / "cog"
 
 	def custom_cogs(self, i: str) -> Path:
 		return self.servers / i / "cog"
@@ -49,7 +42,7 @@ class File:
 		self.glob   = self.GlobalFiles(self)
 
 		self.env    = root / ".env"
-		self.conf   = root / "config.ial"
+		self.conf   = root / "config.yml"
 
 	class ServerFiles:
 		def __init__(self, parent: 'File') -> None:
@@ -126,6 +119,6 @@ async def setup_directory() -> None:
 
 
 __all__ = (
-	'setup_directory', 'create_path',
+	'setup_directory',
 	'base', 'sub', 'file'
 )

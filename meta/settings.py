@@ -1,6 +1,4 @@
 import builtins
-import ial
-import json
 import logging
 import sys
 from typing import List, Tuple, Dict, Any, Callable, Literal, cast
@@ -9,7 +7,7 @@ import pytz
 
 from core.lib.dataclass import Data, AntiFreeze
 from core.lib.utils import F
-from core.lib.file import ial_file
+from core.lib.file import yaml_file
 from meta.paths import file
 
 
@@ -119,18 +117,14 @@ async def load_config(reload: bool = False):
 	global config, emoji
 	log.info("Setting up config..." if not reload else "Reloading config...")
 
-	if not ial_file:
+	if not yaml_file:
 		log.critical("ial parser not found, please install the required dependencies")
 		sys.exit(10)
 
 	try:
-		success, data = await ial_file.load(file.conf, update_cache=False, use_cache=False)
-	except ial.MultiError as e:
-		for i, error in enumerate(e.errors):
-			log.error(f"{i}. {error}", exc_info=True)
-
-	if not success: # type: ignore
-		log.critical(f"Failed to load {file.conf}")
+		_, data = await yaml_file.load(file.conf, update_cache=False, use_cache=False)
+	except Exception:
+		log.critical(f"Failed to load {file.conf}", exc_info=True)
 		sys.exit(10)
 
 	try:
@@ -139,8 +133,6 @@ async def load_config(reload: bool = False):
 	except Exception:
 		log.critical("An error occurred while parsing config into Data object", exc_info=True)
 		sys.exit(10)
-
-	log.debug(json.dumps({k: v for k, v in data.items() if k != "system_instructions"})) #type: ignore
 
 	allowed_prefixes = tuple(f"{m}." for m in config.sandbox.allowed_modules)
 	allowed_exact = set(config.sandbox.allowed_modules)
@@ -171,13 +163,14 @@ async def load_config(reload: bool = False):
 	config.activity.range = tuple(config.activity.range)
 	config.timezone = pytz.timezone(config.timezone)
 
-	_, secrets_data = await ial_file.load(file.env)
+	_, secrets_data = await yaml_file.load(file.env)
 	config.secrets = Data.load(secrets_data)
 
 	config.sandbox.allowed_builtins = {name: getattr(builtins, name) for name in config.sandbox.allowed_builtins}
 	config.sandbox.allowed_builtins["__import__"] = safe_import
 
-	config.system_instructions = F(config.system_instructions).format()
+	config.system_instructions = F(config.system_instructions).format(config=config)
+	config.summary_instrucgions = F(config.summary_instructions).format(config=config)
 	config.prompt_template = F(cast(str, config.prompt_template))
 
 	config.cmd = preserved_cmd

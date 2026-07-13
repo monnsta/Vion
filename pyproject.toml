@@ -20,8 +20,7 @@ dependencies = [
 	"httpx",
 	"cryptography",
 	"orjson",
-	"PyYAML",
-	"ial @ git+https://github.com/monnsta/IAL.git"
+	"PyYAML"
 ]
 classifiers = [
 	"Programming Language :: Python :: 3",

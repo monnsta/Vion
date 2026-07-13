@@ -7,4 +7,3 @@ pytz
 httpx
 orjson
 PyYAML
-git+https://github.com/monnsta/IAL.git

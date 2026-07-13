@@ -202,6 +202,6 @@ user_response = Response(entity_type="user")
 
 
 __all__ = (
-	'guild_stm', 'guild_ltm', 'guild_audit', 'guild_response', 
+	'guild_stm', 'guild_ltm', 'guild_audit', 'guild_response',
 	'user_stm', 'user_ltm', 'user_response', 'MemoryCluster'
 )
