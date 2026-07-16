@@ -62,6 +62,44 @@ class Bot(commands.Bot):
 			*user_settings.get("prefix", [])
 		]
 
+	async def process_commands(self, message):
+		if message.author.bot:
+			return
+
+		ctx = await self.get_context(message)
+
+		if ctx.command is None and ctx.prefix:
+			unprefixed = message.content[len(ctx.prefix):]
+			first_word = unprefixed.split()[0] if unprefixed else ""
+
+			if len(first_word) > 1:
+				node = config.cmd
+				resolved = []
+
+				for char in first_word:
+					if not hasattr(node, "keys"):
+						resolved.clear()
+						break
+
+					match = next((k for k in node.keys() if k.startswith(char)), None)
+					if match:
+						resolved.append(match)
+						node = getattr(node, match)
+					else:
+						resolved.clear()
+						break
+
+				if resolved and len(resolved) == len(first_word) and hasattr(node, "mention"):
+					spaced = " ".join(resolved)
+					message.content = message.content.replace(
+						f"{ctx.prefix}{first_word}",
+						f"{ctx.prefix}{spaced}",
+						1
+					)
+					ctx = await self.get_context(message)
+
+		await self.invoke(ctx)
+
 
 if __name__ == "__main__":
 	bot = Bot()
