@@ -1,5 +1,4 @@
 import asyncio
-import traceback
 from typing import Literal
 
 import discord
@@ -9,12 +8,12 @@ from discord.ext import commands
 from core.lib.code import Code, status
 from core.lib.utils import mt
 from core.wrp.extension import map_command_mentions
-from meta import load_config, config, emoji
+from meta import config
 
 from core.cog.ui_template import Fail, Success, Paginated, UnexpectedError
-from core.cog.utils import is_dev
 from core.cog.dev.blacklist import Blacklist
 from core.cog.dev.extension import Extension
+from core.cog.dev.reload import Reload
 
 
 class DevRoot(commands.Cog):
@@ -29,8 +28,12 @@ class DevRoot(commands.Cog):
 		ext_group = Extension(self.bot)
 		ext_group.cog = self
 
+		reload_group = Reload(self.bot)
+		reload_group.cog = self
+
 		self.dev.add_command(blacklist_group)
 		self.dev.add_command(ext_group)
+		self.dev.add_command(reload_group)
 
 	async def cog_check(self, ctx: commands.Context) -> bool:
 		return any(ctx.author.id == dev_id for dev_id in config.dev_ids)
@@ -112,11 +115,19 @@ class DevRoot(commands.Cog):
 				),
 				mt(
 					"## Reload Config:",
-					"Reload the bot's configuration files.",
+					"Reload the config file.",
 					"Usage:",
-					f"* `{self.p}dev reload_config`",
-					f"* `{self.p}d r`",
-					f"* {config.cmd.dev.reload_config}"
+					f"* `{self.p}dev reload config`",
+					f"* `{self.p}d r c`",
+					f"* {config.cmd.dev.reload.config}"
+				),
+				mt(
+					"## Reload Process:",
+					"Reload the entire process",
+					"usage:",
+					f"* `{self.p}dev reload process`",
+					f"* `{self.p}d r p`",
+					f"* {config.cmd.dev.reload.process}"
 				),
 				mt(
 					"## Update:",
@@ -314,44 +325,6 @@ class DevRoot(commands.Cog):
 			)
 			await msg.edit(view=view)
 			view.message = msg
-
-
-	@dev.command(
-		name='reload_config',
-		aliases=['r'],
-		description='Reload the config file'
-	)
-	async def reload_config(self, ctx: commands.Context):
-		original_config = config.to_dict()
-		original_emoji = emoji.to_dict()
-
-		try:
-			config.clear()
-			emoji.clear()
-
-			await load_config(reload=True)
-
-			await asyncio.sleep(1)
-
-			await ctx.reply(view=Success("Successfully reloaded config"))
-
-		except Exception:
-			config.clear()
-			emoji.clear()
-			config.load(original_config)
-			emoji.load(original_emoji)
-
-			error_traceback = traceback.format_exc()
-
-			await asyncio.sleep(1)
-
-			await ctx.reply(view=Fail(
-				"Failed to Reload Config",
-				None,
-				"```py",
-				error_traceback,
-				"```"
-			))
 
 
 	@dev.command(
