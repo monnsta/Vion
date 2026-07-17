@@ -172,7 +172,9 @@ class Blacklist(HybridGroup):
 			label, _ = await self._get_entity_info(type, tid)
 			await ctx.reply(view=Success(
 				"Success",
-				f"{label} has been added to the blacklist.\n**Reason:** {reason}"
+				f"{label} has been added to the blacklist.",
+				f"**Reason:** {reason}",
+				f"**Duration:** {duration}"
 			))
 		else:
 			await ctx.reply(view=Fail("Failed", msg))

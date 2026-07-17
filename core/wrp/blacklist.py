@@ -24,6 +24,9 @@ class Blacklist:
 		return datetime.now(config.timezone)
 
 	def _parse_duration(self, duration: str) -> Optional[str]:
+		if duration == "0":
+			return None
+
 		try:
 			amount = int(duration[:-1])
 			unit = duration[-1].lower()
@@ -89,8 +92,6 @@ class Blacklist:
 			return False, "Entity is already blacklisted."
 
 		expires_at = self._parse_duration(duration) if duration else None
-		if duration and not expires_at:
-			return False, "Invalid duration format (use 7d, 12h, 30m)."
 
 		data[entity_type][eid] = {
 			"mod_id": mod_id,
