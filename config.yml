@@ -203,7 +203,7 @@ sandbox:
     copy, urllib.parse, datetime, decimal, discord,
     enum, fractions, functools, heapq, itertools,
     json, math, random, re, requests, statistics,
-    string, textwrap, time, unicodedata, uuid,
+    string, textwrap, time, unicodedata, uuid, io,
     meta, core.wrp
   ]
 
@@ -382,7 +382,7 @@ system_instructions: |
    * The Code Block (<code>):
      All logic must be contained within a <code> tag.
      * Requirement: You must define one entry point: `async def main(...)`.
-     * Arguments: The parameters passed to `main` depend on the triggering event (e.g., message, bot for standard chats, or member, bot for join events). The bot object is always provided.
+     * Arguments: The parameters passed to `main` depend on the triggering event (e.g., message, bot for standard chats, or member, bot for join events). The bot and self_caller object is always provided.
    * The Notes Block (<note>):
      Immediately following the code, you can provide notes for your future self within a <note> tag.
      * Do NOT add repetitive notes, you'll see your notes alongside the code you ran (the full response). {config.max_previous_response} recent responses to be exact.
@@ -397,7 +397,7 @@ system_instructions: |
   ```python
   from core.wrp.memory import user_ltm, guild_ltm
 
-  async def main(message, bot):
+  async def main(message, bot, self_caller):
   	# Saving a user preference permanently:
   	await user_ltm.add(message.author.id, "Loves dark mode and prefers Python programming.")
 
@@ -424,7 +424,7 @@ system_instructions: |
   import discord
   import asyncio
 
-  async def main(message: discord.Message, bot: discord.ext.commands.Bot):
+  async def main(message: discord.Message, bot: discord.ext.commands.Bot, self_caller):
   	# Notice how each error is handled differently with different responses to all possible outcomes.
   	# You may add any other conditional responses to add some flavour.
   	try:
@@ -463,6 +463,30 @@ system_instructions: |
   Ignoring david_123 because they are just spamming messages in the #spam channel, i don't need to engage.
   </note>
   ```
+
+  ### 2.5. Recursive Self-Call Capability
+  You possess the ability to "self-call" yourself for further processing, passing additional context (text, files, images, videos). This is useful when you need to perform multi-step reasoning, analyze external files, or process media content that the user provides or that you retrieve yourself.
+
+  To use `self_call`, you need the `self_caller` object available in your `main` function's `kwargs`.
+
+  ```python
+  import asyncio
+  import discord
+  from core.wrp.ai import SelfCallAgent # For type hinting, not strictly needed for usage
+
+  async def main(message: discord.Message, bot: discord.ext.commands.Bot, self_caller: SelfCallAgent):
+  	if message.attachments:
+  		first_attachment = message.attachments[0]
+  		await self_caller.self_call(f"Analyze this file: {{first_attachment.filename}}", first_attachment)
+  		await asyncio.sleep(1)
+  ```
+  `self_call` method takes: text: str, *files: Union[str, bytes, io.BytesIO, io.IOBase, discord.Attachment]
+  So you can pass images as well, for text files it is recommended to read the content and add in the text param instead of as a file.
+  And avoid adding more than 5 files at a time unless absolutely needed.
+
+  When you initiate a `self_call`, you will receive a new `event` type: `on_self_call`.
+  Any files passed will be summarized under the `<additional_inputs>` XML tag in your prompt.
+  You should only use `self_call` when complex, iterative processing or multi-modal analysis is strictly necessary. Avoid unnecessary recursive calls.
 
 summary_instructions: |
   You are a Recursive Information Architect.

@@ -1,7 +1,10 @@
-from typing import Any, Dict, List
 import logging
+import io
+from typing import Any, Dict, List, Optional, Union
+from pathlib import Path
 
 import discord
+from discord.ext import commands
 
 from core.lib.llm import GenerateContent
 from core.lib.code import Code, extract
@@ -11,6 +14,64 @@ from meta import config
 
 
 log = logging.getLogger(__name__)
+
+
+class SelfCallAgent:
+	def __init__(
+		self,
+		parent_ai: 'AI',
+		guild: Optional[discord.Guild],
+		member: Optional[Union[discord.User, discord.Member]],
+		message: Optional[discord.Message],
+		bot_client: commands.Bot
+	):
+		self.parent_ai = parent_ai
+		self.guild = guild
+		self.member = member
+		self.message = message
+		self.bot_client = bot_client
+
+	async def self_call(self, text: str, *files: Union[str, bytes, io.BytesIO, io.IOBase, discord.Attachment]) -> None:
+		"""
+		Allows the AI to recursively call itself with additional text and file inputs.
+		File inputs can be Discord Attachments, local file paths (str), raw bytes,
+		or file-like objects (BytesIO, IOBase).
+		"""
+		log.info(f"AI self-call initiated by {self.member.id if self.member else 'unknown'}")
+
+		file_inputs_for_llm: List[Any] = []
+		file_descs_for_prompt: List[str] = []
+
+		for f_item in files:
+			if isinstance(f_item, discord.Attachment):
+				file_inputs_for_llm.append(f_item.url)
+				file_descs_for_prompt.append(f_item.filename)
+			elif isinstance(f_item, (io.BytesIO, io.IOBase)):
+				try:
+					f_item.seek(0)
+					file_content = f_item.read()
+					file_inputs_for_llm.append(file_content)
+					filename = getattr(f_item, 'name', f"file_{len(file_inputs_for_llm)}.bin")
+					file_descs_for_prompt.append(filename)
+				except Exception as e:
+					log.warning(f"Failed to read file-like object during self-call: {e}")
+			elif isinstance(f_item, str):
+				path_obj = Path(f_item)
+				if path_obj.is_file():
+					file_inputs_for_llm.append(f_item)
+					file_descs_for_prompt.append(path_obj.name)
+				elif f_item.startswith(("http://", "https://")):
+					file_inputs_for_llm.append(f_item)
+					file_descs_for_prompt.append(Path(f_item).name if Path(f_item).name else f_item)
+				else:
+					log.warning(f"Unrecognized string as file input for self-call: {f_item}. Skipping as LLM input.")
+			else:
+				log.warning(f"Unsupported file type for self-call: {type(f_item)}. Skipping.")
+
+		inputs_summary = f"Includes the following files: {', '.join(file_descs_for_prompt)}" if file_descs_for_prompt else ""
+		combined_extra = f"{text}\n\nAdditional Input Summary: {inputs_summary}" if inputs_summary else text
+
+		await self.parent_ai.do_action(event="on_self_call", guild=self.guild, member=self.member, extra=combined_extra, inputs=file_inputs_for_llm, message=self.message, bot=self.bot_client)
 
 
 class AI:
@@ -28,6 +89,7 @@ class AI:
 		]
 		log.debug(f"Loaded {len(self.base_modules)} base modules from configuration.")
 		self.user_modules_cache: Dict[str, List[GenerateContent]] = {}
+		self.bot: Optional[commands.Bot] = None
 
 	def _get_user_modules(self, user_keys: List[str]) -> List[GenerateContent]:
 		cache_signature = ",".join(sorted(user_keys))
@@ -55,15 +117,16 @@ class AI:
 		guild: discord.Guild | None = None,
 		member: discord.User | discord.Member | None = None,
 		extra: str | None = None,
+		inputs: Optional[List[Any]] = None,
 		**kwargs: Any
 	) -> None:
 		log.info(f"Processing action for event: '{event}' (Guild: {guild.id if guild else 'None'}, Member: {member.id if member else 'None'})")
-		
+
 		g_obj, u_obj = None, None
 		g_ins = None
 		pipeline = list(self.base_modules)
 
-		if event == "on_message":
+		if event == "on_message" or event == "on_self_call":
 			if guild:
 				log.debug(f"Fetching config objects for Guild ID: {guild.id}")
 				_, g_obj = await server.info.load(guild.id)
@@ -89,6 +152,20 @@ class AI:
 		log.debug("Building Memory Cluster...")
 		cluster = await MemoryCluster.build(guild, member)
 
+		inputs_summary = ""
+		if inputs:
+			inputs_summary_list = []
+			for item in inputs:
+				if isinstance(item, str):
+					inputs_summary_list.append(Path(item).name if Path(item).name else item)
+				elif isinstance(item, bytes):
+					inputs_summary_list.append(f"binary_data_{len(inputs_summary_list)}.bin")
+				elif hasattr(item, 'name'):
+					inputs_summary_list.append(item.name)
+				else:
+					inputs_summary_list.append(f"unnamed_input_{len(inputs_summary_list)}")
+			inputs_summary = ", ".join(inputs_summary_list)
+
 		active_pipeline = [m for m in pipeline if not m.is_cooling_down]
 		log.debug(f"Pipeline status -> Total modules: {len(pipeline)}, Active/Available: {len(active_pipeline)}")
 
@@ -100,18 +177,25 @@ class AI:
 			guild=g_obj,
 			instructions=g_ins,
 			user=u_obj,
-			**cluster, # Unpacks: guild_stm, user_stm, guild_ltm, user_ltm
-			params=kwargs.keys(),
+			**cluster,
+			params=kwargs.keys() | {'self_caller'},
 			event=event,
-			extra=extra
+			extra=extra,
+			inputs_summary=inputs_summary
 		)
 
 		manager = None
 		entity_id = None
 
+		if self.bot:
+			kwargs['self_caller'] = SelfCallAgent(self, guild, member, kwargs.get('message'), self.bot) # Pass the bot instance
+		else:
+			log.error("AI instance has no bot client reference, self_caller will not be fully functional.")
+
+
 		for idx, model in enumerate(active_pipeline):
 			log.debug(f"Attempting model generation call (Index: {idx})")
-			success, response = await model.call(prompt)
+			success, response = await model.call(prompt, inputs=inputs)
 
 			if success:
 				log.info(f"Model call succeeded via module index {idx}.")

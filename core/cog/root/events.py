@@ -308,12 +308,13 @@ class Events(commands.Cog):
 		free_will = guild_settings.get("free_will", True)
 
 		if should_respond(self.bot, free_will, prefixes, message):
+			if ai.bot is None:
+				ai.bot = self.bot
 			log.info(f"Responding to message: {message.content if message.content != '' else '*empty message*'}")
 			await ai.do_action(
 				"on_message",
 				message.guild,
 				message.author,
-
 				message=message,
 				bot=self.bot
 			)

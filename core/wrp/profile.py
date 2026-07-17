@@ -160,41 +160,21 @@ class BaseProfileManager:
 			def create_in_memory_zip():
 				buffer = io.BytesIO()
 				try:
-					def dict_to_markdown(data_obj, level=0) -> str:
-						md = ""
-						indent = "\t" * level
-						if isinstance(data_obj, dict):
-							for key, value in data_obj.items():
-								if isinstance(value, (dict, list)) and value:
-									md += f"{indent}- **{key}**:\n"
-									md += dict_to_markdown(value, level + 1)
-								else:
-									md += f"{indent}- **{key}**: {value}\n"
-						elif isinstance(data_obj, list):
-							for item in data_obj:
-								if isinstance(item, (dict, list)):
-									md += dict_to_markdown(item, level + 1)
-								else:
-									md += f"{indent}- {item}\n"
-						else:
-							md += f"{indent}{data_obj}\n"
-						return md
-
 					with zipfile.ZipFile(buffer, "w", zipfile.ZIP_DEFLATED) as zf:
 						readme_content = (
 							f"# {self.parent.entity_type.capitalize()} Data Export\n\n"
-							"This archive contains a readable export of your requested data.\n\n"
+							"This archive contains your raw data export in JSON format.\n\n"
 							"### File Guide:\n"
-							"- **settings.md**: Your core preferences and configuration settings.\n"
-							"- **ai_data.md**: Cached information the AI uses for processing.\n"
+							"- `settings.json`: Core preferences and configuration settings.\n"
+							"- `ai_data.json`: Cached context and memory data used by the AI.\n"
 						)
 						if self.parent.entity_type == "guild":
-							readme_content += (
-								"- **commands.py**: Custom commands setup for this server.\n"
-								"- **events.py**: Custom events setup for this server.\n"
-							)
+							readme_content += "- `cog/*`: Custom commands & events setup for this server.\n"
 
-						readme_content += "\n*Note: Original JSON data files have been formatted as readable Markdown lists for easier viewing.*"
+						readme_content += (
+							"\n\n*Note: JSON files can be opened in any text editor "
+							"(like Notepad, VS Code) or viewed nicely online using a JSON viewer.*"
+						)
 						zf.writestr("README.md", readme_content)
 
 						for file_path in source_dir.rglob('*'):
@@ -202,21 +182,7 @@ class BaseProfileManager:
 								continue
 
 							rel_path = file_path.relative_to(source_dir)
-
-							if file_path.suffix == '.json':
-								try:
-									with file_path.open('r', encoding='utf-8') as f:
-										json_data = json.load(f)
-
-									md_content = f"# {file_path.stem.capitalize()} Data\n\n"
-									md_content += dict_to_markdown(json_data)
-
-									md_rel_path = rel_path.with_suffix(".md")
-									zf.writestr(str(md_rel_path).replace('\\', '/'), md_content)
-								except json.JSONDecodeError:
-									zf.write(file_path, str(rel_path).replace('\\', '/'))
-							else:
-								zf.write(file_path, str(rel_path).replace('\\', '/'))
+							zf.write(file_path, str(rel_path).replace('\\', '/'))
 
 					buffer.seek(0)
 					return True, buffer

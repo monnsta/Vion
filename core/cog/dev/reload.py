@@ -10,8 +10,26 @@ from core.cog.ui_template import Fail, Success, Generic
 from core.cog.utils import HybridGroup, hybrid_command
 
 
+async def callback(ctx: commands.Context):
+	if ctx.invoked_subcommand is None:
+		await ctx.reply(view=Fail(
+			"Subcommand missing",
+			"Available subcommands:",
+			"```",
+			"config  (c)",
+			"process (p)",
+			"```"
+		))
+
+
 class Reload(HybridGroup):
 	def __init__(self, bot: commands.Bot):
+		super().__init__(
+			callback,
+			name='reload',
+			aliases=['r'],
+			description='Group for reloading things of the bot.'
+		)
 		self.bot = bot
 
 
@@ -65,4 +83,3 @@ class Reload(HybridGroup):
 		))
 
 		sys.exit(42) # code for restart
-

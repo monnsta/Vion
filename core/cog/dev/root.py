@@ -22,18 +22,9 @@ class DevRoot(commands.Cog):
 		self.p = config.default_prefix[0]
 		self.dev_only = True
 
-		blacklist_group = Blacklist(self.bot)
-		blacklist_group.cog = self
-
-		ext_group = Extension(self.bot)
-		ext_group.cog = self
-
-		reload_group = Reload(self.bot)
-		reload_group.cog = self
-
-		self.dev.add_command(blacklist_group)
-		self.dev.add_command(ext_group)
-		self.dev.add_command(reload_group)
+		self.dev.add_command(Blacklist(self.bot))
+		self.dev.add_command(Extension(self.bot))
+		self.dev.add_command(Reload(self.bot))
 
 	async def cog_check(self, ctx: commands.Context) -> bool:
 		return any(ctx.author.id == dev_id for dev_id in config.dev_ids)
