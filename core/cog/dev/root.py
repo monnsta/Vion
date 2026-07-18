@@ -328,7 +328,7 @@ class DevRoot(commands.Cog):
 		if spec == 'global':
 			synced = await self.bot.tree.sync()
 			if hasattr(self.bot, '_map_command_mentions'):
-				map_command_mentions(synced, config)
+				map_command_mentions(synced)
 
 			await ctx.reply(view=Success(
 				"Success",
@@ -341,7 +341,7 @@ class DevRoot(commands.Cog):
 				try:
 					synced = await self.bot.tree.sync(guild=guild)
 					if hasattr(self.bot, '_map_command_mentions'):
-						map_command_mentions(synced, config)
+						map_command_mentions(synced)
 					total += len(synced)
 				except discord.HTTPException:
 					await ctx.reply(view=UnexpectedError)

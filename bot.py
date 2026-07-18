@@ -37,12 +37,12 @@ class Bot(commands.Bot):
 
 		try:
 			global_cmds = await self.tree.fetch_commands()
-			map_command_mentions(global_cmds, config)
+			map_command_mentions(global_cmds)
 
 			try:
 				guild = discord.Object(id=int(config.dev_server_ids[0]))
 				guild_cmds = await self.tree.fetch_commands(guild=guild)
-				map_command_mentions(guild_cmds, config)
+				map_command_mentions(guild_cmds)
 			except discord.HTTPException:
 				pass
 		except discord.HTTPException:

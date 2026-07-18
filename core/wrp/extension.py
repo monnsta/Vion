@@ -15,7 +15,7 @@ from meta import config, sub, file
 log = logging.getLogger(__name__)
 
 
-def map_command_mentions(synced_commands, config):
+def map_command_mentions(synced_commands):
 	def walk(command, prefix="", root_id=None):
 		root_id = root_id or command.id
 		name = f"{prefix} {command.name}".strip()

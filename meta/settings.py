@@ -128,7 +128,7 @@ async def load_config(reload: bool = False):
 		sys.exit(10)
 
 	try:
-		preserved_cmd = config.cmd if reload and hasattr(config, 'cmd') else Data()
+		preserved_cmd = config.cmd if reload and config.get('cmd') else Data()
 		config.update(Data.load(data)) # type: ignore
 	except Exception:
 		log.critical("An error occurred while parsing config into Data object", exc_info=True)

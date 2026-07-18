@@ -14,7 +14,7 @@ export PYO3_USE_ABI3_FORWARD_COMPATIBILITY=1
 export CARGO_BUILD_JOBS=$(nproc 2>/dev/null || echo 4)
 
 # --- 2. Internal Setup & OS Detection ---
-APP_DIR=$(cd -- "$(dirname -- "${BASH_SOURCE[0]}")/.." &>/dev/null && pwd)
+APP_DIR=$(cd -- "$(dirname -- "${BASH_SOURCE[0]}")" &>/dev/null && pwd)
 BOT_PATH="$APP_DIR/$BOT_FILE"
 REQ_PATH="$APP_DIR/$REQUIREMENTS"
 CRASH_TS=()

@@ -24,18 +24,18 @@ Vion is designed for robust operation with built-in fail-safes and a streamlined
 **Quick Start:**
 
 1. **Prepare your `.env` file**: Copy `.env.template` to `.env` in the project root and fill in your Discord, Gemini, and AssemblyAI API keys.
-2. **Install Dependencies**: Run `init/env --install`. This will create a Python virtual environment (if it doesn't exist) and install all required packages.
+2. **Install Dependencies**: Run `./exec --install`. This will create a Python virtual environment (if it doesn't exist) and install all required packages.
 3. **Run the Bot**:
-   * **Standard Run**: `source init/env; bot_run`
-   * **Supervised Run (with auto-restart)**: `source init/env; bot_supervise`
+   * **Standard Run**: `source ./exec; bot_run`
+   * **Supervised Run (with auto-restart)**: `source ./exec; bot_supervise`
 
-For more detailed help on the available commands within the sourced environment, type `bot_help` after sourcing `init/env`.
+For more detailed help on the available commands within the sourced environment, type `bot_help` after sourcing `./exec`.
 
 ```bash
 # Example for a fresh setup and running in supervised mode
 cp .env.template .env
 # Edit .env file here to add your API keys
-init/env --install --supervise
+./exec --install --supervise
 ```
 
 ---
@@ -64,14 +64,14 @@ init/env --install --supervise
    Open the newly created `.env` file and replace the placeholder values with your actual `discord_api_key`, `assemblyai_api_key`, and `gemini_api_key`. Multiple Gemini keys can be provided for fallback.
 
 3. **Install Dependencies:**
-   Use the `env` script to set up the virtual environment and install Python packages.
+   Use the `exec` script to set up the virtual environment and install Python packages.
    ```bash
    # This command creates a .venv if it doesn't exist and installs dependencies
-   init/env --install
+   ./exec --install
    ```
    *(Optional: If you prefer to manually source the script and use its functions)*
    ```bash
-   source init/env
+   source ./exec
    bot_check     # Verifies or creates the virtual environment
    bot_install   # Installs dependencies
    ```
@@ -99,7 +99,7 @@ Vion is designed to be a highly capable and adaptable AI agent, offering:
 * **Global Blacklisting**: A built-in system allows developers to blacklist problematic users or servers, ensuring a safe and controlled environment.
 * **Customizable Discord Experience**: Users and server administrators can configure custom command prefixes, manage AI API keys (for Gemini), and set specific AI instructions and behavioral toggles (e.g., `freewill`, `chatbot_only`).
 * **Rich Interactive UI**: Leverages Discord's UI components (buttons, modals, pagination) for intuitive command interaction and data management.
-* **Robust Error Handling & Supervision**: The `init/env` scripts include crash monitoring and auto-restart capabilities, along with detailed logging via `bootstrap.py` to ensure high availability and easy debugging.
+* **Robust Error Handling & Supervision**: The `exec` scripts include crash monitoring and auto-restart capabilities, along with detailed logging via `bootstrap.py` to ensure high availability and easy debugging.
 * **Extensible Architecture**: The cog-based system allows for easy addition and removal of features, making Vion highly adaptable to new requirements and functionalities.
 
 ---
@@ -124,7 +124,6 @@ The repository is highly modular, ensuring clear separation between core logic, 
 │   ├── servers/           # Data specific to each Discord server
 │   ├── trash/             # Temporarily stores deleted user/server data
 │   └── users/             # Data specific to each Discord user
-├── init/                  # Environment setup and execution scripts
 ├── logs/                  # System runtime logs and rotating archives
 ├── meta/                  # Configuration Setup & Path Mapping (loads config.ial, .env)
 ├── .env                   # Environment variables and API secrets (ignored by Git)
@@ -132,6 +131,7 @@ The repository is highly modular, ensuring clear separation between core logic, 
 ├── bootstrap.py           # Initialization script (Logging setup, early config loading)
 ├── bot.py                 # Main application entry point
 ├── config.yml             # Primary bot configuration and behavior settings
+├── exec                   # Environment setup and execution script
 ├── icon.png               # Bot's icon
 └── requirements.txt       # Python dependencies
 ```
