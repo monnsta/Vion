@@ -49,12 +49,11 @@ class SelfCallAgent:
 			elif isinstance(f_item, (io.BytesIO, io.IOBase)):
 				try:
 					f_item.seek(0)
-					file_content = f_item.read()
-					file_inputs_for_llm.append(file_content)
-					filename = getattr(f_item, 'name', f"file_{len(file_inputs_for_llm)}.bin")
+					file_inputs_for_llm.append(f_item)
+					filename = getattr(f_item, "name", f"file_{len(file_inputs_for_llm)}")
 					file_descs_for_prompt.append(filename)
 				except Exception as e:
-					log.warning(f"Failed to read file-like object during self-call: {e}")
+					log.warning(f"Failed to prepare file-like object during self-call: {e}")
 			elif isinstance(f_item, str):
 				path_obj = Path(f_item)
 				if path_obj.is_file():

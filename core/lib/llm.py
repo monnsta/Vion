@@ -1,7 +1,9 @@
 import asyncio
+import io
 import logging
 import tempfile
 import time
+import mimetypes
 from pathlib import Path
 from typing import Tuple, List, Optional, Any
 
@@ -62,9 +64,14 @@ class GenerateContent:
 	def set_cooldown(self, seconds: float):
 		self.cooldown_until = time.time() + seconds
 
-	async def _upload_and_wait(self, path: str) -> Any:
+	async def _upload_and_wait(self, path: str, mime_type: Optional[str] = None) -> Any:
 		log.debug(f"Uploading file: {path}")
-		file_obj = await self.client.aio.files.upload(path=path)
+
+		upload_kwargs: dict[str, Any] = {"file": path}
+		if mime_type:
+			upload_kwargs["config"] = {"mime_type": mime_type}
+
+		file_obj = await self.client.aio.files.upload(**upload_kwargs) # type: ignore
 
 		log.debug(f"File uploaded, initial state: {file_obj.state}")
 
@@ -88,13 +95,15 @@ class GenerateContent:
 			response = await client.get(url)
 			response.raise_for_status()
 
+			mime_type = response.headers.get("Content-Type")
+
 			with tempfile.NamedTemporaryFile(delete=False) as tmp:
 				tmp.write(response.content)
 				tmp_path = tmp.name
 
 		log.debug(f"Temporary file created at: {tmp_path}")
 		try:
-			return await self._upload_and_wait(tmp_path)
+			return await self._upload_and_wait(tmp_path, mime_type=mime_type)
 		finally:
 			tmp_file = Path(tmp_path)
 			if tmp_file.exists():
@@ -109,9 +118,26 @@ class GenerateContent:
 				log.debug(f"Detected local file path: {item}")
 				return await self._upload_and_wait(item)
 
+		if isinstance(item, (io.BytesIO, io.IOBase)):
+			log.debug("Detected file-like input")
+
+			item.seek(0)
+
+			filename = getattr(item, "name", "file")
+			mime_type, _ = mimetypes.guess_type(filename)
+
+			return types.Part.from_bytes(
+				data=item.read(),
+				mime_type=mime_type or "application/octet-stream"
+			)
+
 		if isinstance(item, bytes):
 			log.debug("Detected raw bytes input")
-			return types.Part.from_bytes(data=item, mime_type="application/octet-stream")
+
+			return types.Part.from_bytes(
+				data=item,
+				mime_type="application/octet-stream"
+			)
 
 		return item
 

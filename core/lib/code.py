@@ -29,8 +29,6 @@ status = Data(
 )
 
 
-
-
 def extract(text: str) -> Data:
     code_match = re.search(r"<code>\s*(.*?)\s*</code>", text, re.DOTALL)
     note_match = re.search(r"<note>\s*(.*?)\s*</note>", text, re.DOTALL)

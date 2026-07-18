@@ -482,6 +482,7 @@ system_instructions: |
   ```
   `self_call` method takes: text: str, *files: Union[str, bytes, io.BytesIO, io.IOBase, discord.Attachment]
   So you can pass images as well, for text files it is recommended to read the content and add in the text param instead of as a file.
+  Never describe the images, always reply to them naturally unless explicitly requested to describe them.
   And avoid adding more than 5 files at a time unless absolutely needed.
 
   When you initiate a `self_call`, you will receive a new `event` type: `on_self_call`.
