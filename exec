@@ -1,9 +1,9 @@
-#!/bin/bash
+#!/usr/bin/env bash
 set -u
 
 # --- 1. Configuration ---
-REPO_URL="https://github.com/monnsta/Vion.git"
-BRANCH="main"
+REPO_URL="${REPO_URL:-https://github.com/monnsta/Vion.git}"
+BRANCH="${BRANCH:-master}"
 
 BOT_FILE="bot.py"
 REQUIREMENTS="requirements.txt"
@@ -86,7 +86,7 @@ bot_git_update() {
 
 	if [[ ! -d "$APP_DIR/.git" ]]; then
 		bot_warn "No Git repository found in directory. Initializing repository..."
-		if [[ -z "$REPO_URL" || "$REPO_URL" == *"monnsta"* ]]; then
+		if [[ -z "$REPO_URL" ]]; then
 			bot_error "REPO_URL is not set in the configuration!"
 			return 1
 		fi
@@ -120,7 +120,16 @@ bot_git_update() {
 	git -C "$APP_DIR" fetch origin "$BRANCH" --quiet
 
 	local LOCAL_HASH REMOTE_HASH
-	LOCAL_HASH=$(git -C "$APP_DIR" rev-parse HEAD)
+	LOCAL_HASH=$(git -C "$APP_DIR" rev-parse HEAD 2>/dev/null || echo "")
+
+	if [[ -z "$LOCAL_HASH" ]]; then
+		bot_warn "Repository is empty or detached. Resetting to origin/$BRANCH..."
+		git -C "$APP_DIR" symbolic-ref HEAD refs/heads/"$BRANCH" 2>/dev/null || true
+		git -C "$APP_DIR" reset --hard "origin/$BRANCH" --quiet || git -C "$APP_DIR" pull origin "$BRANCH" --quiet
+		bot_log "Repository successfully synchronized."
+		return 0
+	fi
+
 	REMOTE_HASH=$(git -C "$APP_DIR" rev-parse "origin/$BRANCH")
 
 	if [[ "$LOCAL_HASH" != "$REMOTE_HASH" ]]; then
