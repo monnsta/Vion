@@ -2,6 +2,9 @@
 set -u
 
 # --- 1. Configuration ---
+REPO_URL="https://github.com/monnsta/Vion.git"
+BRANCH="main"
+
 BOT_FILE="bot.py"
 REQUIREMENTS="requirements.txt"
 
@@ -75,8 +78,78 @@ bot_clean() {
 	bot_log "Cache cleaned."
 }
 
+bot_git_update() {
+	if ! command -v git &>/dev/null; then
+		bot_error "Git is not installed. Please install git first."
+		return 1
+	fi
+
+	if [[ ! -d "$APP_DIR/.git" ]]; then
+		bot_warn "No Git repository found in directory. Initializing repository..."
+		if [[ -z "$REPO_URL" || "$REPO_URL" == *"monnsta"* ]]; then
+			bot_error "REPO_URL is not set in the configuration!"
+			return 1
+		fi
+
+		local AUTH_URL="$REPO_URL"
+		if [[ "$REPO_URL" == https://* && "$REPO_URL" != *"@"* ]]; then
+			read -sp "Enter GitHub Personal Access Token: " GH_TOKEN
+			echo ""
+			if [[ -n "$GH_TOKEN" ]]; then
+				AUTH_URL="https://${GH_TOKEN}@${REPO_URL#https://}"
+			fi
+		fi
+
+		bot_log "Cloning source code from $REPO_URL..."
+		git clone -b "$BRANCH" "$AUTH_URL" "$APP_DIR/temp_clone"
+		if [[ $? -eq 0 ]]; then
+			shopt -s dotglob
+			mv "$APP_DIR/temp_clone"/* "$APP_DIR/"
+			rm -rf "$APP_DIR/temp_clone"
+			shopt -u dotglob
+			bot_log "Repository successfully cloned!"
+			return 0
+		else
+			bot_error "Failed to clone repository."
+			rm -rf "$APP_DIR/temp_clone"
+			return 1
+		fi
+	fi
+
+	bot_log "Checking for updates from Git ($BRANCH)..."
+	git -C "$APP_DIR" fetch origin "$BRANCH" --quiet
+
+	local LOCAL_HASH REMOTE_HASH
+	LOCAL_HASH=$(git -C "$APP_DIR" rev-parse HEAD)
+	REMOTE_HASH=$(git -C "$APP_DIR" rev-parse "origin/$BRANCH")
+
+	if [[ "$LOCAL_HASH" != "$REMOTE_HASH" ]]; then
+		bot_warn "Updates detected! Pulling latest changes..."
+
+		local REQ_HASH_BEFORE=""
+		[[ -f "$REQ_PATH" ]] && REQ_HASH_BEFORE=$(md5sum "$REQ_PATH" 2>/dev/null || sha256sum "$REQ_PATH" 2>/dev/null)
+
+		git -C "$APP_DIR" pull origin "$BRANCH" --quiet
+
+		local REQ_HASH_AFTER=""
+		[[ -f "$REQ_PATH" ]] && REQ_HASH_AFTER=$(md5sum "$REQ_PATH" 2>/dev/null || sha256sum "$REQ_PATH" 2>/dev/null)
+
+		bot_log "Code successfully updated to latest commit."
+
+		if [[ "$REQ_HASH_BEFORE" != "$REQ_HASH_AFTER" ]]; then
+			bot_warn "Changes detected in requirements.txt. Triggering dependency re-installation..."
+			_bot_verify_crypto
+			bot_install
+		fi
+	else
+		bot_log "Source code is up to date."
+	fi
+}
+
 bot_check() {
 	bot_log "Checking environment..."
+	bot_git_update
+
 	if [[ ! -x "$BOT_PATH" && ! -f "$BOT_PATH" ]]; then
 		bot_error "Bot script not found: $BOT_PATH"
 		_bot_safe_exit 1
@@ -235,18 +308,20 @@ bot_supervise() {
 bot_help() {
 	echo -e "${MAG}${BOLD}▶ BOT SOURCED COMMANDS${RES}"
 	echo -e "${DIM}----------------------------------------${RES}"
-	echo -e "  ${CYN}bot_run${RES}       Start the bot normally"
-	echo -e "  ${CYN}bot_supervise${RES} Start the bot with auto-restart loop"
-	echo -e "  ${CYN}bot_check${RES}     Verify or create the virtual environment"
-	echo -e "  ${CYN}bot_install${RES}   Install dependencies from requirements.txt"
-	echo -e "  ${CYN}bot_clean${RES}     Remove __pycache__ and .pyc files"
-	echo -e "  ${CYN}bot_help${RES}      Show this menu"
+	echo -e "  ${CYN}bot_run${RES}        Start the bot normally"
+	echo -e "  ${CYN}bot_supervise${RES}  Start the bot with auto-restart loop"
+	echo -e "  ${CYN}bot_check${RES}      Verify environment & pull updates"
+	echo -e "  ${CYN}bot_git_update${RES} Force git pull updates"
+	echo -e "  ${CYN}bot_install${RES}    Install dependencies from requirements.txt"
+	echo -e "  ${CYN}bot_clean${RES}      Remove __pycache__ and .pyc files"
+	echo -e "  ${CYN}bot_help${RES}       Show this menu"
 }
 
 _bot_cli_help() {
 	echo -e "${MAG}${BOLD}▶ BOT EXECUTOR MANAGER${RES}"
 	echo -e "${DIM}----------------------------------------${RES}"
 	echo -e "${BOLD}Usage:${RES} $0 [OPTIONS]\n"
+	echo -e "  ${CYN}-u, --update${RES}      Force check and pull git updates"
 	echo -e "  ${CYN}-s, --supervise${RES}   Enable auto-restart and crash monitoring loop"
 	echo -e "  ${CYN}-i, --install${RES}     Check and install dependencies before running"
 	echo -e "  ${CYN}-c, --check${RES}       Verify environment (Python, Pip, Script existence)"
@@ -262,6 +337,7 @@ if [[ "$IS_SOURCED" == false ]]; then
 	INSTALL_DEPS=false
 	CHECK_ENV=false
 	CLEAN_CACHE=false
+	FORCE_UPDATE=false
 
 	while [[ $# -gt 0 ]]; do
 		case "$1" in
@@ -274,6 +350,10 @@ if [[ "$IS_SOURCED" == false ]]; then
 				set -- "-$char" "$@"
 			done
 			continue
+			;;
+		-u | --update)
+			FORCE_UPDATE=true
+			shift
 			;;
 		-s | --supervise)
 			SUPERVISE=true
@@ -312,6 +392,7 @@ if [[ "$IS_SOURCED" == false ]]; then
 	done
 
 	[[ "$CLEAN_CACHE" == true ]] && bot_clean
+	[[ "$FORCE_UPDATE" == true ]] && bot_git_update
 	[[ "$INSTALL_DEPS" == true ]] && CHECK_ENV=true
 
 	[[ "$CHECK_ENV" == true ]] && bot_check
@@ -320,7 +401,7 @@ if [[ "$IS_SOURCED" == false ]]; then
 		bot_install
 	fi
 
-	if [[ "$SUPERVISE" == true ]] || [[ "$CHECK_ENV" == false && "$CLEAN_CACHE" == false && "$INSTALL_DEPS" == false ]]; then
+	if [[ "$SUPERVISE" == true ]] || [[ "$CHECK_ENV" == false && "$CLEAN_CACHE" == false && "$INSTALL_DEPS" == false && "$FORCE_UPDATE" == false ]]; then
 		clear
 		trap "bot_log 'Manual interruption detected. Exiting...'; exit 0" SIGINT SIGTERM
 
