@@ -11,6 +11,7 @@ REQUIREMENTS="requirements.txt"
 RESTART_WAIT=2
 MAX_CRASHES=2
 CRASH_WINDOW=60
+SKIP_GIT="${SKIP_GIT:-false}"
 
 export ANDROID_API_LEVEL=34
 export PYO3_USE_ABI3_FORWARD_COMPATIBILITY=1
@@ -157,7 +158,12 @@ bot_git_update() {
 
 bot_check() {
 	bot_log "Checking environment..."
-	bot_git_update
+
+	if [[ "$SKIP_GIT" == true ]]; then
+		bot_log "Skipping git repository checks as requested."
+	else
+		bot_git_update
+	fi
 
 	if [[ ! -x "$BOT_PATH" && ! -f "$BOT_PATH" ]]; then
 		bot_error "Bot script not found: $BOT_PATH"
@@ -335,6 +341,7 @@ _bot_cli_help() {
 	echo -e "  ${CYN}-i, --install${RES}     Check and install dependencies before running"
 	echo -e "  ${CYN}-c, --check${RES}       Verify environment (Python, Pip, Script existence)"
 	echo -e "  ${CYN}-x, --clean${RES}       Clean __pycache__ and compiled python files"
+	echo -e "  ${CYN}-g, --skip-git${RES}    Skip git pulls and repository checks"
 	echo -e "  ${CYN}-r, --restart N${RES}   Set restart wait time in seconds"
 	echo -e "  ${CYN}-m, --max-crashes N${RES} Set max crashes allowed in window"
 	echo -e "  ${CYN}-h, --help${RES}        Show this help message"
@@ -378,6 +385,10 @@ if [[ "$IS_SOURCED" == false ]]; then
 			;;
 		-x | --clean)
 			CLEAN_CACHE=true
+			shift
+			;;
+		-g | --skip-git)
+			SKIP_GIT=true
 			shift
 			;;
 		-r | --restart)
