@@ -1,13 +1,11 @@
 import logging
-import sys
-import types
 from pathlib import Path
-from typing import Dict, List, Tuple, Iterable, Any, cast
+from typing import Dict, List, Tuple, Iterable
 
 import discord
 from discord.ext import commands
 
-from core.lib.file import text_file, create_path
+from core.lib.file import text_file
 from core.lib.dataclass import Data, Repr
 from meta import config, sub, file
 
@@ -42,6 +40,88 @@ def map_command_mentions(synced_commands):
 
 	for cmd in synced_commands:
 		walk(cmd)
+
+
+class GuildCog(commands.Cog):
+	def __init__(self, bot: commands.Bot, guild_id: int):
+		self.bot = bot
+		self.guild_id = guild_id
+
+	def cog_check(self, ctx: commands.Context) -> bool:
+		if ctx.guild is None:
+			return False
+		return ctx.guild.id == self.guild_id
+
+	async def interaction_check(self, interaction: discord.Interaction) -> bool:
+		return interaction.guild_id == self.guild_id
+
+class ServerCogManager:
+	def _get_module_name(self, guild_id: int) -> str:
+		cog_path = file.server.cog(str(guild_id))
+		rel_path = Path(cog_path).relative_to(Path.cwd())
+		return str(rel_path.with_suffix('')).replace('/', '.').replace('\\', '.')
+
+	async def edit(self, guild_id: int, code: str) -> Tuple[bool, str]:
+		path = file.server.cog(str(guild_id))
+		success = await text_file.save(path, code)
+		if success:
+			return True, "Cog code saved successfully."
+		return False, "Failed to save cog code."
+
+	async def read(self, guild_id: int) -> Tuple[bool, str]:
+		path = file.server.cog(str(guild_id))
+		return await text_file.load(path)
+
+	async def delete(self, guild_id: int, bot: commands.Bot) -> Tuple[bool, str]:
+		await self.unload(guild_id, bot)
+		path = file.server.cog(str(guild_id))
+		success = await text_file.save(path, "")
+		if success:
+			return True, "Cog deleted and cleared successfully."
+		return False, "Failed to clear cog code."
+
+	async def load(self, guild_id: int, bot: commands.Bot) -> Tuple[bool, str]:
+		module = self._get_module_name(guild_id)
+		try:
+			if module in bot.extensions:
+				await bot.reload_extension(module)
+				return True, "Cog reloaded successfully."
+			else:
+				await bot.load_extension(module)
+				return True, "Cog loaded successfully."
+		except Exception as e:
+			log.error(f"Failed to load server cog for {guild_id}: {e}")
+			return False, f"Error: {e}"
+
+	async def unload(self, guild_id: int, bot: commands.Bot) -> Tuple[bool, str]:
+		module = self._get_module_name(guild_id)
+		try:
+			if module in bot.extensions:
+				await bot.unload_extension(module)
+				return True, "Cog unloaded successfully."
+			return False, "Cog is not currently loaded."
+		except Exception as e:
+			log.error(f"Failed to unload server cog for {guild_id}: {e}")
+			return False, f"Error: {e}"
+
+	async def load_all(self, bot: commands.Bot) -> None:
+		servers_dir = Path('data/servers')
+		if not servers_dir.exists():
+			return
+
+		for server_dir in servers_dir.iterdir():
+			if server_dir.is_dir() and server_dir.name.isdigit():
+				cog_file = Path(file.server.cog(server_dir.name))
+				if cog_file.exists() and cog_file.stat().st_size > 0:
+					await self.load(int(server_dir.name), bot)
+
+	async def sync(self, guild_id: int, bot: commands.Bot) -> Tuple[bool, str]:
+		try:
+			await bot.tree.sync(guild=discord.Object(id=guild_id))
+			return True, "Commands synced successfully."
+		except Exception as e:
+			log.error(f"Failed to sync commands for {guild_id}: {e}")
+			return False, f"Sync error: {e}"
 
 
 class Extension:
@@ -162,7 +242,8 @@ class Extension:
 		return results
 
 
+server_cog = ServerCogManager()
 extension = Extension()
 
 
-__all__ = ('extension',)
+__all__ = ('extension', 'server_cog', 'GuildCog')

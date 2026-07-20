@@ -121,14 +121,14 @@ class TicTacToeView(TimeoutView):
 
 		self.bot_difficulty: int | None = None
 		bot_id = bot_client.user.id if bot_client.user else None
-		
+
 		if self.p2.bot:
 			self.bot_difficulty = 2 if self.p2.id == bot_id else random.choice([0, 1, 2])
 		elif self.p1.bot:
 			self.bot_difficulty = 2 if self.p1.id == bot_id else random.choice([0, 1, 2])
 
 		self.buttons: list[ui.Button] = []
-		
+
 		def make_callback(button: ui.Button, index: int):
 			async def callback(interaction: discord.Interaction):
 				await self.handle_turn(interaction, button, index)
@@ -313,7 +313,7 @@ class SixBySevenTTTView(TimeoutView):
 
 		self.bot_difficulty: int | None = None
 		bot_id = bot_client.user.id if bot_client.user else None
-		
+
 		if self.p2.bot:
 			self.bot_difficulty = 2 if self.p2.id == bot_id else random.choice([0, 1, 2])
 		elif self.p1.bot:

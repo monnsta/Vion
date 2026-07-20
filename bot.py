@@ -9,7 +9,7 @@ import discord
 from discord.ext import commands
 
 from core.wrp.profile import server, user
-from core.wrp.extension import extension, map_command_mentions
+from core.wrp.extension import extension, server_cog, map_command_mentions
 from meta import config
 
 
@@ -34,6 +34,7 @@ class Bot(commands.Bot):
 		log.info("Starting Setup...")
 
 		await extension.load_all(self)
+		await server_cog.load_all(bot)
 
 		try:
 			global_cmds = await self.tree.fetch_commands()

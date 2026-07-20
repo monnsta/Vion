@@ -149,7 +149,7 @@ class Events(commands.Cog):
 			entity = message.author
 		elif context == "self":
 			entity = getattr(message.channel, "recipient", None)
-			
+
 			if not entity and getattr(message.channel, "type", None) == discord.ChannelType.private:
 				async for msg in message.channel.history(limit=10):
 					if msg.author.id != config.bot.id:

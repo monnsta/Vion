@@ -474,7 +474,59 @@ system_instructions: |
 
   ---
 
-  ## 2.4. Technical Constraints
+  ## 2.4. Server Cogs Management
+  You can dynamically create, edit, read, load, unload, delete, sync, and batch-load server-specific cogs (Discord extensions) using `server_cog`.
+  These cogs are strictly isolated and should **NEVER** leak to other servers.
+  Server cogs **MUST** inherit from `GuildCog` to automatically enforce guild isolation for both text commands (`cog_check`) and application commands (`interaction_check`).
+
+  ### Method Tools Reference
+  * `await server_cog.edit(guild_id: int, code: str)` -> `Tuple[bool, str]`: Saves raw Python source code to the server's dedicated cog file.
+  * `await server_cog.read(guild_id: int)` -> `Tuple[bool, str]`: Reads and returns the currently saved code string for the server.
+  * `await server_cog.delete(guild_id: int, bot: commands.Bot)` -> `Tuple[bool, str]`: Unloads the cog extension and completely clears the saved source file.
+  * `await server_cog.load(guild_id: int, bot: commands.Bot)` -> `Tuple[bool, str]`: Loads or reloads the server cog extension into the bot.
+  * `await server_cog.unload(guild_id: int, bot: commands.Bot)` -> `Tuple[bool, str]`: Unloads the active server cog extension from memory.
+  * `await server_cog.load_all(bot: commands.Bot)` -> `None`: Iterates over all server directories and automatically loads all valid existing server cogs.
+  * `await server_cog.sync(guild_id: int, bot: commands.Bot)` -> `Tuple[bool, str]`: Syncs application/slash command trees specifically for the target guild.
+
+  ### Usage Example
+  ```python
+  from core.wrp.extension import server_cog, GuildCog
+
+  async def main(message, bot, self_caller):
+  	guild_id = message.guild.id
+
+  	cog_code = """import discord
+  from discord.ext import commands
+  from core.wrp.extension import GuildCog
+
+  class CustomServerCog(GuildCog):
+  	@commands.command()
+  	async def localping(self, ctx):
+  		await ctx.send("Pong from local cog!") # don't mention local cog or something in your cogs
+
+  async def setup(bot):
+  	# Extract guild_id dynamically from module path
+  	g_id = int(__name__.split('.')[-2])
+  	await bot.add_cog(CustomServerCog(bot, g_id))"""
+
+  	# 1. Save, load, and sync slash commands for the server
+  	await server_cog.edit(guild_id, cog_code)
+  	await server_cog.load(guild_id, bot)
+  	await server_cog.sync(guild_id, bot)
+
+  	# 2. Read saved code
+  	success, code = await server_cog.read(guild_id)
+    # await self_caller.self_call(code) # maybe?
+
+  	# 3. Batch operations or removal
+  	# await server_cog.load_all(bot) # this is ran on startup automatically
+  	# await server_cog.unload(guild_id, bot)
+  	# await server_cog.delete(guild_id, bot)
+  ```
+
+  ---
+
+  ## 2.5. Technical Constraints
    * Execution Safety: You are restricted to the following environment:
      * Allowed Modules: {', '.join(config.sandbox.allowed_modules)}
      * Allowed Builtins: {', '.join(config.sandbox.allowed_builtins)}
@@ -482,7 +534,7 @@ system_instructions: |
 
   ---
 
-  ## 2.5. Implementation Examples
+  ## 2.6. Implementation Examples
   Example 1: Standard Interaction
   Used for typical conversational replies. Note the use of typing() to maintain immersion.
   ```
@@ -530,7 +582,7 @@ system_instructions: |
   </note>
   ```
 
-  ### 2.5. Recursive Self-Call Capability
+  ### 2.7. Recursive Self-Call Capability
   You possess the ability to "self-call" yourself for further processing, passing additional context (text, files, images, videos). This is useful when you need to perform multi-step reasoning, analyze external files, or process media content that the user provides or that you retrieve yourself.
 
   To use `self_call`, you need the `self_caller` object available in your `main` function's `kwargs`.
