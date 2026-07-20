@@ -95,44 +95,6 @@ class Extension:
 		log.debug("Valid extensions found:\n" + "\n".join(f" * {ext}" for ext in extensions))
 		return extensions
 
-	async def add(self, bot: commands.Bot, guild_id: int | str, code: str) -> Tuple[bool, str]:
-		guild_id = str(guild_id)
-		cog_path = cast(Any, file.server).commands(guild_id)
-
-		try:
-			relative_path = cog_path.with_suffix('').relative_to(Path.cwd().resolve())
-			module_path = ".".join(relative_path.parts)
-		except ValueError:
-			module_path = ".".join(cog_path.with_suffix('').parts)
-
-		try:
-			await create_path((cog_path, False))
-			await text_file.save(str(cog_path), code)
-
-			user_module = types.ModuleType(module_path)
-			user_module.__file__ = str(cog_path)
-			safe_builtins = dict(config.sandbox.allowed_builtins)
-			setattr(user_module, "__builtins__", safe_builtins)
-
-			try:
-				exec(code, user_module.__dict__)
-			except Exception as e:
-				return False, f"Failed to compile/execute cog in sandbox:\n```py\n{e}\n```"
-
-			sys.modules[module_path] = user_module
-
-			if module_path in bot.extensions:
-				await self.unload(bot, module_path)
-
-			return await self.load(bot, module_path)
-
-		except SyntaxError as e:
-			log.error(f"Syntax error in custom cog for guild {guild_id}: {e}")
-			return False, f"Failed to load due to Syntax Error:\n```py\n{e}\n```"
-		except Exception as e:
-			log.error(f"Failed to create/load custom cog for {guild_id}", exc_info=True)
-			return False, f"Critical error during custom cog deployment:\n```py\n{e}\n```"
-
 	async def load(self, bot: commands.Bot, extension: str) -> Tuple[bool, str]:
 		try:
 			await bot.load_extension(extension)
