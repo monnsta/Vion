@@ -68,18 +68,29 @@ class _EntityListStore:
 
 
 class STM(_EntityListStore):
-	def __init__(self, entity_type="guild"):
+	def __init__(self, entity_type="guild", batch_trim_size: int = 50):
 		super().__init__("stm", config.max_stm, entity_type)
+		self.batch_trim_size = batch_trim_size
 
 	async def _summarize_and_store(self, entity_id: int, dropped_items: list):
 		try:
 			log.info(f"Summarizing {len(dropped_items)} old STM entries for {self.entity_type} {entity_id}")
 			llm = GenerateContent(
-				api_key=config.secrets.gemini_api_key[0],
+				api_key=config.secrets.gemini_api_key[-1],
 				model_name=config.gemini_models[0],
 				system_instruction=config.summary_instructions
 			)
-			text_to_summarize = "\n".join(dropped_items)
+
+			formatted_entries = []
+			for item in dropped_items:
+				if isinstance(item, dict):
+					ctx = item.get("_context", "")
+					content = item.get("content", item)
+					formatted_entries.append(f"{ctx} {content}".strip())
+				else:
+					formatted_entries.append(str(item))
+
+			text_to_summarize = "\n".join(formatted_entries)
 			success, summary = await llm.call(f"Summarize the following past interactions concisely:\n{text_to_summarize}")
 
 			if success and summary:
@@ -91,7 +102,6 @@ class STM(_EntityListStore):
 				log.warning(f"Failed to summarize STM entries for {self.entity_type} {entity_id}")
 		except Exception as e:
 			log.error(f"Error during auto-summarization for {self.entity_type} {entity_id}: {e}", exc_info=True)
-
 
 	async def add(self, entity_id: int, message) -> bool:
 		try:
@@ -116,8 +126,10 @@ class STM(_EntityListStore):
 			items.append(entry)
 
 			if len(items) > self.max_items:
-				dropped = items[:-self.max_items]
-				items = items[-self.max_items:]
+				trim_count = min(self.batch_trim_size, len(items) - self.max_items + 1)
+				dropped = items[:trim_count]
+				items = items[trim_count:]
+
 				asyncio.create_task(self._summarize_and_store(entity_id, dropped))
 
 			data[self.key] = items
