@@ -144,8 +144,21 @@ class ServerCogManager:
 
 	async def sync(self, guild_id: int, bot: commands.Bot) -> Tuple[bool, str]:
 		try:
-			await bot.tree.sync(guild=discord.Object(id=guild_id))
-			return True, "Commands synced successfully."
+			guild_obj = discord.Object(id=guild_id)
+
+			module_prefix = self._get_module_name(guild_id)
+			for _, cog in bot.cogs.items():
+				if getattr(cog, '__module__', '') == module_prefix:
+					for app_cmd in cog.get_app_commands():
+						bot.tree.add_command(app_cmd, guild=guild_obj, override=True)
+
+					for cmd in cog.get_commands():
+						if isinstance(cmd, (commands.HybridCommand, commands.HybridGroup)) and cmd.app_command:
+							bot.tree.add_command(cmd.app_command, guild=guild_obj, override=True)
+
+			synced_commands = await bot.tree.sync(guild=guild_obj)
+
+			return True, f"Synced {len(synced_commands)} command(s) successfully."
 		except Exception as e:
 			log.error(f"Failed to sync commands for {guild_id}: {e}")
 			return False, f"Sync error: {e}"

@@ -34,7 +34,7 @@ class Bot(commands.Bot):
 		log.info("Starting Setup...")
 
 		await extension.load_all(self)
-		await server_cog.load_all(bot)
+		await server_cog.load_all(self)
 
 		try:
 			global_cmds = await self.tree.fetch_commands()
@@ -92,11 +92,11 @@ class Bot(commands.Bot):
 
 				if resolved and len(resolved) == len(first_word) and hasattr(node, "mention"):
 					spaced = " ".join(resolved)
-					message.content = message.content.replace(
-						f"{ctx.prefix}{first_word}",
-						f"{ctx.prefix}{spaced}",
-						1
-					)
+
+					old_prefix_len = len(f"{ctx.prefix}{first_word}")
+					new_prefix_str = f"{ctx.prefix}{spaced}"
+					message.content = new_prefix_str + message.content[old_prefix_len:]
+
 					ctx = await self.get_context(message)
 
 		await self.invoke(ctx)
