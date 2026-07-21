@@ -3,6 +3,7 @@ import datetime
 import logging
 import sys
 import warnings
+from itertools import islice
 
 import discord
 
@@ -65,135 +66,125 @@ class Convert:
 				items.append((new_key, v))
 		return dict(items)
 
-	def _deduplicate_dict(self, data, seen_ids: set | None = None):
-		if seen_ids is None:
-			seen_ids = set()
-
-		if isinstance(data, dict):
-			obj_id = data.get("id")
-			if obj_id is not None and isinstance(obj_id, int):
-				if obj_id in seen_ids:
-					ref = {"id": obj_id, "$ref": True}
-					if "name" in data:
-						ref["name"] = data["name"]
-					return ref
-				seen_ids.add(obj_id)
-
-			return {k: self._deduplicate_dict(v, seen_ids) for k, v in data.items()}
-
-		elif isinstance(data, list):
-			return [self._deduplicate_dict(item, seen_ids) for item in data]
-
-		return data
-
-	def _serialize(self, obj, seen_stack, depth):
-		if self.ignore_none and obj is None:
-			return None
-
-		if isinstance(obj, (int, float, bool, str)):
-			if self.ignore_empty and obj == "":
-				return None
-			if self.ignore_false and obj is False:
-				return None
-			return obj
-
-		if isinstance(obj, datetime.datetime):
-			return obj.isoformat()
-
-		if DISCORD_TYPES and isinstance(obj, DISCORD_TYPES):
-			return str(obj)
-
-		if depth >= self.max_depth:
-			if hasattr(obj, 'id'):
-				return {"id": getattr(obj, 'id'), "$ref": True}
-			return str(obj) if not callable(obj) else None
-
-		obj_id = id(obj)
-		if obj_id in seen_stack:
-			return "<Circular>"
-
-		seen_stack.add(obj_id)
-		result = None
-
-		try:
-			if isinstance(obj, dict):
-				result = {}
-				for k, v in obj.items():
-					val = self._serialize(v, seen_stack, depth + 1)
-					if self.ignore_none and val is None: continue
-					if self.ignore_empty and val in ({}, []): continue
-					result[str(k)] = val
-
-			elif not (DISCORD_MODELS and isinstance(obj, DISCORD_MODELS)):
-				try:
-					result = []
-					for idx, item in enumerate(obj):
-						if idx >= self.max_list_len:
-							result.append(f"...<{len(obj) - self.max_list_len} items omitted>")
-							break
-						val = self._serialize(item, seen_stack, depth + 1)
-						if self.ignore_none and val is None: continue
-						if self.ignore_empty and val in ({}, []): continue
-						result.append(val)
-				except TypeError:
-					pass
-
-			if result is None:
-				result = {}
-				for attr_name in dir(obj):
-					if attr_name.startswith('_') or attr_name in self.filter_attrs:
-						continue
-
-					try:
-						with warnings.catch_warnings():
-							warnings.simplefilter("ignore", DeprecationWarning)
-							value = getattr(obj, attr_name)
-						if callable(value):
-							continue
-
-						serialized_val = self._serialize(value, seen_stack, depth + 1)
-
-						if self.ignore_none and serialized_val is None:
-							continue
-						if self.ignore_empty and serialized_val in ({}, [], ""):
-							continue
-
-						result[attr_name] = serialized_val
-					except Exception:
-						pass
-		finally:
-			seen_stack.discard(obj_id)
-
-		return result
-
 	async def __call__(self, obj, **kwargs):
-		original_state = {k: getattr(self, k) for k in kwargs if hasattr(self, k)}
-		for k, v in kwargs.items():
-			if hasattr(self, k):
-				setattr(self, k, v)
+		config = {
+			"filter_attrs": kwargs.get("filter_attrs", self.filter_attrs),
+			"max_depth": kwargs.get("max_depth", self.max_depth),
+			"max_list_len": kwargs.get("max_list_len", self.max_list_len),
+			"ignore_none": kwargs.get("ignore_none", self.ignore_none),
+			"ignore_empty": kwargs.get("ignore_empty", self.ignore_empty),
+			"ignore_false": kwargs.get("ignore_false", self.ignore_false),
+			"deduplicate": kwargs.get("deduplicate", self.deduplicate),
+			"flatten": kwargs.get("flatten", self.flatten),
+			"output_format": kwargs.get("output_format", self.output_format),
+		}
 
 		def process():
-			raw_dict = self._serialize(obj, set(), 0)
+			seen_mem = set()
+			seen_discord_ids = set()
 
-			if self.deduplicate and isinstance(raw_dict, (dict, list)):
-				raw_dict = self._deduplicate_dict(raw_dict)
+			def _serialize(o, depth):
+				if config["ignore_none"] and o is None:
+					return None
 
-			if self.flatten and isinstance(raw_dict, dict):
+				if isinstance(o, (int, float, bool, str)):
+					if config["ignore_empty"] and o == "": return None
+					if config["ignore_false"] and o is False: return None
+					return o
+
+				if isinstance(o, datetime.datetime):
+					return o.isoformat()
+
+				if DISCORD_TYPES and isinstance(o, DISCORD_TYPES):
+					return str(o)
+
+				if config["deduplicate"] and hasattr(o, 'id') and isinstance(o.id, int):
+					if o.id in seen_discord_ids:
+						ref = {"id": o.id, "$ref": True}
+						if hasattr(o, 'name'):
+							try:
+								ref["name"] = o.name
+							except Exception:
+								pass
+						return ref
+					seen_discord_ids.add(o.id)
+
+				if depth >= config["max_depth"]:
+					if hasattr(o, 'id'):
+						return {"id": getattr(o, 'id'), "$ref": True}
+					return str(o) if not callable(o) else None
+
+				mem_id = id(o)
+				if mem_id in seen_mem:
+					return "<Circular>"
+
+				seen_mem.add(mem_id)
+				result = None
+
+				try:
+					if isinstance(o, dict):
+						result = {}
+						for k, v in o.items():
+							val = _serialize(v, depth + 1)
+							if config["ignore_none"] and val is None: continue
+							if config["ignore_empty"] and val in ({}, [], ""): continue
+							result[str(k)] = val
+
+					elif not (DISCORD_MODELS and isinstance(o, DISCORD_MODELS)):
+						try:
+							_ = iter(o)
+							result = []
+							for idx, item in enumerate(islice(o, config["max_list_len"] + 1)):
+								if idx >= config["max_list_len"]:
+									result.append(f"...<items omitted>")
+									break
+								val = _serialize(item, depth + 1)
+								if config["ignore_none"] and val is None: continue
+								if config["ignore_empty"] and val in ({}, [], ""): continue
+								result.append(val)
+						except TypeError:
+							pass
+
+					if result is None:
+						result = {}
+						for attr_name in dir(o):
+							if attr_name.startswith('_') or attr_name in config["filter_attrs"]:
+								continue
+
+							try:
+								with warnings.catch_warnings():
+									warnings.simplefilter("ignore", DeprecationWarning)
+									value = getattr(o, attr_name)
+
+								if callable(value):
+									continue
+
+								serialized_val = _serialize(value, depth + 1)
+
+								if config["ignore_none"] and serialized_val is None:
+									continue
+								if config["ignore_empty"] and serialized_val in ({}, [], ""):
+									continue
+
+								result[attr_name] = serialized_val
+							except Exception:
+								pass
+				finally:
+					seen_mem.discard(mem_id)
+
+				return result
+
+			raw_dict = _serialize(obj, 0)
+
+			if config["flatten"] and isinstance(raw_dict, dict):
 				raw_dict = self._flatten_dict(raw_dict)
 
-			if self.output_format == "yaml":
+			if config["output_format"] == "yaml":
 				return yaml.dump(raw_dict, default_flow_style=False, sort_keys=False) # type: ignore
-			elif self.output_format == "json":
-				return raw_dict
 
 			return raw_dict
 
-		result = await asyncio.to_thread(process)
-
-		for k, v in original_state.items():
-			setattr(self, k, v)
-
-		return result
+		return await asyncio.to_thread(process)
 
 
 COMMON_FILTERS = [
@@ -204,8 +195,8 @@ COMMON_FILTERS = [
 ]
 
 convert_message = Convert(
-	filter_attrs=COMMON_FILTERS + ['call', 'role_subscription', 'value', 'nonce'],
-	max_depth=5,
+	filter_attrs=COMMON_FILTERS + ['call', 'role_subscription', 'value', 'nonce', 'guild'],
+	max_depth=3,
 	output_format="json"
 )
 
