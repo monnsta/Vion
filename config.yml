@@ -225,8 +225,9 @@ sandbox:
   ]
 
 logging:
-  cleanup_days: 4
-  use_json: false
+  file: true
+  type: text # text, html, json
+  cleanup_days: 3
 
 
 # CONSTRAINTS:

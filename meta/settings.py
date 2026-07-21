@@ -34,8 +34,9 @@ class Config(Data):
 		allowed_builtins: Dict[str, Callable]
 
 	class Logging(Data):
+		file: bool
+		type: Literal["text", "html", "json"]
 		cleanup_days: int
-		use_json: bool
 
 	class Settings(Data):
 		server: dict
