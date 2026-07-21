@@ -31,11 +31,17 @@ class SelfCallAgent:
 		self.message = message
 		self.bot_client = bot_client
 
-	async def self_call(self, text: str, *files: Union[str, bytes, io.BytesIO, io.IOBase, discord.Attachment]) -> None:
+	async def self_call(
+		self,
+		text: str,
+		*files: Union[str, bytes, io.BytesIO, io.IOBase, discord.Attachment],
+		request_full_context: bool = False
+	) -> None:
 		"""
 		Allows the AI to recursively call itself with additional text and file inputs.
 		File inputs can be Discord Attachments, local file paths (str), raw bytes,
 		or file-like objects (BytesIO, IOBase).
+		If request_full_context is True, full guild and user profile JSONs will be included.
 		"""
 		log.info(f"AI self-call initiated by {self.member.id if self.member else 'unknown'}")
 
@@ -70,7 +76,16 @@ class SelfCallAgent:
 		inputs_summary = f"Includes the following files: {', '.join(file_descs_for_prompt)}" if file_descs_for_prompt else ""
 		combined_extra = f"{text}\n\nAdditional Input Summary: {inputs_summary}" if inputs_summary else text
 
-		await self.parent_ai.do_action(event="on_self_call", guild=self.guild, member=self.member, extra=combined_extra, inputs=file_inputs_for_llm, message=self.message, bot=self.bot_client)
+		await self.parent_ai.do_action(
+			event="on_self_call",
+			guild=self.guild,
+			member=self.member,
+			extra=combined_extra,
+			inputs=file_inputs_for_llm,
+			message=self.message,
+			bot=self.bot_client,
+			request_full_context=request_full_context
+		)
 
 
 class AI:
@@ -125,23 +140,36 @@ class AI:
 		g_ins = None
 		pipeline = list(self.base_modules)
 
+		request_full_context = kwargs.pop('request_full_context', False)
+
 		if event == "on_message" or event == "on_self_call":
 			if guild:
 				log.debug(f"Fetching config objects for Guild ID: {guild.id}")
-				_, g_obj = await server.info.load(guild.id)
+				_, g_full_obj = await server.info.load(guild.id)
 				_, g_settings = await server.settings.load(guild.id)
 				g_ins = g_settings.get("instructions")
-				if not g_obj:
+				if not g_full_obj:
 					await server.info.save(guild)
-					_, g_obj = await server.info.load(guild.id)
+					_, g_full_obj = await server.info.load(guild.id)
+
+				if request_full_context:
+					g_obj = g_full_obj
+				else:
+					g_obj = f"Guild Name: {guild.name}, ID: {guild.id}\n(Full context omitted. Use self_call with request_full_context=True to retrieve.)"
+
 			if member:
 				log.debug(f"Fetching config objects for Member ID: {member.id}")
-				_, u_obj = await user.info.load(member.id)
-				if not u_obj:
+				_, u_full_obj = await user.info.load(member.id)
+				if not u_full_obj:
 					await user.info.save(member)
-					_, u_obj = await user.info.load(member.id)
+					_, u_full_obj = await user.info.load(member.id)
 
 				_, u_sets = await user.settings.load(member.id)
+
+				if request_full_context:
+					u_obj = u_full_obj
+				else:
+					u_obj = f"User Name: {member.name}, ID: {member.id}\n(Full context omitted. Use self_call with request_full_context=True to retrieve.)"
 
 				if user_keys := u_sets.get("api_keys"):
 					log.info(f"Injecting user-provided API keys into pipeline for Member ID: {member.id}")
