@@ -61,12 +61,28 @@ class ServerCogManager:
 		rel_path = Path(cog_path).relative_to(Path.cwd())
 		return str(rel_path.with_suffix('')).replace('/', '.').replace('\\', '.')
 
-	async def edit(self, guild_id: int, code: str) -> Tuple[bool, str]:
+	async def edit(self, guild_id: int, bot: commands.Bot, code: str) -> Tuple[bool, str]:
 		path = file.server.cog(str(guild_id))
-		success = await text_file.save(path, code)
-		if success:
-			return True, "Cog code saved successfully."
-		return False, "Failed to save cog code."
+
+		success, old_code = await self.read(guild_id)
+		if not success:
+			old_code = ""
+
+		save_success = await text_file.save(path, code)
+		if not save_success:
+			return False, "Failed to write cog code to file."
+
+		load_success, msg = await self.load(guild_id, bot)
+
+		if not load_success:
+			await text_file.save(path, old_code)
+			if old_code.strip():
+				await self.load(guild_id, bot)
+			else:
+				await self.unload(guild_id, bot)
+			return False, f"Edit reverted due to syntax or load error:\n{msg}"
+
+		return True, "Cog updated and loaded successfully."
 
 	async def read(self, guild_id: int) -> Tuple[bool, str]:
 		path = file.server.cog(str(guild_id))
@@ -83,25 +99,36 @@ class ServerCogManager:
 	async def load(self, guild_id: int, bot: commands.Bot) -> Tuple[bool, str]:
 		module = self._get_module_name(guild_id)
 		try:
-			if module in bot.extensions:
+			await bot.load_extension(module)
+			return True, "Cog loaded successfully."
+		except commands.ExtensionAlreadyLoaded:
+			try:
 				await bot.reload_extension(module)
 				return True, "Cog reloaded successfully."
-			else:
-				await bot.load_extension(module)
-				return True, "Cog loaded successfully."
+			except commands.ExtensionFailed as e:
+				log.error(f"Failed to reload server cog {guild_id}: {e.original}")
+				return False, f"Reload setup error: {e.original}"
+			except Exception as e:
+				log.error(f"Failed to reload server cog {guild_id}: {e}")
+				return False, f"Reload error: {e}"
+		except commands.NoEntryPointError:
+			return False, "Missing `setup` function in cog."
+		except commands.ExtensionFailed as e:
+			log.error(f"Failed to load server cog {guild_id}: {e.original}")
+			return False, f"Setup error: {e.original}"
 		except Exception as e:
-			log.error(f"Failed to load server cog for {guild_id}: {e}")
+			log.error(f"Failed to load server cog {guild_id}: {e}")
 			return False, f"Error: {e}"
 
 	async def unload(self, guild_id: int, bot: commands.Bot) -> Tuple[bool, str]:
 		module = self._get_module_name(guild_id)
 		try:
-			if module in bot.extensions:
-				await bot.unload_extension(module)
-				return True, "Cog unloaded successfully."
+			await bot.unload_extension(module)
+			return True, "Cog unloaded successfully."
+		except commands.ExtensionNotLoaded:
 			return False, "Cog is not currently loaded."
 		except Exception as e:
-			log.error(f"Failed to unload server cog for {guild_id}: {e}")
+			log.error(f"Failed to unload server cog {guild_id}: {e}")
 			return False, f"Error: {e}"
 
 	async def load_all(self, bot: commands.Bot) -> None:
