@@ -37,15 +37,21 @@ class Convert:
 		self,
 		filter_attrs: list | None = None,
 		max_depth: int = 5,
+		max_list_len: int = 25,
 		ignore_none: bool = True,
 		ignore_empty: bool = True,
+		ignore_false: bool = True,
+		deduplicate: bool = True,
 		flatten: bool = False,
 		output_format: str = "dict"
 	):
 		self.filter_attrs = set(filter_attrs or [])
 		self.max_depth = max_depth
+		self.max_list_len = max_list_len
 		self.ignore_none = ignore_none
 		self.ignore_empty = ignore_empty
+		self.ignore_false = ignore_false
+		self.deduplicate = deduplicate
 		self.flatten = flatten
 		self.output_format = output_format
 
@@ -59,12 +65,35 @@ class Convert:
 				items.append((new_key, v))
 		return dict(items)
 
+	def _deduplicate_dict(self, data, seen_ids: set | None = None):
+		if seen_ids is None:
+			seen_ids = set()
+
+		if isinstance(data, dict):
+			obj_id = data.get("id")
+			if obj_id is not None and isinstance(obj_id, int):
+				if obj_id in seen_ids:
+					ref = {"id": obj_id, "$ref": True}
+					if "name" in data:
+						ref["name"] = data["name"]
+					return ref
+				seen_ids.add(obj_id)
+
+			return {k: self._deduplicate_dict(v, seen_ids) for k, v in data.items()}
+
+		elif isinstance(data, list):
+			return [self._deduplicate_dict(item, seen_ids) for item in data]
+
+		return data
+
 	def _serialize(self, obj, seen_stack, depth):
 		if self.ignore_none and obj is None:
 			return None
 
 		if isinstance(obj, (int, float, bool, str)):
 			if self.ignore_empty and obj == "":
+				return None
+			if self.ignore_false and obj is False:
 				return None
 			return obj
 
@@ -74,10 +103,9 @@ class Convert:
 		if DISCORD_TYPES and isinstance(obj, DISCORD_TYPES):
 			return str(obj)
 
-		if hasattr(obj, 'url') and isinstance(getattr(obj, 'url'), str):
-			return getattr(obj, 'url')
-
 		if depth >= self.max_depth:
+			if hasattr(obj, 'id'):
+				return {"id": getattr(obj, 'id'), "$ref": True}
 			return str(obj) if not callable(obj) else None
 
 		obj_id = id(obj)
@@ -99,7 +127,10 @@ class Convert:
 			elif not (DISCORD_MODELS and isinstance(obj, DISCORD_MODELS)):
 				try:
 					result = []
-					for item in obj:
+					for idx, item in enumerate(obj):
+						if idx >= self.max_list_len:
+							result.append(f"...<{len(obj) - self.max_list_len} items omitted>")
+							break
 						val = self._serialize(item, seen_stack, depth + 1)
 						if self.ignore_none and val is None: continue
 						if self.ignore_empty and val in ({}, []): continue
@@ -111,9 +142,6 @@ class Convert:
 				result = {}
 				for attr_name in dir(obj):
 					if attr_name.startswith('_') or attr_name in self.filter_attrs:
-						continue
-
-					if depth > 1 and attr_name in ('members', 'roles', 'channels', 'guilds'):
 						continue
 
 					try:
@@ -147,6 +175,9 @@ class Convert:
 		def process():
 			raw_dict = self._serialize(obj, set(), 0)
 
+			if self.deduplicate and isinstance(raw_dict, (dict, list)):
+				raw_dict = self._deduplicate_dict(raw_dict)
+
 			if self.flatten and isinstance(raw_dict, dict):
 				raw_dict = self._flatten_dict(raw_dict)
 
@@ -165,59 +196,33 @@ class Convert:
 		return result
 
 
+COMMON_FILTERS = [
+	'BASE', 'key', 'DEFAULT_VALUE', 'VALID_FLAGS', 'jump_url', 'colour',
+	'accent_colour', 'accent_color', 'avatar_decoration_sku_id', 'client_status',
+	'desktop_status', 'web_status', 'mobile_status', 'mutual_guilds', 'flags',
+	'public_flags', 'interaction', 'raw_mentions', 'raw_role_mentions', 'clean_content'
+]
+
 convert_message = Convert(
-	filter_attrs = [
-		'guild', 'channel', 'mutual_guilds',
-		'call', 'jump_url', 'colour',
-		'accent_colour', 'DEFAULT_VALUE', 'VALID_FLAGS',
-		'BASE', 'key', 'role_subscription',
-		'clean_content', 'value', 'raw_role_mentions',
-		'failed_to_mention_some_roles_in_thread',
-		'role_mentions', 'raw_mentions',
-		'message_snapshots', 'nonce', 'system_content',
-		'purchase_notification', 'tts', 'application',
-		'application_id', 'accent_color',
-		'avatar_decoration_sku_id', 'top_role',
-		'client_status', 'default_avatar', 'category',
-		'discriminator', 'dm_settings_upsell_acknowledged',
-		'identity_enabled', 'roles', 'channel_mentions',
-		'mention_everyone', 'pinned_at', 'pinned',
-		'desktop_status', 'pending', 'web_status', 'channels',
-		'activity', 'flags', 'public_flags', 'interaction'
-	],
-	max_depth = 5,
-	output_format = "json"
+	filter_attrs=COMMON_FILTERS + ['call', 'role_subscription', 'value', 'nonce'],
+	max_depth=5,
+	output_format="json"
 )
 
 convert_guild = Convert(
-	filter_attrs = [
-		'me', 'BASE', 'key', 'DEFAULT_VALUE',
-		'VALID_FLAGS', 'jump_url', 'categories',
-		'voice_channels', 'text_channels',
-		'interaction', 'mutual_guilds'
-	],
-	max_depth = 5,
-	output_format = "json"
+	filter_attrs=COMMON_FILTERS + ['me'],
+	max_depth=5,
+	output_format="json"
 )
 
 convert_user = Convert(
-	filter_attrs = [
-		'BASE', 'key', 'DEFAULT_VALUE', 'VALID_FLAGS',
-		'guild', 'status', 'web_status', 'interaction',
-		'mobile_status', 'desktop_status', 'client_status',
-		'colour'
-	],
-	max_depth = 3,
-	output_format = "json"
+	filter_attrs=COMMON_FILTERS + ['status', 'default_avatar', 'discriminator'],
+	max_depth=3,
+	output_format="json"
 )
 
 convert_bot = Convert(
-	filter_attrs = [
-		'cached_messages', 'cogs', 'extra_events',
-		'users', 'user', 'token', 'soundboard_sounds',
-		'help_command', 'command_mentions', 'commands',
-		'stickers', 'interaction'
-	],
-	max_depth = 3,
-	output_format = "json"
+	filter_attrs=COMMON_FILTERS + ['cached_messages', 'cogs', 'extra_events', 'token'],
+	max_depth=4,
+	output_format="json"
 )
