@@ -80,6 +80,7 @@ class File:
 		def __init__(self, parent: 'File') -> None:
 			self.blacklist    = parent.sub.glob / "blacklist.json"
 			self.bot_activity = parent.sub.glob / "bot_activity.json"
+			self.ai_data      = parent.sub.glob / "ai_data.json"
 
 
 base = Base()
@@ -114,7 +115,8 @@ async def setup_directory() -> None:
 		(sub.glob,    True),
 
 		file.glob.blacklist,
-		file.glob.bot_activity
+		file.glob.bot_activity,
+		file.glob.ai_data
 	)
 
 

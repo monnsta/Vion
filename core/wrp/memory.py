@@ -19,6 +19,9 @@ class _EntityListStore:
 		self.entity_type = entity_type
 
 	def _path(self, entity_id: int) -> Path:
+		if self.entity_type == "global":
+			return file.glob.ai_data
+
 		eid = str(entity_id)
 		if self.entity_type == "guild":
 			return file.server.ai_data(eid)
@@ -174,11 +177,17 @@ class MemoryCluster:
 	@staticmethod
 	async def build(guild: discord.Guild | None, user: discord.User | discord.Member | None) -> dict:
 		cluster = {
+			"global_stm": [],
+			"global_ltm": [],
 			"guild_stm": [],
 			"guild_ltm": [],
 			"user_stm": [],
 			"user_ltm": []
 		}
+
+		# Always load global memory (using 0 as a dummy ID since it's ignored)
+		_, cluster["global_stm"] = await global_stm.get(0)
+		_, cluster["global_ltm"] = await global_ltm.get(0)
 
 		if guild:
 			_, cluster["guild_stm"] = await guild_stm.get(guild.id)
@@ -191,6 +200,9 @@ class MemoryCluster:
 		return cluster
 
 
+global_stm = STM(entity_type="global")
+global_ltm = LTM(entity_type="global")
+
 guild_stm = STM(entity_type="guild")
 guild_ltm = LTM(entity_type="guild")
 guild_audit = Audit(entity_type="guild")
@@ -202,6 +214,7 @@ user_response = Response(entity_type="user")
 
 
 __all__ = (
+	'global_stm', 'global_ltm',
 	'guild_stm', 'guild_ltm', 'guild_audit', 'guild_response',
 	'user_stm', 'user_ltm', 'user_response', 'MemoryCluster'
 )
