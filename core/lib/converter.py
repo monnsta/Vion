@@ -57,14 +57,15 @@ class Convert:
 		self.output_format = output_format
 
 	def _flatten_dict(self, d: dict, parent_key: str = '', sep: str = '_') -> dict:
-		items = []
-		for k, v in d.items():
-			new_key = f"{parent_key}{sep}{k}" if parent_key else str(k)
-			if isinstance(v, dict):
-				items.extend(self._flatten_dict(v, new_key, sep=sep).items())
-			else:
-				items.append((new_key, v))
-		return dict(items)
+		def _yield_flat(curr_dict, curr_key):
+			for k, v in curr_dict.items():
+				new_key = f"{curr_key}{sep}{k}" if curr_key else str(k)
+				if isinstance(v, dict):
+					yield from _yield_flat(v, new_key)
+				else:
+					yield new_key, v
+
+		return dict(_yield_flat(d, parent_key))
 
 	async def __call__(self, obj, **kwargs):
 		config = {
@@ -116,61 +117,58 @@ class Convert:
 
 				mem_id = id(o)
 				if mem_id in seen_mem:
-					return "<Circular>"
+					return "<Seen>"
 
 				seen_mem.add(mem_id)
 				result = None
 
-				try:
-					if isinstance(o, dict):
-						result = {}
-						for k, v in o.items():
-							val = _serialize(v, depth + 1)
+				if isinstance(o, dict):
+					result = {}
+					for k, v in o.items():
+						val = _serialize(v, depth + 1)
+						if config["ignore_none"] and val is None: continue
+						if config["ignore_empty"] and val in ({}, [], ""): continue
+						result[str(k)] = val
+
+				elif not (DISCORD_MODELS and isinstance(o, DISCORD_MODELS)):
+					try:
+						iterator = iter(o)
+						result = []
+						for idx, item in enumerate(islice(iterator, config["max_list_len"] + 1)):
+							if idx >= config["max_list_len"]:
+								result.append("...<items omitted>")
+								break
+							val = _serialize(item, depth + 1)
 							if config["ignore_none"] and val is None: continue
 							if config["ignore_empty"] and val in ({}, [], ""): continue
-							result[str(k)] = val
+							result.append(val)
+					except TypeError:
+						pass
 
-					elif not (DISCORD_MODELS and isinstance(o, DISCORD_MODELS)):
+				if result is None:
+					result = {}
+					for attr_name in dir(o):
+						if attr_name.startswith('_') or attr_name in config["filter_attrs"]:
+							continue
+
 						try:
-							_ = iter(o)
-							result = []
-							for idx, item in enumerate(islice(o, config["max_list_len"] + 1)):
-								if idx >= config["max_list_len"]:
-									result.append(f"...<items omitted>")
-									break
-								val = _serialize(item, depth + 1)
-								if config["ignore_none"] and val is None: continue
-								if config["ignore_empty"] and val in ({}, [], ""): continue
-								result.append(val)
-						except TypeError:
-							pass
+							with warnings.catch_warnings():
+								warnings.simplefilter("ignore", DeprecationWarning)
+								value = getattr(o, attr_name)
 
-					if result is None:
-						result = {}
-						for attr_name in dir(o):
-							if attr_name.startswith('_') or attr_name in config["filter_attrs"]:
+							if callable(value):
 								continue
 
-							try:
-								with warnings.catch_warnings():
-									warnings.simplefilter("ignore", DeprecationWarning)
-									value = getattr(o, attr_name)
+							serialized_val = _serialize(value, depth + 1)
 
-								if callable(value):
-									continue
+							if config["ignore_none"] and serialized_val is None:
+								continue
+							if config["ignore_empty"] and serialized_val in ({}, [], ""):
+								continue
 
-								serialized_val = _serialize(value, depth + 1)
-
-								if config["ignore_none"] and serialized_val is None:
-									continue
-								if config["ignore_empty"] and serialized_val in ({}, [], ""):
-									continue
-
-								result[attr_name] = serialized_val
-							except Exception:
-								pass
-				finally:
-					seen_mem.discard(mem_id)
+							result[attr_name] = serialized_val
+						except Exception:
+							pass
 
 				return result
 
@@ -191,11 +189,12 @@ COMMON_FILTERS = [
 	'BASE', 'key', 'DEFAULT_VALUE', 'VALID_FLAGS', 'jump_url', 'colour',
 	'accent_colour', 'accent_color', 'avatar_decoration_sku_id', 'client_status',
 	'desktop_status', 'web_status', 'mobile_status', 'mutual_guilds', 'flags',
-	'public_flags', 'interaction', 'raw_mentions', 'raw_role_mentions', 'clean_content'
+	'public_flags', 'interaction', 'raw_mentions', 'raw_role_mentions', 'clean_content',
+	'voice_states', 'threads'
 ]
 
 convert_message = Convert(
-	filter_attrs=COMMON_FILTERS + ['call', 'role_subscription', 'value', 'nonce', 'guild'],
+	filter_attrs=COMMON_FILTERS + ['call', 'role_subscription', 'value', 'nonce', 'guild', 'channel'],
 	max_depth=3,
 	output_format="json"
 )
