@@ -1,12 +1,10 @@
 import logging
-import asyncio
 from pathlib import Path
 from typing import Any
 
 import discord
 
 from core.lib.converter import convert_message
-from core.lib.llm import GenerateContent
 from core.lib.file import json_file
 from meta import config, file
 
@@ -41,6 +39,12 @@ class _EntityListStore:
 	def _get_list(self, data: dict) -> list[Any]:
 		return data.setdefault(self.key, [])
 
+	def _trim(self, items: list[Any]) -> list[Any]:
+		if len(items) > self.max_items:
+			log.debug(f"Trimming {self.key} list: {len(items)} -> {self.max_items}")
+			return items[-self.max_items:]
+		return items
+
 	async def get(self, entity_id: int) -> tuple[bool, list[Any]]:
 		try:
 			success, data = await self._load(entity_id)
@@ -68,40 +72,8 @@ class _EntityListStore:
 
 
 class STM(_EntityListStore):
-	def __init__(self, entity_type="guild", batch_trim_size: int = 50):
+	def __init__(self, entity_type="guild"):
 		super().__init__("stm", config.max_stm, entity_type)
-		self.batch_trim_size = batch_trim_size
-
-	async def _summarize_and_store(self, entity_id: int, dropped_items: list):
-		try:
-			log.info(f"Summarizing {len(dropped_items)} old STM entries for {self.entity_type} {entity_id}")
-			llm = GenerateContent(
-				api_key=config.secrets.gemini_api_key[-1],
-				model_name=config.gemini_models[0],
-				system_instruction=config.summary_instructions
-			)
-
-			formatted_entries = []
-			for item in dropped_items:
-				if isinstance(item, dict):
-					ctx = item.get("_context", "")
-					content = item.get("content", item)
-					formatted_entries.append(f"{ctx} {content}".strip())
-				else:
-					formatted_entries.append(str(item))
-
-			text_to_summarize = "\n".join(formatted_entries)
-			success, summary = await llm.call(f"Summarize the following past interactions concisely:\n{text_to_summarize}")
-
-			if success and summary:
-				final_note = f"[Auto-Summarized] {summary.strip()}"
-				ltm = LTM(self.entity_type)
-				await ltm.add(entity_id, final_note)
-				log.info(f"Successfully auto-summarized and saved to LTM for {self.entity_type} {entity_id}")
-			else:
-				log.warning(f"Failed to summarize STM entries for {self.entity_type} {entity_id}")
-		except Exception as e:
-			log.error(f"Error during auto-summarization for {self.entity_type} {entity_id}: {e}", exc_info=True)
 
 	async def add(self, entity_id: int, message) -> bool:
 		try:
@@ -124,15 +96,7 @@ class STM(_EntityListStore):
 
 			items = self._get_list(data)
 			items.append(entry)
-
-			if len(items) > self.max_items:
-				trim_count = min(self.batch_trim_size, len(items) - self.max_items + 1)
-				dropped = items[:trim_count]
-				items = items[trim_count:]
-
-				asyncio.create_task(self._summarize_and_store(entity_id, dropped))
-
-			data[self.key] = items
+			data[self.key] = self._trim(items)
 
 			await self._save(entity_id, data)
 			log.debug(f"Added STM entry for {self.entity_type} {entity_id}")
@@ -144,12 +108,6 @@ class STM(_EntityListStore):
 class LTM(_EntityListStore):
 	def __init__(self, entity_type="guild"):
 		super().__init__("ltm", config.max_ltm, entity_type)
-
-	def _trim(self, items: list[Any]) -> list[Any]:
-		if len(items) > self.max_items:
-			log.debug(f"Trimming {self.key} list: {len(items)} -> {self.max_items}")
-			return items[-self.max_items:]
-		return items
 
 	async def add(self, entity_id: int, note: str) -> bool:
 		try:
@@ -172,12 +130,6 @@ class Audit(_EntityListStore):
 	def __init__(self, entity_type="guild"):
 		super().__init__("audit", config.max_audit, entity_type)
 
-	def _trim(self, items: list[Any]) -> list[Any]:
-		if len(items) > self.max_items:
-			log.debug(f"Trimming {self.key} list: {len(items)} -> {self.max_items}")
-			return items[-self.max_items:]
-		return items
-
 	async def add(self, entity_id: int, event) -> bool:
 		try:
 			entry = await convert_message(event)
@@ -199,12 +151,6 @@ class Audit(_EntityListStore):
 class Response(_EntityListStore):
 	def __init__(self, entity_type="guild"):
 		super().__init__("previous_response", config.max_previous_response, entity_type)
-
-	def _trim(self, items: list[Any]) -> list[Any]:
-		if len(items) > self.max_items:
-			log.debug(f"Trimming {self.key} list: {len(items)} -> {self.max_items}")
-			return items[-self.max_items:]
-		return items
 
 	async def add(self, entity_id: int, response_text: str) -> bool:
 		try:
