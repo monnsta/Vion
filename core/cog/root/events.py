@@ -11,20 +11,17 @@ import discord
 from discord.ext import commands, tasks
 
 from core.lib.file import json_file
-from core.wrp.ai import ai
-from core.wrp.memory import guild_stm, user_stm
-from core.wrp.profile import server, user
+from core.wrp.profile import server
 from core.wrp.blacklist import blacklist, BlacklistedError
 from meta import config, file, sub
 
-from core.cog.utils import should_respond
 from core.cog.ui_template import Fail, Generic, UnexpectedError
 
 
 log = logging.getLogger(__name__)
 
 
-class Events(commands.Cog):
+class CoreEvents(commands.Cog):
 	def __init__(self, bot: commands.Bot):
 		self.bot = bot
 		self.status_queue = []
@@ -140,36 +137,6 @@ class Events(commands.Cog):
 					continue
 		log.warning(f"Could not find a suitable channel to send join message in {guild.id}")
 
-	async def do_memory_actions(self, message, manager, memory_manager, context):
-		entity = None
-
-		if context == "server" and message.guild:
-			entity = message.guild
-		elif context == "user":
-			entity = message.author
-		elif context == "self":
-			entity = getattr(message.channel, "recipient", None)
-
-			if not entity and getattr(message.channel, "type", None) == discord.ChannelType.private:
-				async for msg in message.channel.history(limit=10):
-					if msg.author.id != config.bot.id:
-						entity = msg.author
-						break
-
-		if not entity:
-			log.error("Could not resolve entity.")
-			return
-
-		if not await manager.is_setup(entity.id):
-			await manager.setup(entity)
-
-		_, current_memories = await memory_manager.get(entity.id)
-
-		if not current_memories:
-			async for msg in message.channel.history(limit=50):
-				await memory_manager.add(entity.id, msg)
-		else:
-			await memory_manager.add(entity.id, message)
 
 	# --- Background Tasks ---
 	@tasks.loop(hours=24)
@@ -281,43 +248,6 @@ class Events(commands.Cog):
 
 		log.info(f"Left guild: {guild.name} ({guild.id}). Purging data.")
 		await server.data.delete(guild.id)
-
-
-	@commands.Cog.listener()
-	async def on_message(self, message: discord.Message):
-		if await blacklist.is_blacklisted(message.author.id, "user"):
-			return
-		if message.guild and await blacklist.is_blacklisted(message.guild.id, "server"):
-			await message.guild.leave()
-			return
-
-		if message.guild:
-			await self.do_memory_actions(message, server, guild_stm, "server")
-
-			if message.author.id != config.bot.id:
-				await self.do_memory_actions(message, user, user_stm, "user")
-		else:
-			if message.author.id != config.bot.id:
-				await self.do_memory_actions(message, user, user_stm, "user")
-			else:
-				await self.do_memory_actions(message, user, user_stm, "self")
-
-		_, guild_settings = await server.settings.load(message.guild.id) if message.guild else '', {}
-
-		prefixes = await self.bot.determine_prefix(None, message) # type: ignore
-		free_will = guild_settings.get("free_will", True)
-
-		if should_respond(self.bot, free_will, prefixes, message):
-			if ai.bot is None:
-				ai.bot = self.bot
-			log.info(f"Responding to message: {message.content if message.content != '' else '*empty message*'}")
-			await ai.do_action(
-				"on_message",
-				message.guild,
-				message.author,
-				message=message,
-				bot=self.bot
-			)
 
 
 	@commands.Cog.listener()

@@ -135,13 +135,12 @@ class Audit(_EntityListStore):
 
 	async def add(self, entity_id: int, event) -> bool:
 		try:
-			entry = await convert_message(event)
 			success, data = await self._load(entity_id)
 			if not success:
 				return False
 
 			items = self._get_list(data)
-			items.append(entry)
+			items.append(event)
 			data[self.key] = self._trim(items)
 
 			await self._save(entity_id, data)
@@ -177,6 +176,7 @@ class MemoryCluster:
 	@staticmethod
 	async def build(guild: discord.Guild | None, user: discord.User | discord.Member | None) -> dict:
 		cluster = {
+			"guild_audit": [],
 			"global_stm": [],
 			"global_ltm": [],
 			"guild_stm": [],
@@ -185,11 +185,11 @@ class MemoryCluster:
 			"user_ltm": []
 		}
 
-		# Always load global memory (using 0 as a dummy ID since it's ignored)
 		_, cluster["global_stm"] = await global_stm.get(0)
 		_, cluster["global_ltm"] = await global_ltm.get(0)
 
 		if guild:
+			_, cluster["guild_audit"] = await guild_audit.get(guild.id)
 			_, cluster["guild_stm"] = await guild_stm.get(guild.id)
 			_, cluster["guild_ltm"] = await guild_ltm.get(guild.id)
 

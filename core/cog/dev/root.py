@@ -58,10 +58,10 @@ class DevRoot(commands.Cog):
 				"* code          (c)",
 				"* reload_config (r)",
 				"* update        (u)",
+				"* help          (h)",
 				"",
 				"* extension     (e)",
 				"* blacklist     (b)",
-				"* help          (h)",
 				"```"
 			))
 
