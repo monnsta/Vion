@@ -8,7 +8,21 @@ from meta import config
 
 class Consciousness:
 	def __init__(self):
-		self.cooldowns = {}
+		self.event_cooldowns = {}
+		self.message_trigger_cooldowns = {}
+		self._cleanup_interval = 300
+		self._last_cleanup = time.time()
+
+	def _cleanup_cooldowns(self, now: float):
+		keys_to_remove = [k for k, v in self.message_trigger_cooldowns.items() if now - v > config.ai_message_cooldown_seconds * 2]
+		for k in keys_to_remove:
+			del self.message_trigger_cooldowns[k]
+
+		keys_to_remove = [k for k, v in self.event_cooldowns.items() if now - v > 60 * 2]
+		for k in keys_to_remove:
+			del self.event_cooldowns[k]
+
+		self._last_cleanup = now
 
 	def evaluate(
 		self,
@@ -19,14 +33,11 @@ class Consciousness:
 		prefixes: tuple = (),
 		**kwargs
 	) -> bool:
-		
 		context_id = kwargs.get('context_id', 0)
 		now = time.time()
-		cooldown_key = f"{event_type}_{context_id}"
 
-		if event_type != "on_message" and cooldown_key in self.cooldowns:
-			if now - self.cooldowns[cooldown_key] < 60:
-				return False
+		if now - self._last_cleanup > self._cleanup_interval:
+			self._cleanup_cooldowns(now)
 
 		def get_random(chance_modifier: float) -> bool:
 			if not free_will:
@@ -34,59 +45,72 @@ class Consciousness:
 			chance = config.free_will_frequency * chance_modifier
 			return random.random() < max(0.0, min(1.0, chance))
 
-		trigger = False
-
 		if event_type == "on_message":
-			if message and (message.content.startswith(tuple(prefixes)) or message.author == bot.user):
+			if message is None:
 				return False
 
-			if message and isinstance(message.channel, discord.DMChannel):
-				if message.flags.silent:
-					return get_random(0.1)
-				return True
+			user_id = message.author.id
+			channel_id = message.channel.id
+			cooldown_key = (user_id, channel_id)
 
-			is_reply_to_bot = False
-			mention_is_on = False
+			if cooldown_key in self.message_trigger_cooldowns:
+				if now - self.message_trigger_cooldowns[cooldown_key] < config.ai_message_cooldown_seconds:
+					return False
 
-			if message and message.reference and message.reference.cached_message:
-				replied_msg = message.reference.cached_message
-				if bot.user and replied_msg.author.id == bot.user.id:
-					is_reply_to_bot = True
-					mention_is_on = bot.user in message.mentions
+			if message.content.startswith(tuple(prefixes)) or message.author == bot.user:
+				return False
 
-			if is_reply_to_bot:
-				return True if mention_is_on else (get_random(0.5) if free_will else True)
+			should_trigger = False
 
-			if message and bot.user:
-				bot_names = (bot.user.display_name, bot.user.name, config.bot.name)
-				if any(name in message.content.lower() for name in bot_names):
-					return get_random(0.8) if free_will else True
+			if isinstance(message.channel, discord.DMChannel):
+				should_trigger = True if not message.flags.silent else get_random(0.1)
+			else:
+				is_reply_to_bot = False
 
-			if message and bot.user in message.mentions:
-				return True
+				if message.reference and message.reference.cached_message:
+					replied_msg = message.reference.cached_message
+					if bot.user and replied_msg.author.id == bot.user.id:
+						is_reply_to_bot = True
 
-			if free_will:
-				if not message:
-					return get_random(1.0)
-				if message.mention_everyone:
-					return get_random(0.3)
-				trigger = get_random(0.02)
+				if is_reply_to_bot:
+					should_trigger = True
+				elif bot.user and bot.user in message.mentions:
+					should_trigger = True
+				elif bot.user:
+					bot_names = (bot.user.display_name.lower(), bot.user.name.lower(), config.bot.name.lower())
+					if any(name in message.content.lower() for name in bot_names):
+						should_trigger = get_random(0.8) if free_will else True
 
-		elif event_type == "on_message_delete":
-			trigger = get_random(-0.2)
+				if not should_trigger and free_will:
+					if message.mention_everyone:
+						should_trigger = get_random(0.3)
+					else:
+						should_trigger = get_random(0.02)
+
+			if should_trigger:
+				self.message_trigger_cooldowns[cooldown_key] = now
+			return should_trigger
+
+		event_cooldown_key = f"{event_type}_{context_id}"
+		if event_cooldown_key in self.event_cooldowns:
+			if now - self.event_cooldowns[event_cooldown_key] < 60: # Original 60s cooldown for other events
+				return False
+
+		should_trigger = False
+		if event_type == "on_message_delete":
+			should_trigger = get_random(-0.2)
 		elif event_type == "on_message_edit":
-			trigger = get_random(-0.2)
+			should_trigger = get_random(-0.2)
 		elif event_type == "on_reaction_add":
-			trigger = get_random(-0.2)
+			should_trigger = get_random(-0.2)
 		elif event_type == "on_guild_channel_create":
-			trigger = get_random(-0.1)
+			should_trigger = get_random(-0.1)
 		elif event_type == "on_typing":
-			trigger = get_random(-0.4)
+			should_trigger = get_random(-0.4)
 
-		if trigger:
-			self.cooldowns[cooldown_key] = now
-
-		return trigger
+		if should_trigger:
+			self.event_cooldowns[event_cooldown_key] = now
+		return should_trigger
 
 
 consciousness = Consciousness()

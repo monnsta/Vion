@@ -60,6 +60,7 @@ class Config(Data):
 	max_ltm: int
 	max_previous_response: int
 	max_audit: int
+	ai_message_cooldown_seconds: int
 	gemini_models: Tuple[str, ...]
 	free_will_frequency: float
 	temperature: float
