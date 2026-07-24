@@ -225,7 +225,7 @@ class Prefix(HybridGroup):
 			default_list = [f"{i}. `{p}`" for i, p in enumerate(config.default_prefix, 1)]
 			await ctx.reply(view=Generic(
 				"No prefixes found, but there are these you can use:",
-				f"{chr(10)}.join(default_list)"
+				f"{chr(10).join(default_list)}"
 			))
 			return
 

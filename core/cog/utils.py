@@ -3,7 +3,7 @@ from typing import Any, Tuple, Optional, Callable, Iterable
 from discord.ext import commands
 
 from core.wrp.profile import server, user
-from core.cog.ui_template import Fail, UnexpectedError
+from core.cog.ui_template import Fail
 from meta import config
 
 
@@ -38,21 +38,6 @@ async def handle_common_errors(ctx: commands.Context, error):
 			"Missing Required Permission",
 			"You need **Administrator** permissions for that."
 		))
-
-	elif isinstance(error, commands.MissingRequiredArgument):
-		return await ctx.reply(view=Fail(
-			"Missing Argument",
-			f"You forgot a required argument: `{error.param.name}`"
-		))
-
-	elif isinstance(error, commands.CommandOnCooldown):
-		return await ctx.reply(view=Fail(
-			"Command on Cooldown",
-			f"Try again in `{error.retry_after:.1f}s`."
-		))
-
-	else:
-		return await ctx.reply(view=UnexpectedError)
 
 def format_dt(dt_obj):
 	if not dt_obj: return "Never"

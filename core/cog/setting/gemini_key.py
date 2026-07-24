@@ -8,7 +8,7 @@ from core.lib.llm import validate_key
 from core.lib.utils import mt, em
 from meta import config, emoji
 
-from core.cog.utils import resolve_target, load_settings, HybridGroup, hybrid_command
+from core.cog.utils import resolve_target, load_settings, handle_common_errors, HybridGroup, hybrid_command, is_admin
 from core.cog.ui_template import Fail, Success, Generic, Confirmation, UnexpectedError
 
 
@@ -46,37 +46,41 @@ class GeminiKey(HybridGroup):
 	async def help_cmd(self, ctx: commands.Context):
 		await ctx.reply(view=Generic(
 			"# Gemini Key",
-			"This group is used to manage your gemini api keys.",
+			"This group is used to manage your personal or server gemini api keys.",
 			"The bot uses these keys when talking to you",
 			None,
 			mt(
 				"## Add:",
-				"Add a gemini api key to your personal profile.",
+				"Add a gemini api key to your personal profile or current server.",
 				"Params:",
+				"* type: Whether to add the key to your personal profile or current server (user or server)",
 				"* key: The key from the gemini api",
 				"Usage:",
 				f"{emoji.warn} **Recommend to use in dms or use as slash commands to keep your key private.**",
-				f"* `{self.p}setting gemini_key add *******`",
-				f"* `{self.p}s g a *******`",
-				f"* {config.cmd.setting.gemini_key.add} `key:` {em('*******')}"
+				f"* `{self.p}setting gemini_key add server *******`",
+				f"* `{self.p}s g a server *******`",
+				f"* {config.cmd.setting.gemini_key.add} `type:` server `key:` {em('*******')}"
 			), None,
 			mt(
 				"## Remove:",
-				"Remove an api key you added from your personal profile.",
+				"Remove an api key you added from your personal profile or current server.",
 				"Params:",
+				"* type: Whether to delete the key from your personal profile or server (user or server)",
 				"* pos: The position of the key, (number showed when you use list command)",
 				"Usage:",
-				f"* `{self.p}setting gemini_key remove 2`",
-				f"* `{self.p}s g r 2`",
-				f"* {config.cmd.setting.gemini_key.remove} `pos:` 2"
+				f"* `{self.p}setting gemini_key remove server 2`",
+				f"* `{self.p}s g r server 2`",
+				f"* {config.cmd.setting.gemini_key.remove} `type:` server `pos:` 2"
 			), None,
 			mt(
 				"## List:",
-				"List all the api keys of your personal profile.",
+				"List all the api keys of your personal profile or current server.",
+				"Params:",
+				"* type: Whether to list keys from your personal profile or current server (user or server)",
 				"Usage:",
-				f"* `{self.p}setting gemini_key list`",
-				f"* `{self.p}s g l`",
-				f"* {config.cmd.setting.gemini_key.list}"
+				f"* `{self.p}setting gemini_key list server`",
+				f"* `{self.p}s g l server`",
+				f"* {config.cmd.setting.gemini_key.list} `type:` server"
 			)
 		))
 
@@ -84,11 +88,14 @@ class GeminiKey(HybridGroup):
 	@hybrid_command(
 		name='add',
 		aliases=['a'],
-		description='Add a gemini api key to your personal profile.'
+		description='Add a gemini api key to your personal profile or current server.'
 	)
-	@app.describe(key='The key from the gemini api')
-	async def add(self, ctx: commands.Context, *, key: str):
-		type: Literal['server', 'user'] = 'user'
+	@app.describe(
+		type='Whether to add the key to your personal profile or current server',
+		key='The key from the gemini api'
+	)
+	@is_admin(config.dev_ids, ('type', 'user'))
+	async def add(self, ctx: commands.Context, type: Literal['server', 'user'], *, key: str):
 		manager, target_id = await resolve_target(ctx, type)
 		if not manager:
 			return
@@ -126,15 +133,22 @@ class GeminiKey(HybridGroup):
 			return
 		await ctx.reply(view=UnexpectedError)
 
+	@add.error
+	async def add_error(self, ctx: commands.Context, error):
+		await handle_common_errors(ctx, error)
+
 
 	@hybrid_command(
 		name='remove',
 		aliases=['r'],
-		description='Remove an api key you added from your personal profile.'
+		description='Remove an api key you added from your personal profile or current server.'
 	)
-	@app.describe(pos='The position of the key, (number showed when you use list command)')
-	async def remove(self, ctx: commands.Context, pos: int):
-		type: Literal['server', 'user'] = 'user'
+	@app.describe(
+		type='Whether to delete the key from your personal profile or server',
+		pos='The position of the key, (number showed when you use list command)'
+	)
+	@is_admin(config.dev_ids, ('type', 'user'))
+	async def remove(self, ctx: commands.Context, type: Literal['server', 'user'], pos: int):
 		manager, target_id = await resolve_target(ctx, type)
 		if not manager:
 			return
@@ -147,7 +161,7 @@ class GeminiKey(HybridGroup):
 		if not keys:
 			await ctx.reply(view=Fail(
 				"No Keys Found",
-				"You don't have any keys added, therefore can't remove any."
+				f"You don't have any keys added, therefore can't remove any."
 			))
 			return
 
@@ -188,14 +202,20 @@ class GeminiKey(HybridGroup):
 			if not success:
 				await message.edit(view=UnexpectedError)
 
+	@remove.error
+	async def remove_error(self, ctx: commands.Context, error):
+		await handle_common_errors(ctx, error)
+
 
 	@hybrid_command(
 		name='list',
 		aliases=['l'],
-		description='List all the api keys of your personal profile.'
+		description='List all the api keys of your personal profile or current server.'
 	)
-	async def list(self, ctx: commands.Context):
-		type: Literal['server', 'user'] = 'user'
+	@app.describe(
+		type='Whether to list keys from your personal profile or current server'
+	)
+	async def list(self, ctx: commands.Context, type: Literal['server', 'user']):
 		manager, target_id = await resolve_target(ctx, type)
 		if not manager:
 			return
@@ -216,7 +236,7 @@ class GeminiKey(HybridGroup):
 			masked_key = f"{raw_key[:4]}...{raw_key[-4:]}"
 
 			if type == 'server':
-				owner = self.bot.get_user(entry.get("owner"))
+				owner = self.bot.get_user(entry.get("owner")) # type: ignore
 				owner_name = owner.display_name if owner else f"Unknown ({entry.get('owner')})"
 				key_lines.append(f"{i}. `{masked_key}` — Added by **{owner_name}**")
 			else:

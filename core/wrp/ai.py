@@ -103,16 +103,16 @@ class AI:
 			for k in config.secrets.gemini_api_key
 		]
 		log.debug(f"Loaded {len(self.base_modules)} base modules from configuration.")
-		self.user_modules_cache: Dict[str, List[GenerateContent]] = {}
+		self.custom_modules_cache: Dict[str, List[GenerateContent]] = {}
 		self.bot: Optional[commands.Bot] = None
 
-	def _get_user_modules(self, user_keys: List[str]) -> List[GenerateContent]:
-		cache_signature = ",".join(sorted(user_keys))
-		if cache_signature in self.user_modules_cache:
-			log.debug("Cache hit for user modules.")
-			return self.user_modules_cache[cache_signature]
+	def _get_custom_modules(self, custom_keys: List[str]) -> List[GenerateContent]:
+		cache_signature = ",".join(sorted(custom_keys))
+		if cache_signature in self.custom_modules_cache:
+			log.debug("Cache hit for custom modules.")
+			return self.custom_modules_cache[cache_signature]
 
-		log.info(f"Cache miss. Generating user modules for signature hash: {hash(cache_signature)}")
+		log.info(f"Cache miss. Generating custom modules for signature hash: {hash(cache_signature)}")
 		modules = [
 			GenerateContent(
 				k, m,
@@ -121,9 +121,9 @@ class AI:
 				config.top_p, config.top_k
 			)
 			for m in config.gemini_models
-			for k in user_keys
+			for k in custom_keys
 		]
-		self.user_modules_cache[cache_signature] = modules
+		self.custom_modules_cache[cache_signature] = modules
 		return modules
 
 	async def do_action(
@@ -140,6 +140,7 @@ class AI:
 		g_obj, u_obj = None, None
 		g_ins = None
 		pipeline = list(self.base_modules)
+		custom_keys: List[str] = []
 
 		request_full_context = kwargs.pop('request_full_context', False)
 
@@ -149,6 +150,12 @@ class AI:
 				_, g_full_obj = await server.info.load(guild.id)
 				_, g_settings = await server.settings.load(guild.id)
 				g_ins = g_settings.get("instructions")
+				
+				if s_keys_raw := g_settings.get("api_keys"):
+					log.debug(f"Extracting server-provided API keys for Guild ID: {guild.id}")
+					for k in s_keys_raw:
+						custom_keys.append(k["key"] if isinstance(k, dict) else k)
+
 				if not g_full_obj:
 					await server.info.save(guild)
 					_, g_full_obj = await server.info.load(guild.id)
@@ -172,10 +179,15 @@ class AI:
 				else:
 					u_obj = f"User Name: {member.name}, ID: {member.id}\n(Full context omitted. Use self_call with request_full_context=True to retrieve.)"
 
-				if user_keys := u_sets.get("api_keys"):
-					log.info(f"Injecting user-provided API keys into pipeline for Member ID: {member.id}")
-					user_modules = self._get_user_modules(user_keys)
-					pipeline = user_modules + pipeline
+				if u_keys := u_sets.get("api_keys"):
+					log.debug(f"Extracting user-provided API keys for Member ID: {member.id}")
+					custom_keys.extend(u_keys)
+
+			if custom_keys:
+				unique_keys = list(dict.fromkeys(custom_keys))
+				log.info(f"Injecting {len(unique_keys)} custom API keys into pipeline.")
+				custom_modules = self._get_custom_modules(unique_keys)
+				pipeline = custom_modules + pipeline
 
 		log.debug("Building Memory Cluster...")
 		cluster = await MemoryCluster.build(guild, member)

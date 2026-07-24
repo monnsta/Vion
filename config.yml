@@ -262,6 +262,7 @@ settings:
   server:
     prefix: []
     free_will: true
+    api_keys: []
     instructions: ""
 
   user:
