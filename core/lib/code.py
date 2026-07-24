@@ -49,7 +49,7 @@ class Code:
 		self.execution_id = f"EI{str(create_id())}"
 		self.data = Data(
 			status = status.PENDING,
-			ai_logs = "",
+			logs = "",
 			result = None,
 			error = None
 		)
@@ -157,14 +157,14 @@ class Code:
 		return self.data
 
 	def _sync_data(self):
-		self.data.ai_logs = ANSI_ESCAPE.sub('', self._log_buf.getvalue())
-		log.debug(f"Synced buffers for ID: {self.execution_id} (logs: {len(self.data.ai_logs)} bytes)")
+		self.data.logs = ANSI_ESCAPE.sub('', self._log_buf.getvalue())
+		log.debug(f"Synced buffers for ID: {self.execution_id} (logs: {len(self.data.logs)} bytes)")
 
 	def _reset_state(self):
 		log.debug(f"Resetting state for ID: {self.execution_id}")
 		self.data = Data(
 			status = status.PENDING,
-			ai_logs = "",
+			logs = "",
 			result = None,
 			error = None
 		)

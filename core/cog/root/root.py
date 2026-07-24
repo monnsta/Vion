@@ -8,7 +8,7 @@ from meta import config, emoji
 
 from core.cog.utils import resolve_target, handle_common_errors, is_admin
 from core.cog.ui_template import Generic
-from core.cog.root.ui import ManageDataView
+from core.cog.root.ui import ManageDataView, AIStatsView
 
 
 class Root(commands.Cog):
@@ -156,6 +156,21 @@ class Root(commands.Cog):
 			None,
 			f"-# Guilds: {guild_count:,} • Users: {user_count:,}"
 		))
+
+
+	@commands.hybrid_command(
+		name='stats',
+		aliases=['st'],
+		description='View detailed AI activity statistics.'
+	)
+	@app.describe(
+		target='The scope of the stats you want to view initially.',
+		user='Optional user to check stats for.'
+	)
+	async def stats(self, ctx: commands.Context, target: Literal['global', 'server', 'user', 'leaderboard'] = 'global', user: discord.User | discord.Member | None = None):
+		view = AIStatsView(ctx, default_target=target, user_target=user)
+		message = await view.start()
+		view.message = message
 
 
 	@commands.hybrid_command(

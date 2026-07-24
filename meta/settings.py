@@ -88,6 +88,8 @@ class Emoji(Data):
 	double_arrow_left: str
 	double_arrow_right: str
 
+	refresh: str
+
 	char_empty: str
 	char_absolute_empty: str
 	char_o: str

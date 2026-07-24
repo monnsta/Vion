@@ -248,10 +248,8 @@ class DevRoot(commands.Cog):
 						data = runner.get_output()
 
 						output_parts = []
-						if data.stdout:
-							output_parts.append(f"**Stdout:**\n{format_live_block(data.stdout, 500)}")
-						if data.stderr:
-							output_parts.append(f"**Stderr:**\n{format_live_block(data.stderr, 500)}")
+						if data.logs:
+							output_parts.append(f"**Logs:**\n{format_live_block(data.logs, 500)}")
 
 						content = "\n".join(output_parts) if output_parts else "Executing..."
 
@@ -279,8 +277,8 @@ class DevRoot(commands.Cog):
 			updater_task.cancel()
 
 			items = []
-			items.extend(chunk_for_pagination("Stdout", data.stdout))
-			items.extend(chunk_for_pagination("Stderr", data.stderr))
+			if data.logs:
+				items.extend(chunk_for_pagination("Logs", data.logs))
 
 			if data.error:
 				items.extend(chunk_for_pagination("Error", data.error))

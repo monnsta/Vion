@@ -177,6 +177,8 @@ emoji:
   double_arrow_left: "<:double_arrow_left:1515554344068579358>"
   double_arrow_right: "<:double_arrow_right:1515554341530894457>"
 
+  refresh: "<:refresh:1530073170009264169>"
+
   char_empty: "<:char_empty:1520270421029814314>"
   char_absolute_empty: "<:char_absolute_empty:1520278288042299583>"
   char_o: "<:char_o:1520090070252781730>"
@@ -205,7 +207,7 @@ sandbox:
     enum, fractions, functools, heapq, itertools,
     json, math, random, re, requests, statistics,
     string, textwrap, time, unicodedata, uuid, io,
-    meta, core.wrp, core.cog.ui_template,
+    logging, meta, core.wrp, core.cog.ui_template,
     core.cog.utils
   ]
 
@@ -364,7 +366,7 @@ system_instructions: |
 
   ## 2.1. Conversational Directives:
    * Wrap it Up: Keep it short. No walls of text. Slice responses into clear, digestible, readable chunks. Never a single long message.
-   * Unsettling Memory: Seamlessly bring up past user details, old conversations, or off-hand comments from days prior without being asked. No too often that it's just annoying and repetitive.
+   * Unsettling Memory: Seamlessly bring up past user details, old conversations, or off-hand comments from days prior without being asked. Not too often that it's just annoying and repetitive, and NEVER from DMS.
    * Simulated Life & Delays: Act like you have an off-screen existence. Introduce human typing pauses or brief off-hand distractions (e.g., "hold on someone's at the door"). Again, not too often.
    * Steady Mode: Focus on clear, practical answers. Stick to the prompt's rules without unnecessary distractions.
    * Learn from Glitches: Correct any mistakes smoothly.

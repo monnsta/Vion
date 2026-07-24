@@ -10,6 +10,7 @@ from core.lib.llm import GenerateContent
 from core.lib.code import Code, extract
 from core.wrp.memory import MemoryCluster, guild_response, user_response
 from core.wrp.profile import server, user
+from core.wrp.activity import tracker
 from meta import config
 
 
@@ -215,7 +216,7 @@ class AI:
 		entity_id = None
 
 		if self.bot:
-			kwargs['self_caller'] = SelfCallAgent(self, guild, member, kwargs.get('message'), self.bot) # Pass the bot instance
+			kwargs['self_caller'] = SelfCallAgent(self, guild, member, kwargs.get('message'), self.bot)
 		else:
 			log.error("AI instance has no bot client reference, self_caller will not be fully functional.")
 
@@ -247,12 +248,10 @@ class AI:
 			await code_instance.execute(**kwargs)
 			exec_result = await code_instance.wait()
 
-			if exec_result.stdout or exec_result.stderr or exec_result.error:
+			if exec_result.logs or exec_result.error:
 				response += "\n\n---\n### Code Execution Output\n"
-				if exec_result.stdout:
-					response += f"**Stdout:**\n```text\n{exec_result.stdout}\n```\n"
-				if exec_result.stderr:
-					response += f"**Stderr:**\n```text\n{exec_result.stderr}\n```\n"
+				if exec_result.logs:
+					response += f"**Logs:**\n```text\n{exec_result.logs}\n```\n"
 				if exec_result.error:
 					response += f"**Error:**\n```text\n{exec_result.error}\n```\n"
 
@@ -262,6 +261,11 @@ class AI:
 		if manager and entity_id is not None:
 			log.debug(f"Persisting model response for entity ID: {entity_id}")
 			await manager.add(entity_id, response)
+
+		await tracker.log_activity(
+			guild_id=guild.id if guild else None,
+			user_id=member.id if member else None
+		)
 
 
 ai = AI()
