@@ -113,6 +113,8 @@ class Convert:
 				if depth >= config["max_depth"]:
 					if hasattr(o, 'id'):
 						return {"id": getattr(o, 'id'), "$ref": True}
+					if isinstance(o, (list, tuple, set, dict)):
+						return "<Max Depth Reached>"
 					return str(o) if not callable(o) else None
 
 				mem_id = id(o)
@@ -190,7 +192,7 @@ COMMON_FILTERS = [
 	'accent_colour', 'accent_color', 'avatar_decoration_sku_id', 'client_status',
 	'desktop_status', 'web_status', 'mobile_status', 'mutual_guilds', 'flags',
 	'public_flags', 'interaction', 'raw_mentions', 'raw_role_mentions', 'clean_content',
-	'voice_states', 'threads'
+	'voice_states', 'threads', 'available_tags'
 ]
 
 convert_message = Convert(

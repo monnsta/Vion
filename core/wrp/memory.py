@@ -131,7 +131,7 @@ class LTM(_EntityListStore):
 
 class Audit(_EntityListStore):
 	def __init__(self, entity_type="guild"):
-		super().__init__("audit", config.max_audit, entity_type)
+		super().__init__("audit_log", config.max_audit, entity_type)
 
 	async def add(self, entity_id: int, event) -> bool:
 		try:

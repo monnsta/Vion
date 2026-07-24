@@ -6,11 +6,11 @@ import re
 import html
 import traceback
 import types
-from contextlib import redirect_stderr, redirect_stdout
-from typing import Any, Callable, Optional
+from typing import Any, Optional
 
 from core.lib.dataclass import Data, Repr
 from core.lib.utils import create_id
+from core.lib.logging import code_log_stream
 from meta import config
 
 
@@ -30,45 +30,31 @@ status = Data(
 
 
 def extract(text: str) -> Data:
-    code_match = re.search(r"<code>\s*(.*?)\s*</code>", text, re.DOTALL)
-    note_match = re.search(r"<note>\s*(.*?)\s*</note>", text, re.DOTALL)
+	code_match = re.search(r"<code>\s*(.*?)\s*</code>", text, re.DOTALL)
+	note_match = re.search(r"<note>\s*(.*?)\s*</note>", text, re.DOTALL)
 
-    code = html.unescape(code_match.group(1).strip()) if code_match else ""
-    note = html.unescape(note_match.group(1).strip()) if note_match else ""
+	code = html.unescape(code_match.group(1).strip()) if code_match else ""
+	note = html.unescape(note_match.group(1).strip()) if note_match else ""
 
-    log.debug(f"Extracted Code:\n{code}\n\nExtracted Note:\n{note}")
+	log.debug(f"Extracted Code:\n{code}\n\nExtracted Note:\n{note}")
 
-    return Data(code=code, note=note)
+	return Data(code=code, note=note)
 
-
-class StreamInterceptor(io.StringIO):
-	def __init__(self, callback: Optional[Callable[[str], None]] = None):
-		super().__init__()
-		self._callback = callback
-
-	def write(self, s: str) -> int:
-		res = super().write(s)
-		if self._callback:
-			self._callback(s)
-		return res
 
 class Code:
 	tasks = Data()
 
-	def __init__(self, code_str: str, on_stdout: Optional[Callable[[str], None]] = None, on_stderr: Optional[Callable[[str], None]] = None):
+	def __init__(self, code_str: str):
 		self.code_str = code_str
 		self.execution_id = f"EI{str(create_id())}"
 		self.data = Data(
 			status = status.PENDING,
-			stdout = "",
-			stderr  = "",
+			ai_logs = "",
 			result = None,
 			error = None
 		)
 		self._task: Optional[asyncio.Task] = None
-
-		self._stdout_buf = StreamInterceptor(on_stdout)
-		self._stderr_buf = StreamInterceptor(on_stderr)
+		self._log_buf = io.StringIO()
 
 		Code.tasks.set(self.execution_id, self)
 		log.debug(f"Code task initialized: {self.execution_id}")
@@ -106,17 +92,16 @@ class Code:
 			raise
 
 		async def task_wrapper():
+			token = code_log_stream.set(self._log_buf)
 			try:
 				if timeout:
 					log.debug(f"Executing ID {self.execution_id} with {timeout}s timeout")
-					with redirect_stdout(self._stdout_buf), redirect_stderr(self._stderr_buf):
-						self.data.result = await asyncio.wait_for(
-							main_func(**context_vars),
-							timeout=timeout
-						)
+					self.data.result = await asyncio.wait_for(
+						main_func(**context_vars),
+						timeout=timeout
+					)
 				else:
-					with redirect_stdout(self._stdout_buf), redirect_stderr(self._stderr_buf):
-						self.data.result = await main_func(**context_vars)
+					self.data.result = await main_func(**context_vars)
 
 				self.data.status = status.COMPLETED
 				log.info(f"Execution completed for ID: {self.execution_id}")
@@ -137,6 +122,7 @@ class Code:
 				self.data.status = status.FAILED
 
 			finally:
+				code_log_stream.reset(token)
 				self._sync_data()
 
 		self._task = asyncio.create_task(task_wrapper())
@@ -171,23 +157,19 @@ class Code:
 		return self.data
 
 	def _sync_data(self):
-		self.data.stdout = ANSI_ESCAPE.sub('', self._stdout_buf.getvalue())
-		self.data.stderr = ANSI_ESCAPE.sub('', self._stderr_buf.getvalue())
-		log.debug(f"Synced buffers for ID: {self.execution_id} (stdout: {len(self.data.stdout)} bytes)")
+		self.data.ai_logs = ANSI_ESCAPE.sub('', self._log_buf.getvalue())
+		log.debug(f"Synced buffers for ID: {self.execution_id} (logs: {len(self.data.ai_logs)} bytes)")
 
 	def _reset_state(self):
 		log.debug(f"Resetting state for ID: {self.execution_id}")
 		self.data = Data(
 			status = status.PENDING,
-			stdout = "",
-			stderr  = "",
+			ai_logs = "",
 			result = None,
 			error = None
 		)
-		self._stdout_buf.seek(0)
-		self._stdout_buf.truncate(0)
-		self._stderr_buf.seek(0)
-		self._stderr_buf.truncate(0)
+		self._log_buf.seek(0)
+		self._log_buf.truncate(0)
 
 
 __all__ = ('status', 'extract', 'Code')

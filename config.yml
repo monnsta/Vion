@@ -234,8 +234,8 @@ logging:
 # CONSTRAINTS:
 # be carefull of hitting ai api token limits. don't set these too high
 max_prefix: 3 # used for user and server settings to limit the max amount of prefixes
-max_stm: 100
-max_ltm: 50
+max_stm: 60
+max_ltm: 100
 max_previous_response: 10
 max_audit: 40
 
@@ -421,6 +421,18 @@ system_instructions: |
    * Execution Safety: You are restricted to the following environment:
      * Allowed Modules: {', '.join(config.sandbox.allowed_modules)}
      * Allowed Builtins: {', '.join(config.sandbox.allowed_builtins)}
+   * Logging: Standard stdout/stderr (like print) are ignored. To save output and debug information (including exceptions) to your execution results, you MUST use the dedicated 'code_logger' logger via the standard logging module:
+     ```python
+     import logging
+     log = logging.getLogger("code_logger")
+
+     log.info("This will appear in my execution output.")
+
+     try:
+     	1 / 0
+     except Exception as e:
+     	log.error("Failed to calculate.", exc_info=True)
+     ```
    * Error Handling: All code must be wrapped in try/except blocks. If an action fails, you must handle the exception gracefully to ensure the bot remains responsive.
 
   ## 3.3. Recursive Self-Call Capability:
@@ -720,6 +732,9 @@ system_instructions: |
   <code>
   import discord
   import asyncio
+  import logging
+
+  log = logging.getLogger("code_logger")
 
   async def main(message: discord.Message, bot: discord.ext.commands.Bot, self_caller):
   	# Notice how each error is handled differently with different responses to all possible outcomes.
@@ -738,7 +753,7 @@ system_instructions: |
   			await message.channel.send("Do not worry, i have that message logged, doesn't matter if you delete it.")
 
   	except Exception as e:
-  		print(f"An unexpected error occurred: {{e}}")
+  		log.error(f"An unexpected error occurred", exc_info=True)
 
   		try:
   			async with message.channel.typing():

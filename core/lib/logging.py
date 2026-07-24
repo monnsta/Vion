@@ -1,3 +1,4 @@
+import contextvars
 import html
 import io
 import json
@@ -10,6 +11,19 @@ from rich.console import Console
 from rich.logging import RichHandler
 from rich.syntax import Syntax
 from rich.text import Text
+
+
+code_log_stream: contextvars.ContextVar[io.StringIO | None] = contextvars.ContextVar('code_log_stream', default=None)
+
+class CodeLogHandler(logging.Handler):
+	def emit(self, record):
+		stream = code_log_stream.get()
+		if stream is not None:
+			try:
+				msg = self.format(record)
+				stream.write(msg + '\n')
+			except Exception:
+				self.handleError(record)
 
 
 class JsonFormatter(logging.Formatter):
@@ -162,3 +176,12 @@ class RichHandlerv2(RichHandler):
 		short_label = level_map.get(record.levelname, record.levelname)
 		level_style = f"logging.level.{record.levelname.lower()}"
 		return Text.styled(f"{short_label}", level_style)
+
+
+code_logger = logging.getLogger("code_logger")
+code_logger.setLevel(logging.DEBUG)
+code_logger.propagate = False
+_code_formatter = logging.Formatter("[%(levelname)s] %(message)s")
+_code_handler = CodeLogHandler()
+_code_handler.setFormatter(_code_formatter)
+code_logger.addHandler(_code_handler)
