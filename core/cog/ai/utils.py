@@ -7,6 +7,17 @@ from meta import config
 
 
 class Consciousness:
+	EVENT_CHANCES = {
+		"on_message_delete": 0.2,
+		"on_message_edit": 0.2,
+		"on_reaction_add": 0.2,
+		"on_guild_channel_create": 0.3,
+		"on_typing": 0.1,
+		"on_member_join": 0.4,
+		"on_guild_join": 1.0,
+		"on_voice_state_update": 0.1,
+	}
+
 	def __init__(self):
 		self.event_cooldowns = {}
 		self.message_trigger_cooldowns = {}
@@ -93,20 +104,16 @@ class Consciousness:
 
 		event_cooldown_key = f"{event_type}_{context_id}"
 		if event_cooldown_key in self.event_cooldowns:
-			if now - self.event_cooldowns[event_cooldown_key] < 60: # Original 60s cooldown for other events
+			if now - self.event_cooldowns[event_cooldown_key] < 60:
 				return False
 
-		should_trigger = False
-		if event_type == "on_message_delete":
-			should_trigger = get_random(-0.2)
-		elif event_type == "on_message_edit":
-			should_trigger = get_random(-0.2)
-		elif event_type == "on_reaction_add":
-			should_trigger = get_random(-0.2)
-		elif event_type == "on_guild_channel_create":
-			should_trigger = get_random(-0.1)
-		elif event_type == "on_typing":
-			should_trigger = get_random(-0.4)
+		chance = self.EVENT_CHANCES.get(event_type)
+		if chance is None:
+			should_trigger = False
+		elif chance >= 1.0:
+			should_trigger = True
+		else:
+			should_trigger = get_random(chance)
 
 		if should_trigger:
 			self.event_cooldowns[event_cooldown_key] = now

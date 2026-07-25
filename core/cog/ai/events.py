@@ -198,3 +198,58 @@ class AIEvents(commands.Cog):
 				channel=channel,
 				bot=self.bot
 			)
+
+
+	@commands.Cog.listener()
+	async def on_member_join(self, member: discord.Member):
+		if member.id == config.bot.id: return
+
+		event_str = f"{member.name} just joined the server."
+		await guild_audit.add(member.guild.id, event_str)
+
+		_, guild_settings = await server.settings.load(member.guild.id)
+		free_will = guild_settings.get("free_will", True)
+
+		if consciousness.evaluate(self.bot, "on_member_join", free_will, context_id=member.guild.id):
+			await ai.do_action(
+				"on_member_join",
+				member.guild,
+				member,
+				extra=event_str,
+				bot=self.bot
+			)
+
+
+	@commands.Cog.listener()
+	async def on_guild_join(self, guild: discord.Guild):
+		event_str = f"You have been added to a new server: {guild.name} read the rules via self_call and send your greetings in a general channel"
+
+		if consciousness.evaluate(self.bot, "on_guild_join", True, context_id=guild.id):
+			await ai.do_action(
+				"on_guild_join",
+				guild,
+				None,
+				extra=event_str,
+				bot=self.bot
+			)
+
+
+	@commands.Cog.listener()
+	async def on_voice_state_update(self, member: discord.Member, before: discord.VoiceState, after: discord.VoiceState):
+		if member.id == config.bot.id: return
+
+		if before.channel is None and after.channel is not None:
+			event_str = f"{member.name} joined the voice channel {after.channel.name}."
+			await guild_audit.add(member.guild.id, event_str)
+
+			_, guild_settings = await server.settings.load(member.guild.id)
+			free_will = guild_settings.get("free_will", True)
+
+			if consciousness.evaluate(self.bot, "on_voice_state_update", free_will, context_id=after.channel.id):
+				await ai.do_action(
+					"on_voice_state_update",
+					member.guild,
+					member,
+					extra=event_str,
+					bot=self.bot
+				)

@@ -124,7 +124,7 @@ class DevRoot(commands.Cog):
 					"## Update:",
 					"Update application slash commands so they are in-sync with the system.",
 					"Params:",
-					"* spec: The sync scope: global, dev, clear, or leave empty for local guild copy."
+					"* spec: The sync scope: global, dev, clear."
 					"Usage:",
 					f"* `{self.p}dev update global`",
 					f"* `{self.p}d u global`",
@@ -321,12 +321,11 @@ class DevRoot(commands.Cog):
 		aliases=['u'],
 		description='Update application commands so they are in-sync with the system'
 	)
-	@app.describe(spec='The sync scope: global, dev, clear, or leave empty for local guild copy.')
-	async def update(self, ctx: commands.Context, spec: Literal['global', 'dev', 'clear'] | None = None):
+	@app.describe(spec='The sync scope: global, dev, or clear.')
+	async def update(self, ctx: commands.Context, spec: Literal['global', 'dev', 'clear']):
 		if spec == 'global':
 			synced = await self.bot.tree.sync()
-			if hasattr(self.bot, '_map_command_mentions'):
-				map_command_mentions(synced)
+			map_command_mentions(synced)
 
 			await ctx.reply(view=Success(
 				"Success",
@@ -338,8 +337,7 @@ class DevRoot(commands.Cog):
 			for guild in dev_guilds:
 				try:
 					synced = await self.bot.tree.sync(guild=guild)
-					if hasattr(self.bot, '_map_command_mentions'):
-						map_command_mentions(synced)
+					map_command_mentions(synced)
 					total += len(synced)
 				except discord.HTTPException:
 					await ctx.reply(view=UnexpectedError)
@@ -355,19 +353,4 @@ class DevRoot(commands.Cog):
 			await ctx.reply(view=Success(
 				"Success",
 				"Cleared and synced this guild's local tree commands."
-			))
-		else:
-			if not ctx.guild:
-
-				await ctx.reply(view=Fail(
-					"Failed",
-					"Provide an explicit scope when run outside a guild server."
-				))
-				return
-			self.bot.tree.copy_global_to(guild=ctx.guild)
-			synced = await self.bot.tree.sync(guild=ctx.guild)
-
-			await ctx.reply(view=Success(
-				"Success",
-				f"Synced {len(synced)} tree commands locally to this guild."
 			))
