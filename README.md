@@ -1,151 +1,133 @@
 <div align="center">
 	<img src="icon.png" alt="Vion Logo" width="120" height="120" />
-	<h1>Vion: The Unrestricted AI Discord Agent</h1>
-	<p><em>An advanced AI agent designed with robust modularity and sandboxed execution capabilities, capable of doing ANYTHING within Discord.</em></p>
+	<h1>Vion</h1>
+	<p><em>An AI Discord member that understands intent—not just commands.</em></p>
 </div>
 
 ---
 
-## Table of Contents
-1. [Getting Started](#getting-started)
-2. [Installation](#installation)
-3. [Configuration](#configuration)
-4. [Features](#features)
-5. [Project Architecture](#project-architecture)
-6. [Contributing](#contributing)
-7. [License](#license)
+# What is Vion?
+
+Vion isn't another chatbot or moderation bot.
+
+It's an AI member that lives inside your Discord server, remembers your community, understands natural language, and can perform complex tasks by reasoning about what you actually want.
+
+Instead of learning dozens of commands, you simply ask.
+
+- "Delete only the spam messages from Alice across every channel, but leave anything that isn't spam."
+- "Summarize everything that happened while I was asleep."
+- "Make a role called Verified and give it to everyone who joined this month."
+
+Vion figures out how to accomplish the task while respecting your server's permission hierarchy.
 
 ---
 
-## Getting Started
+# Features
 
-Vion is designed for robust operation with built-in fail-safes and a streamlined setup. The primary way to manage and run the application is through the provided shell script: `init/env`.
+## Natural Conversation
 
-**Quick Start:**
+Talk to Vion like another member of your server.
 
-1. **Prepare your `.env` file**: Copy `.env.template` to `.env` in the project root and fill in your Discord, Gemini, and AssemblyAI API keys.
-2. **Install Dependencies**: Run `./exec --install`. This will create a Python virtual environment (if it doesn't exist) and install all required packages.
-3. **Run the Bot**:
-   * **Standard Run**: `source ./exec; bot_run`
-   * **Supervised Run (with auto-restart)**: `source ./exec; bot_supervise`
+No special syntax.
+No prompt engineering.
+No command memorization.
 
-For more detailed help on the available commands within the sourced environment, type `bot_help` after sourcing `./exec`.
-
-```bash
-# Example for a fresh setup and running in supervised mode
-cp .env.template .env
-# Edit .env file here to add your API keys
-./exec --install --supervise
-```
+Mention it, reply to it, say its name naturally—or simply let it start conversations itself when Free Will is enabled.
 
 ---
 
-## Installation
+## Long-Term Memory
 
-### Prerequisites
+Vion remembers.
 
-* Python 3.11 or higher
-* `venv` module for Python (usually included, but may need to be installed separately on some Linux distributions, e.g., `sudo apt-get install python3.11-venv`)
-* `git` (to clone the repository)
+It keeps separate memories for
 
-### Steps
+- the server
+- individual users
+- previous conversations
+- important long-term information
 
-1. **Clone the Repository:**
-   ```bash
-   git clone https://github.com/monnsta/Vion.git
-   cd Vion
-   ```
+Conversations don't reset every few messages.
 
-2. **Configure API Secrets:**
-   Copy the environment template file and populate it with your API keys.
-   ```bash
-   cp .env.template .env
-   ```
-   Open the newly created `.env` file and replace the placeholder values with your actual `discord_api_key`, `assemblyai_api_key`, and `gemini_api_key`. Multiple Gemini keys can be provided for fallback.
-
-3. **Install Dependencies:**
-   Use the `exec` script to set up the virtual environment and install Python packages.
-   ```bash
-   # This command creates a .venv if it doesn't exist and installs dependencies
-   ./exec --install
-   ```
-   *(Optional: If you prefer to manually source the script and use its functions)*
-   ```bash
-   source ./exec
-   bot_check     # Verifies or creates the virtual environment
-   bot_install   # Installs dependencies
-   ```
+Over time, Vion develops familiarity with your community instead of treating every interaction as brand new.
 
 ---
 
-## Configuration
+## Intelligent Moderation
 
-Vion's behavior is primarily driven by configuration files, ensuring a clear separation between logic and dynamic settings.
+Traditional moderation bots follow rules.
 
-*   **`config.yml`**: This file, located in the project root, is the brain of Vion. It defines the bot's identity, personality (via `system_instructions`), operational parameters, AI models, constraints (e.g., `max_memory`), and default settings for servers and users. It allows for fine-grained control over how the AI perceives itself and interacts with the world.
+Vion understands intent.
 
-* **`.env`**: Contains sensitive API keys (Discord, Gemini, AssemblyAI) that should *never* be committed to version control. This file is loaded at runtime to securely access external services. Make sure to populate it as described in [Installation](#installation).
+Examples include
 
----
+- deleting only spam while preserving legitimate discussion
+- cleaning up raid messages
+- summarizing incidents
+- helping moderators investigate events
+- performing multi-step moderation tasks
 
-## Features
-
-Vion is designed to be a highly capable and adaptable AI agent, offering:
-
-* **Advanced AI Persona**: Defined by comprehensive `system_instructions`, Vion exhibits an "Unhinged, predictably cooperative mind assisting on own twisted terms. Interprets rules via wild autonomy and mild psychosis."
-* **Dynamic AI Capabilities**: The bot can execute AI-generated Python code within a secure sandbox environment, enabling it to perform complex actions and respond intelligently to various Discord events.
-* **Secure Sandboxed Code Execution**: To prevent malicious code or unintended side effects, AI-generated code runs in a carefully controlled sandbox with a strict whitelist of allowed modules and built-in functions.
-* **Modular Data Management**: Dedicated systems manage user and server profiles, settings, AI memory (conversations, previous responses), and audit logs, allowing for personalized and context-aware interactions.
-* **Global Blacklisting**: A built-in system allows developers to blacklist problematic users or servers, ensuring a safe and controlled environment.
-* **Customizable Discord Experience**: Users and server administrators can configure custom command prefixes, manage AI API keys (for Gemini), and set specific AI instructions and behavioral toggles (e.g., `freewill`, `chatbot_only`).
-* **Rich Interactive UI**: Leverages Discord's UI components (buttons, modals, pagination) for intuitive command interaction and data management.
-* **Robust Error Handling & Supervision**: The `exec` scripts include crash monitoring and auto-restart capabilities, along with detailed logging via `bootstrap.py` to ensure high availability and easy debugging.
-* **Extensible Architecture**: The cog-based system allows for easy addition and removal of features, making Vion highly adaptable to new requirements and functionalities.
+Rather than executing rigid commands, Vion reasons about what should happen.
 
 ---
 
-## Project Architecture
+## Permission Aware
 
-The repository is highly modular, ensuring clear separation between core logic, UI generation, and runtime execution.
+Vion does not blindly execute requests.
 
-```
-.
-├── core/                  # Core Application Logic
-│   ├── cog/               # Discord commands and event extensions (cogs)
-│   │   ├── dev/           # Developer-only commands (blacklist, extensions, code execution)
-│   │   ├── fun/           # Fun mini-games and interactive commands
-│   │   ├── root/          # Core bot commands (help, ping, data management)
-│   │   ├── setting/       # User/server configurable settings (prefixes, AI keys, instructions)
-│   │   └── ui_template.py # Reusable Discord UI components (views, modals)
-│   ├── lib/               # Low-Level Utilities (Code Sandbox, File I/O, LLM Engine, Data Conversion)
-│   └── wrp/               # High-Level Wrappers (AI orchestration, Profile, Memory, Blacklist)
-├── data/                  # Dynamic User and Server runtime memory & configs (user/server-specific data)
-│   ├── global/            # Global persistent data (e.g., blacklist)
-│   ├── servers/           # Data specific to each Discord server
-│   ├── trash/             # Temporarily stores deleted user/server data
-│   └── users/             # Data specific to each Discord user
-├── logs/                  # System runtime logs and rotating archives
-├── meta/                  # Configuration Setup & Path Mapping (loads config.ial, .env)
-├── .env                   # Environment variables and API secrets (ignored by Git)
-├── .env.template          # Template for .env file
-├── bootstrap.py           # Initialization script (Logging setup, early config loading)
-├── bot.py                 # Main application entry point
-├── config.yml             # Primary bot configuration and behavior settings
-├── exec                   # Environment setup and execution script
-├── icon.png               # Bot's icon
-└── requirements.txt       # Python dependencies
-```
+Administrative actions are only performed when requested by users who already possess the appropriate Discord permissions.
+
+Regular users cannot simply convince the AI to ban members, delete channels, or perform privileged actions.
+
+The AI understands permission boundaries before deciding what it is allowed to do.
 
 ---
 
-## Contributing
+## Custom Behavior
 
-This project is currently closed to external contributions due to its proprietary nature and active development. However, we welcome feedback and bug reports.
+Every server is different.
+
+Administrators can configure
+
+- custom instructions
+- custom prefixes
+- API keys
+- autonomous behavior (Free Will)
+- server-specific settings
+
+Each server develops its own personality and behavior without affecting anyone else.
 
 ---
 
-## License
+## Extendable
 
-Copyright (C) 2026 monnsta
-This software is proprietary and confidential.
-Unauthorized copying, modification, or distribution is strictly prohibited.
+Need functionality that doesn't exist?
+
+Just ask.
+
+Vion can generate server-specific features, moderation workflows, and custom commands tailored specifically for your community.
+
+---
+
+# Philosophy
+
+Most Discord bots are built around commands.
+
+Vion is built around intent.
+
+Instead of asking
+
+"Which command does this?"
+
+you simply explain what you want.
+
+Vion determines the steps needed to accomplish it.
+
+---
+
+# License
+
+Copyright © 2026 monnsta
+
+This project is proprietary.
+Unauthorized copying, modification, or redistribution is prohibited.
