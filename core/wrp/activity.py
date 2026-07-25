@@ -1,4 +1,6 @@
 import asyncio
+import copy
+from datetime import datetime
 from typing import Literal
 
 from core.lib.file import json_file
@@ -11,18 +13,20 @@ class AIActivityTracker:
 		self._lock = asyncio.Lock()
 
 		self._template = {
-			"interactions": 0
+			"interactions": 0,
+			"timeline": {}
 		}
 
 	async def _load(self) -> dict:
 		success, data = await json_file.load(self.file_path)
 		if not success or not isinstance(data, dict):
 			data = {}
-		
-		data.setdefault("global", self._template.copy())
+
+		if "global" not in data:
+			data["global"] = copy.deepcopy(self._template)
 		data.setdefault("guilds", {})
 		data.setdefault("users", {})
-		
+
 		return data
 
 	async def _save(self, data: dict) -> None:
@@ -33,6 +37,8 @@ class AIActivityTracker:
 		guild_id: int | None,
 		user_id: int | None
 	) -> None:
+		time_str = datetime.now().strftime("%Y-%m-%d %H:00")
+
 		async with self._lock:
 			data = await self._load()
 
@@ -47,10 +53,17 @@ class AIActivityTracker:
 					target_dict = data["global"]
 				else:
 					if key not in data[category]:
-						data[category][key] = self._template.copy()
+						data[category][key] = copy.deepcopy(self._template)
 					target_dict = data[category][key]
 
+				if "timeline" not in target_dict:
+					target_dict["timeline"] = {}
+
 				target_dict["interactions"] += 1
+
+				if time_str not in target_dict["timeline"]:
+					target_dict["timeline"][time_str] = 0
+				target_dict["timeline"][time_str] += 1
 
 			await self._save(data)
 
@@ -58,11 +71,11 @@ class AIActivityTracker:
 		data = await self._load()
 
 		if target_type == 'global':
-			return data.get("global", self._template.copy()).copy()
+			return copy.deepcopy(data.get("global", self._template))
 
 		category = "guilds" if target_type == 'guild' else "users"
 		items = data.get(category, {})
-		target_stats = items.get(str(target_id), self._template.copy()).copy()
+		target_stats = copy.deepcopy(items.get(str(target_id), self._template))
 
 		sorted_items = sorted(items.items(), key=lambda x: x[1].get("interactions", 0), reverse=True)
 		rank = 0
@@ -78,7 +91,7 @@ class AIActivityTracker:
 		data = await self._load()
 		category = "guilds" if target_type == 'guild' else "users"
 		items = data.get(category, {})
-		
+
 		sorted_items = sorted(items.items(), key=lambda x: x[1].get("interactions", 0), reverse=True)
 		return [(item_id, stats.get("interactions", 0)) for item_id, stats in sorted_items[:limit]]
 

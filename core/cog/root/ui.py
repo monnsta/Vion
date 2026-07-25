@@ -1,4 +1,3 @@
-
 import random
 
 import discord
@@ -9,6 +8,7 @@ from core.wrp.activity import tracker
 from meta import emoji
 
 from core.cog.ui_template import TimeoutView, Fail, Success, Confirmation, global_interaction_check
+from core.cog.root.utils import generate_timeline_graph
 
 
 class ManageDataView(TimeoutView):
@@ -110,7 +110,9 @@ class AIStatsView(TimeoutView):
 	async def interaction_check(self, interaction: discord.Interaction) -> bool:
 		return await global_interaction_check(interaction, self.user)
 
-	async def _generate_container(self) -> ui.Container:
+	async def _generate_content(self) -> tuple[ui.Container, discord.File | None]:
+		file = None
+
 		if self.current_target == 'leaderboard':
 			top_guilds = await tracker.get_leaderboard('guild', 5)
 			top_users = await tracker.get_leaderboard('user', 5)
@@ -137,67 +139,92 @@ class AIStatsView(TimeoutView):
 			if self.current_target == 'global':
 				stats = await tracker.get_stats('global')
 				interactions = stats.get('interactions', 0)
+				timeline = stats.get('timeline', {})
 				content = (
 					"## Global AI Statistics\n"
-					"Network-wide telemetry and usage overview.\n\n"
-					"> **Total Network Interactions**\n"
+					"Server-wide usage overview.\n\n"
+					"> **Total Interactions**\n"
 					f"> ## `{interactions:,}`"
 				)
+				buf = generate_timeline_graph(timeline, "Global Interactions Over Time")
+				file = discord.File(buf, filename="chart.png")
+
 			elif self.current_target == 'server':
 				if not self.ctx.guild:
 					container = ui.Container(ui.TextDisplay("### Server Stats\nCannot fetch server stats in DMs."), accent_color=0xFE0065)
 					container.add_item(ui.ActionRow(self.target_select))
 					container.add_item(ui.ActionRow(self.refresh_btn))
-					return container
+					return container, None
+
 				stats = await tracker.get_stats('guild', self.ctx.guild.id)
 				interactions = stats.get('interactions', 0)
 				rank = stats.get('rank', 0)
+				timeline = stats.get('timeline', {})
 				content = (
 					f"## Server Statistics: {self.ctx.guild.name}\n"
 					"Current server standing and activity metrics.\n\n"
 					"> **Total Interactions** · **Leaderboard Rank**\n"
 					f"> ## `{interactions:,}` `#{rank:,}`"
 				)
+				buf = generate_timeline_graph(timeline, "Server Interactions Over Time")
+				file = discord.File(buf, filename="chart.png")
+
 			else:
 				target = self.user_target or self.ctx.author
 				stats = await tracker.get_stats('user', target.id)
 				interactions = stats.get('interactions', 0)
 				rank = stats.get('rank', 0)
+				timeline = stats.get('timeline', {})
 				content = (
 					f"## User Statistics: {target.display_name}\n"
 					"Individual activity metrics and global standing.\n\n"
 					f"> **Total Interactions** · **Leaderboard Rank**\n"
 					f"> ## `{interactions:,}` `#{rank:,}`"
 				)
+				buf = generate_timeline_graph(timeline, "User Interactions Over Time")
+				file = discord.File(buf, filename="chart.png")
 
 		for opt in self.target_select.options:
 			opt.default = (opt.value == self.current_target)
 
-		container = ui.Container(ui.TextDisplay(content), accent_color=0x00E9FE)
+		container_elements: list[ui.TextDisplay | ui.MediaGallery] = [ui.TextDisplay(content)]
+
+		if file:
+			container_elements.append(
+				discord.ui.MediaGallery(
+					discord.MediaGalleryItem(media=file)
+				)
+			)
+
+		container = ui.Container(*container_elements, accent_color=0x00E9FE)
 		container.add_item(ui.ActionRow(self.target_select))
 		container.add_item(ui.ActionRow(self.refresh_btn))
 
-		return container
+		return container, file
 
 	async def start(self) -> discord.Message:
-		container = await self._generate_container()
+		container, file = await self._generate_content()
 		self.clear_items()
 		self.add_item(container)
+
+		if file:
+			return await self.ctx.reply(view=self, file=file)
 		return await self.ctx.reply(view=self)
 
 	async def change_target(self, interaction: discord.Interaction):
 		self.current_target = self.target_select.values[0]
 
-		container = await self._generate_container()
+		container, file = await self._generate_content()
 		self.clear_items()
 		self.add_item(container)
 
-		await interaction.response.edit_message(view=self)
+		attachments = [file] if file else []
+		await interaction.response.edit_message(view=self, attachments=attachments)
 
 	async def refresh_stats(self, interaction: discord.Interaction):
-		container = await self._generate_container()
+		container, file = await self._generate_content()
 		self.clear_items()
 		self.add_item(container)
 
-		await interaction.response.edit_message(view=self)
-
+		attachments = [file] if file else []
+		await interaction.response.edit_message(view=self, attachments=attachments)

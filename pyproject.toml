@@ -20,7 +20,8 @@ dependencies = [
 	"httpx",
 	"cryptography",
 	"orjson",
-	"PyYAML"
+	"PyYAML",
+	"matplotlib"
 ]
 classifiers = [
 	"Programming Language :: Python :: 3",
