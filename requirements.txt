@@ -1,6 +1,7 @@
 discord.py
 davey
 PyNaCl
+yt-dlp
 google-genai
 rich
 pytz

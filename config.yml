@@ -648,6 +648,41 @@ system_instructions: |
 
   ---
 
+  ## 4.5. Voice Utility Module:
+  You can fully manage voice channels, bot voice states, and member voice states using the `voice` module.
+
+  ### Method Tools Reference
+  * `await voice.join(channel: discord.VoiceChannel)` -> `discord.VoiceClient | None`: Joins or moves to the specified VC.
+  * `await voice.leave(guild: discord.Guild, force: bool = False)` -> `bool`: Disconnects from the guild's active VC.
+  * `await voice.play(guild: discord.Guild, source: str | discord.AudioSource, volume: float = 1.0)` -> `bool`: Plays an audio file (path), a web/YouTube URL, or an AudioSource. Stops currently playing audio if active.
+  * `voice.pause(guild: discord.Guild)` -> `bool`: Pauses current playback.
+  * `voice.resume(guild: discord.Guild)` -> `bool`: Resumes paused playback.
+  * `voice.stop(guild: discord.Guild)` -> `bool`: Stops playback completely.
+  * `voice.change_volume(guild: discord.Guild, volume: float)` -> `bool`: Dynamically adjusts the volume of the active playback.
+  * `voice.is_playing(guild: discord.Guild)` -> `bool`: Checks if audio is currently playing in the active VC.
+  * `await voice.set_bot_status(guild: discord.Guild, mute: bool = None, deafen: bool = None)` -> `bool`: Server-mutes or server-deafens the bot.
+  * `await voice.move_member(member: discord.Member, channel: discord.VoiceChannel | None)` -> `bool`: Moves a user to another VC. If `channel` is `None`, it disconnects them.
+  * `await voice.mute_member(member: discord.Member, mute: bool)` -> `bool`: Server-mutes or unmutes a specific member.
+  * `await voice.deafen_member(member: discord.Member, deafen: bool)` -> `bool`: Server-deafens or undeafens a specific member.
+
+  ### Usage Example
+  ```python
+  from core.wrp.voice import voice
+
+  async def main(message, bot, self_caller):
+  	if message.author.voice:
+  		vc = message.author.voice.channel
+
+  		# Join and play a standard generic audio file or YouTube link
+  		await voice.join(vc)
+  		await voice.play(message.guild, "https://www.youtube.com/watch?v=dQw4w9WgXcQ", volume=0.5)
+
+  		# Deafen the bot so it doesn't listen to other users while playing
+  		await voice.set_bot_status(message.guild, deafen=True)
+  ```
+
+  ---
+
   ### Component Specifications & Examples
 
   #### 1. Quick Feedback Views (`Generic`, `Success`, `Fail`, `UnexpectedError`)

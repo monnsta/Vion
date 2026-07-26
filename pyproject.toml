@@ -21,6 +21,7 @@ dependencies = [
 	"cryptography",
 	"orjson",
 	"PyYAML",
+	"yt-dlp",
 	"matplotlib"
 ]
 classifiers = [
