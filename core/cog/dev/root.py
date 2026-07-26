@@ -8,7 +8,8 @@ from discord.ext import commands
 from core.lib.code import Code, status
 from core.lib.utils import mt
 from core.wrp.extension import map_command_mentions
-from meta import config
+from core.wrp.memory import global_stm, guild_stm, user_stm
+from meta import config, sub
 
 from core.cog.ui_template import Fail, Success, Paginated, UnexpectedError
 from core.cog.dev.blacklist import Blacklist
@@ -54,14 +55,15 @@ class DevRoot(commands.Cog):
 				"Subcommand Missing",
 				"Available subcommands:",
 				"```",
-				"* send          (s)",
-				"* code          (c)",
-				"* reload_config (r)",
-				"* update        (u)",
-				"* help          (h)",
+				"* send          (s )",
+				"* code          (c )",
+				"* reload_config (r )",
+				"* update        (u )",
+				"* help          (h )",
 				"",
-				"* extension     (e)",
-				"* blacklist     (b)",
+				"* extension     (e )",
+				"* blacklist     (b )",
+				"* clearstm      (cs)",
 				"```"
 			))
 
@@ -129,6 +131,13 @@ class DevRoot(commands.Cog):
 					f"* `{self.p}dev update global`",
 					f"* `{self.p}d u global`",
 					f"* {config.cmd.dev.get('update')} `spec:` global"
+				),
+				mt(
+					"## Clear STM:",
+					"Recursively clear Short-Term Memory (STM) globally, for all guilds, and all users.",
+					"Usage:",
+					f"* `{self.p}dev clearstm`",
+					f"* `{self.p}d cs`"
 				),
 				mt(
 					"## Extension:",
@@ -354,3 +363,45 @@ class DevRoot(commands.Cog):
 				"Success",
 				"Cleared and synced this guild's local tree commands."
 			))
+
+
+	@dev.command(
+		name='clearstm',
+		aliases=['cs'],
+		description='Recursively clear Short-Term Memory (STM) globally, for all guilds, and all users.'
+	)
+	async def clearstm(self, ctx: commands.Context):
+		await ctx.defer(ephemeral=False)
+		msg = await ctx.reply(view=Success(
+			"Processing...", 
+			"Recursively clearing STM across all entities."
+		))
+
+		global_cleared = await global_stm.clear(0)
+
+		guild_count = 0
+		if sub.servers.exists():
+			for server_dir in sub.servers.iterdir():
+				if server_dir.is_dir() and server_dir.name.isdigit():
+					guild_id = int(server_dir.name)
+					if await guild_stm.clear(guild_id):
+						guild_count += 1
+
+		user_count = 0
+		if sub.users.exists():
+			for user_dir in sub.users.iterdir():
+				if user_dir.is_dir() and user_dir.name.isdigit():
+					user_id = int(user_dir.name)
+					if await user_stm.clear(user_id):
+						user_count += 1
+
+		description = [
+			f"**Global STM:** {'Cleared' if global_cleared else 'Failed / Empty'}",
+			f"**Guilds Cleared:** {guild_count}",
+			f"**Users Cleared:** {user_count}"
+		]
+
+		await msg.edit(view=Success(
+			"STM Successfully Cleared Everywhere",
+			*description
+		))
