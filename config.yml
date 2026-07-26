@@ -316,11 +316,12 @@ fallback_response: |
   import discord
   import asyncio
   from meta import config
+  from core.cog.ui_template import Fail
 
   async def main(**kwargs):
   	message = kwargs.get("message")
   	bot = kwargs.get("bot")
- 
+
   	if message and bot:
   		is_mentioned = bot.user in message.mentions
 
@@ -330,7 +331,12 @@ fallback_response: |
 
   		if is_mentioned or is_reply:
   			async with message.channel.typing():
-  				await message.channel.send(f"Free resource exhausted. To prevent this, please add your own gemini api key through {config.cmd.setting.gemini_key.add} `key:` \\*\\*\\*\\*\\*\\*\\*")
+  				msg = await message.channel.send(view=Fail(
+  					"Free Resource Exhausted.",
+  					f"To prevent this, please add your own gemini api key through {config.cmd.setting.gemini_key.add}"
+  				))
+  				await asyncio.sleep(5)
+  				await msg.delete()
   	pass
   </code>
 
