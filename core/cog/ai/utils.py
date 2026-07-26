@@ -16,6 +16,7 @@ class Consciousness:
 		"on_member_join": 0.4,
 		"on_guild_join": 1.0,
 		"on_voice_state_update": 0.1,
+		"on_inactivity": 0.3,
 	}
 
 	def __init__(self):
@@ -45,6 +46,7 @@ class Consciousness:
 		**kwargs
 	) -> bool:
 		context_id = kwargs.get('context_id', 0)
+		guild = kwargs.get('guild', None)
 		now = time.time()
 
 		if now - self._last_cleanup > self._cleanup_interval:
@@ -78,10 +80,13 @@ class Consciousness:
 			else:
 				is_reply_to_bot = False
 
-				if message.reference and message.reference.cached_message:
-					replied_msg = message.reference.cached_message
-					if bot.user and replied_msg.author.id == bot.user.id:
-						is_reply_to_bot = True
+				if message.reference:
+					if message.reference.cached_message:
+						replied_msg = message.reference.cached_message
+						if bot.user and replied_msg.author.id == bot.user.id:
+							is_reply_to_bot = True
+					elif message.reference.message_id:
+						pass
 
 				if is_reply_to_bot:
 					should_trigger = True
@@ -102,18 +107,22 @@ class Consciousness:
 				self.message_trigger_cooldowns[cooldown_key] = now
 			return should_trigger
 
+		base_chance = self.EVENT_CHANCES.get(event_type, 0.0)
+		if guild and guild.member_count:
+			member_scale = min(1.0, max(0.05, guild.member_count / 50.0))
+			base_chance *= member_scale
+
 		event_cooldown_key = f"{event_type}_{context_id}"
+		cooldown_time = 3600 if event_type == "on_inactivity" else 60
+
 		if event_cooldown_key in self.event_cooldowns:
-			if now - self.event_cooldowns[event_cooldown_key] < 60:
+			if now - self.event_cooldowns[event_cooldown_key] < cooldown_time:
 				return False
 
-		chance = self.EVENT_CHANCES.get(event_type)
-		if chance is None:
-			should_trigger = False
-		elif chance >= 1.0:
+		if base_chance >= 1.0:
 			should_trigger = True
 		else:
-			should_trigger = get_random(chance)
+			should_trigger = get_random(base_chance)
 
 		if should_trigger:
 			self.event_cooldowns[event_cooldown_key] = now
