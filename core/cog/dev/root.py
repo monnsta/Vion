@@ -334,7 +334,7 @@ class DevRoot(commands.Cog):
 	async def update(self, ctx: commands.Context, spec: Literal['global', 'dev', 'clear']):
 		if spec == 'global':
 			synced = await self.bot.tree.sync()
-			map_command_mentions(synced)
+			map_command_mentions(synced, self.bot)
 
 			await ctx.reply(view=Success(
 				"Success",
@@ -346,7 +346,7 @@ class DevRoot(commands.Cog):
 			for guild in dev_guilds:
 				try:
 					synced = await self.bot.tree.sync(guild=guild)
-					map_command_mentions(synced)
+					map_command_mentions(synced, self.bot)
 					total += len(synced)
 				except discord.HTTPException:
 					await ctx.reply(view=UnexpectedError)

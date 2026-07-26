@@ -13,12 +13,12 @@ from meta import config, sub, file
 log = logging.getLogger(__name__)
 
 
-def map_command_mentions(synced_commands):
+def map_command_mentions(synced_commands: List[discord.app_commands.AppCommand], bot: commands.Bot):
 	def walk(command, prefix="", root_id=None):
-		root_id = root_id or command.id
+		root_id = root_id or getattr(command, "id", None)
 		name = f"{prefix} {command.name}".strip()
 		var_name = name.replace(" ", ".")
-		mention_name = f"</{name}:{root_id}>"
+		mention_name = f"</{name}:{root_id}>" if root_id else name
 
 		options = getattr(command, "options", [])
 		has_subcommands = False
@@ -29,14 +29,24 @@ def map_command_mentions(synced_commands):
 				walk(opt, prefix=name, root_id=root_id)
 
 		if not has_subcommands:
+			bot_cmd = bot.get_command(name)
+			aliases = list(getattr(bot_cmd, "aliases", [])) if bot_cmd else []
+
+			if hasattr(command, "name_localizations") and command.name_localizations:
+				aliases.extend(command.name_localizations.values())
+
 			command_data = Data(
-				name=name,
-				mention=mention_name,
-				description=command.description or "No description.",
+				id=getattr(command, "id", root_id),
 				root_id=root_id,
+				name=name,
+				aliases=list(set(aliases)),
+				mention=mention_name,
+				description=getattr(command, "description", "No description."),
 				parameters=options
 			)
-			config.cmd.set(var_name, Repr(mention_name, command_data))
+
+			repr_obj = Repr(mention_name, command_data)
+			config.cmd.set(var_name, repr_obj)
 
 	for cmd in synced_commands:
 		walk(cmd)
