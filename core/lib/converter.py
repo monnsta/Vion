@@ -38,6 +38,8 @@ class Convert:
 		self,
 		filter_attrs: list | None = None,
 		max_depth: int = 5,
+		attr_depths: dict[str, int] | None = None,
+		type_depths: dict[type, int] | None = None,
 		max_list_len: int = 25,
 		ignore_none: bool = True,
 		ignore_empty: bool = True,
@@ -48,6 +50,8 @@ class Convert:
 	):
 		self.filter_attrs = set(filter_attrs or [])
 		self.max_depth = max_depth
+		self.attr_depths = attr_depths or {}
+		self.type_depths = type_depths or {}
 		self.max_list_len = max_list_len
 		self.ignore_none = ignore_none
 		self.ignore_empty = ignore_empty
@@ -71,6 +75,8 @@ class Convert:
 		config = {
 			"filter_attrs": kwargs.get("filter_attrs", self.filter_attrs),
 			"max_depth": kwargs.get("max_depth", self.max_depth),
+			"attr_depths": kwargs.get("attr_depths", self.attr_depths),
+			"type_depths": kwargs.get("type_depths", self.type_depths),
 			"max_list_len": kwargs.get("max_list_len", self.max_list_len),
 			"ignore_none": kwargs.get("ignore_none", self.ignore_none),
 			"ignore_empty": kwargs.get("ignore_empty", self.ignore_empty),
@@ -84,7 +90,16 @@ class Convert:
 			seen_mem = set()
 			seen_discord_ids = set()
 
-			def _serialize(o, depth):
+			def _serialize(o, depth, current_max_depth=None):
+				effective_max_depth = current_max_depth if current_max_depth is not None else config["max_depth"]
+
+				# Check type-based depth overrides
+				if config["type_depths"]:
+					for target_type, target_depth in config["type_depths"].items():
+						if isinstance(o, target_type):
+							effective_max_depth = max(effective_max_depth, target_depth)
+							break
+
 				if config["ignore_none"] and o is None:
 					return None
 
@@ -110,7 +125,7 @@ class Convert:
 						return ref
 					seen_discord_ids.add(o.id)
 
-				if depth >= config["max_depth"]:
+				if depth >= effective_max_depth:
 					if hasattr(o, 'id'):
 						return {"id": getattr(o, 'id'), "$ref": True}
 					if isinstance(o, (list, tuple, set, dict)):
@@ -127,7 +142,8 @@ class Convert:
 				if isinstance(o, dict):
 					result = {}
 					for k, v in o.items():
-						val = _serialize(v, depth + 1)
+						next_depth_limit = config["attr_depths"].get(str(k), effective_max_depth)
+						val = _serialize(v, depth + 1, next_depth_limit)
 						if config["ignore_none"] and val is None: continue
 						if config["ignore_empty"] and val in ({}, [], ""): continue
 						result[str(k)] = val
@@ -140,7 +156,7 @@ class Convert:
 							if idx >= config["max_list_len"]:
 								result.append("...<items omitted>")
 								break
-							val = _serialize(item, depth + 1)
+							val = _serialize(item, depth + 1, effective_max_depth)
 							if config["ignore_none"] and val is None: continue
 							if config["ignore_empty"] and val in ({}, [], ""): continue
 							result.append(val)
@@ -161,7 +177,8 @@ class Convert:
 							if callable(value):
 								continue
 
-							serialized_val = _serialize(value, depth + 1)
+							next_depth_limit = config["attr_depths"].get(attr_name, effective_max_depth)
+							serialized_val = _serialize(value, depth + 1, next_depth_limit)
 
 							if config["ignore_none"] and serialized_val is None:
 								continue
@@ -191,13 +208,14 @@ COMMON_FILTERS = [
 	'BASE', 'key', 'DEFAULT_VALUE', 'VALID_FLAGS', 'jump_url', 'colour',
 	'accent_colour', 'accent_color', 'avatar_decoration_sku_id', 'client_status',
 	'desktop_status', 'web_status', 'mobile_status', 'mutual_guilds', 'flags',
-	'public_flags', 'interaction', 'raw_mentions', 'raw_role_mentions', 'clean_content',
+	'public_flags', 'raw_mentions', 'raw_role_mentions', 'clean_content', 'interaction',
 	'voice_states', 'threads', 'available_tags'
 ]
 
 convert_message = Convert(
 	filter_attrs=COMMON_FILTERS + ['call', 'role_subscription', 'value', 'nonce', 'guild', 'channel'],
 	max_depth=3,
+	attr_depths={"components": 8, "embeds": 6},
 	output_format="json"
 )
 
