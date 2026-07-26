@@ -100,6 +100,8 @@ class GeminiKey(HybridGroup):
 		if not manager:
 			return
 
+		key = key.strip()
+
 		key_validity = await validate_key(key)
 		if key_validity is None:
 			await ctx.reply(view=UnexpectedError)
@@ -112,12 +114,30 @@ class GeminiKey(HybridGroup):
 			return
 
 		data = await load_settings(manager, target_id, type) # type: ignore
+		existing_keys = data.get("api_keys", [])
+
+		already_exists = any(
+			(k["key"] if isinstance(k, dict) else k) == key 
+			for k in existing_keys
+		)
+		if already_exists:
+			await ctx.reply(view=Fail(
+				"Duplicate Key",
+				f"This API key has already been added to this {type}."
+			))
+			if not ctx.interaction:
+				try:
+					await ctx.message.delete()
+				except (discord.Forbidden, discord.NotFound, discord.HTTPException):
+					pass
+			return
 
 		if type == 'user':
-			data["api_keys"].append(key)
+			existing_keys.append(key)
 		else:
-			data["api_keys"].append({"key": key, "owner": ctx.author.id})
+			existing_keys.append({"key": key, "owner": ctx.author.id})
 
+		data["api_keys"] = existing_keys
 		success = await manager.settings.save(target_id, data)
 
 		if success:
@@ -174,7 +194,8 @@ class GeminiKey(HybridGroup):
 
 		if type == 'server':
 			key_entry = keys[idx]
-			if key_entry.get("owner") != ctx.author.id and (ctx.guild and ctx.author != ctx.guild.owner):
+			owner_id = key_entry.get("owner") if isinstance(key_entry, dict) else None
+			if owner_id != ctx.author.id and (ctx.guild and ctx.author != ctx.guild.owner):
 				await ctx.reply(view=Fail(
 					"Permission Denied",
 					"You can only remove keys that you added, unless you're the server owner."
@@ -195,9 +216,19 @@ class GeminiKey(HybridGroup):
 		confirmed = await view.wait_for_answer()
 
 		if confirmed:
-			keys.pop(idx)
-			data["api_keys"] = keys
-			success = await manager.settings.save(target_id, data)
+			latest_data = await load_settings(manager, target_id, type) # type: ignore
+			latest_keys = latest_data.get("api_keys", [])
+
+			if idx >= len(latest_keys):
+				await message.edit(view=Fail(
+					"Action Failed",
+					"The list of keys changed while awaiting confirmation. Please try again."
+				))
+				return
+
+			latest_keys.pop(idx)
+			latest_data["api_keys"] = latest_keys
+			success = await manager.settings.save(target_id, latest_data)
 
 			if not success:
 				await message.edit(view=UnexpectedError)
@@ -232,12 +263,18 @@ class GeminiKey(HybridGroup):
 
 		key_lines = []
 		for i, entry in enumerate(keys, 1):
-			raw_key = entry["key"] if isinstance(entry, dict) else entry
-			masked_key = f"{raw_key[:4]}...{raw_key[-4:]}"
+			if isinstance(entry, dict):
+				raw_key = entry.get("key", "")
+				owner_id = entry.get("owner")
+			else:
+				raw_key = str(entry)
+				owner_id = None
+
+			masked_key = f"{raw_key[:4]}...{raw_key[-4:]}" if len(raw_key) >= 8 else "****"
 
 			if type == 'server':
-				owner = self.bot.get_user(entry.get("owner")) # type: ignore
-				owner_name = owner.display_name if owner else f"Unknown ({entry.get('owner')})"
+				owner = self.bot.get_user(owner_id) if owner_id else None # type: ignore
+				owner_name = owner.display_name if owner else f"Unknown ({owner_id})"
 				key_lines.append(f"{i}. `{masked_key}` — Added by **{owner_name}**")
 			else:
 				key_lines.append(f"{i}. `{masked_key}`")
