@@ -23,30 +23,32 @@ class Root(commands.Cog):
 	async def help(self, ctx: commands.Context):
 		components = [
 			(
-				"# Introduction:\n"
-				"This AI agent is integrated directly with the Discord API, "
-				"granting it the capability to manage messages, channels, "
-				"roles, and members. To ensure security, the bot executes "
-				"commands based on a hierarchy: it prioritizes Server "
-				"Owners and Administrators, while verifying specific "
-				"permissions for other users (e.g., a user must have "
-				"'Timeout Members' permissions to request a timeout).\n\n"
-				f"## {emoji.warn} Disclaimer:\n"
-				"While robust security measures are in place, AI can be "
-				"unpredictable. Use at your own discretion and consider "
-				"restricting high-level permissions like 'Administrator'.\n"
+				f"# Meet {config.bot.name}\n"
+				f"{config.bot.name} isn't a traditional Discord bot with a fixed list of commands. "
+				"It's an AI member that can naturally chat, help with tasks, moderate "
+				"your server, and interact with Discord much like another member would. "
+				"Instead of memorizing commands, you can simply tell it what you want.\n\n"
+				"Whether it's cleaning up only spam messages across every channel, "
+				"answering questions, organizing your server, or performing complex "
+				f"multi-step tasks, {config.bot.name} figures out how to accomplish the goal for you.\n\n"
+				f"## {emoji.warn} Safety\n"
+				"Administrative actions are never based solely on what regular members "
+				f"say. {config.bot.name} follows Discord's permission hierarchy and only performs "
+				"privileged actions when they're requested by someone who actually has "
+				"the required authority. While extensive safeguards are built in, AI "
+				"can still make mistakes, so granting only the permissions you intend "
+				"it to use is recommended."
 			),
 			None,
-			"# Communication:",
-			"You can talk with the AI by...",
-			f"* Mentioning the bot (e.g., \"<@{config.bot.id}>\")",
-			"* Replying to the bot's message with ping on",
-			f"* Having the bots name anywhere in your message (e.g., \"Hello, {config.bot.name}\")",
-			"* Waiting for the bot to talk with you",
+			f"# Talk to {config.bot.name}",
+			"You can start a conversation in several ways:",
+			f"* Mention the bot (e.g. `<@{config.bot.id}>`)",
+			f"* Reply to one of {config.bot.name}'s messages",
+			f"* Say its name anywhere in your message (e.g. `Hey {config.bot.name}, can you help?`)",
+			f"* Or simply wait for {config.bot.name} to join the conversation on its own (if free will is enabled).",
 			None,
-			"# Commands:",
-			"Use the dedicated command group's help command to know more.",
-			"Example:",
+			"# Commands",
+			"Examples:",
 			f"* `{config.default_prefix[0]}setting help` | `{config.default_prefix[0]}s h` | {config.cmd.setting.help}",
 			f"* `{config.default_prefix[0]}setting prefix add user !` | `{config.default_prefix[0]}s p a user !` | {config.cmd.setting.prefix.add} `type:` user `char:` !"
 		]
