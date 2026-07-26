@@ -1,5 +1,4 @@
 import logging
-import asyncio
 from datetime import datetime, timezone
 
 import discord
@@ -20,6 +19,7 @@ log = logging.getLogger(__name__)
 class AIEvents(commands.Cog):
 	def __init__(self, bot: commands.Bot):
 		self.bot = bot
+		ai.bot = bot
 		self.inactivity_check.start()
 
 	async def cog_unload(self):
@@ -112,6 +112,10 @@ class AIEvents(commands.Cog):
 					bot=self.bot
 				)
 
+	@inactivity_check.before_loop
+	async def before_inactivity_check(self):
+		await self.bot.wait_until_ready()
+
 
 	@commands.Cog.listener()
 	async def on_message(self, message: discord.Message):
@@ -140,9 +144,6 @@ class AIEvents(commands.Cog):
 		free_will = guild_settings.get("free_will", True)
 
 		if consciousness.evaluate(self.bot, "on_message", free_will, message=message, prefixes=prefixes, context_id=message.channel.id):
-			if ai.bot is None:
-				ai.bot = self.bot
-
 			log.info(f"Responding to message: {message.content if message.content != '' else '*empty message*'}")
 
 			await ai.do_action(

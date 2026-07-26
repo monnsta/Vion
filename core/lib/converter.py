@@ -215,7 +215,7 @@ COMMON_FILTERS = [
 convert_message = Convert(
 	filter_attrs=COMMON_FILTERS + ['call', 'role_subscription', 'value', 'nonce', 'guild', 'channel'],
 	max_depth=3,
-	attr_depths={"components": 8, "embeds": 6},
+	attr_depths={"components": 8, "embeds": 6, "message_snapshots": 6},
 	output_format="json"
 )
 
