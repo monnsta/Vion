@@ -46,6 +46,11 @@ class Config(Data):
 		server: dict
 		user: dict
 
+	class Secrets(Data):
+		discord: str
+		assemblyai: str
+		gemini: list[str]
+
 	bot: Bot
 	activity: Activity
 	devs: List[Tuple[str, int]]
@@ -72,7 +77,7 @@ class Config(Data):
 	fallback_response: str
 	system_instructions: str
 	summary_instructions: str
-	secrets: Data
+	secrets: Secrets
 	cmd: Data
 	dev_server_ids: List[int]
 	dev_ids: List[int]
@@ -173,7 +178,7 @@ async def load_config(reload: bool = False):
 	config.timezone = pytz.timezone(config.timezone)
 
 	_, secrets_data = await yaml_file.load(file.env)
-	config.secrets = Data.load(secrets_data)
+	config.secrets = Data.load(secrets_data) # type: ignore
 
 	config.sandbox.allowed_builtins = {name: getattr(builtins, name) for name in config.sandbox.allowed_builtins}
 	config.sandbox.allowed_builtins["__import__"] = safe_import

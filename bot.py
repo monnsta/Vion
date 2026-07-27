@@ -107,7 +107,7 @@ if __name__ == "__main__":
 
 	try:
 		log.info("Starting bot...")
-		key = config.get("secrets.discord_api_key", None)
+		key = config.get("secrets.discord", None)
 		if key:
 			bot.run(key, log_handler=None)
 		else:

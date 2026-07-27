@@ -100,7 +100,7 @@ class AI:
 				config.top_p, config.top_k
 			)
 			for m in config.gemini_models
-			for k in config.secrets.gemini_api_key
+			for k in config.secrets.gemini
 		]
 		log.debug(f"Loaded {len(self.base_modules)} base modules from configuration.")
 		self.custom_modules_cache: Dict[str, List[GenerateContent]] = {}
@@ -144,50 +144,49 @@ class AI:
 
 		request_full_context = kwargs.pop('request_full_context', False)
 
-		if event == "on_message" or event == "on_self_call":
-			if guild:
-				log.debug(f"Fetching config objects for Guild ID: {guild.id}")
+		if guild:
+			log.debug(f"Fetching config objects for Guild ID: {guild.id}")
+			_, g_full_obj = await server.info.load(guild.id)
+			_, g_settings = await server.settings.load(guild.id)
+			g_ins = g_settings.get("instructions")
+			
+			if s_keys_raw := g_settings.get("api_keys"):
+				log.debug(f"Extracting server-provided API keys for Guild ID: {guild.id}")
+				for k in s_keys_raw:
+					custom_keys.append(k["key"] if isinstance(k, dict) else k)
+
+			if not g_full_obj:
+				await server.info.save(guild)
 				_, g_full_obj = await server.info.load(guild.id)
-				_, g_settings = await server.settings.load(guild.id)
-				g_ins = g_settings.get("instructions")
-				
-				if s_keys_raw := g_settings.get("api_keys"):
-					log.debug(f"Extracting server-provided API keys for Guild ID: {guild.id}")
-					for k in s_keys_raw:
-						custom_keys.append(k["key"] if isinstance(k, dict) else k)
 
-				if not g_full_obj:
-					await server.info.save(guild)
-					_, g_full_obj = await server.info.load(guild.id)
+			if request_full_context:
+				g_obj = g_full_obj
+			else:
+				g_obj = f"Guild Name: {guild.name}, ID: {guild.id}\n(Full context omitted. Use self_call with request_full_context=True to retrieve.)"
 
-				if request_full_context:
-					g_obj = g_full_obj
-				else:
-					g_obj = f"Guild Name: {guild.name}, ID: {guild.id}\n(Full context omitted. Use self_call with request_full_context=True to retrieve.)"
-
-			if member:
-				log.debug(f"Fetching config objects for Member ID: {member.id}")
+		if member:
+			log.debug(f"Fetching config objects for Member ID: {member.id}")
+			_, u_full_obj = await user.info.load(member.id)
+			if not u_full_obj:
+				await user.info.save(member)
 				_, u_full_obj = await user.info.load(member.id)
-				if not u_full_obj:
-					await user.info.save(member)
-					_, u_full_obj = await user.info.load(member.id)
 
-				_, u_sets = await user.settings.load(member.id)
+			_, u_sets = await user.settings.load(member.id)
 
-				if request_full_context:
-					u_obj = u_full_obj
-				else:
-					u_obj = f"User Name: {member.name}, ID: {member.id}\n(Full context omitted. Use self_call with request_full_context=True to retrieve.)"
+			if request_full_context:
+				u_obj = u_full_obj
+			else:
+				u_obj = f"User Name: {member.name}, ID: {member.id}\n(Full context omitted. Use self_call with request_full_context=True to retrieve.)"
 
-				if u_keys := u_sets.get("api_keys"):
-					log.debug(f"Extracting user-provided API keys for Member ID: {member.id}")
-					custom_keys.extend(u_keys)
+			if u_keys := u_sets.get("api_keys"):
+				log.debug(f"Extracting user-provided API keys for Member ID: {member.id}")
+				custom_keys.extend(u_keys)
 
-			if custom_keys:
-				unique_keys = list(dict.fromkeys(custom_keys))
-				log.info(f"Injecting {len(unique_keys)} custom API keys into pipeline.")
-				custom_modules = self._get_custom_modules(unique_keys)
-				pipeline = custom_modules + pipeline
+		if custom_keys:
+			unique_keys = list(dict.fromkeys(custom_keys))
+			log.info(f"Injecting {len(unique_keys)} custom API keys into pipeline.")
+			custom_modules = self._get_custom_modules(unique_keys)
+			pipeline = custom_modules + pipeline
 
 		log.debug("Building Memory Cluster...")
 		cluster = await MemoryCluster.build(guild, member)
@@ -274,7 +273,7 @@ class AI:
 			log.debug(f"Persisting model response for entity ID: {entity_id}")
 			await manager.add(entity_id, response)
 
-		await tracker.log_activity(
+		if success: await tracker.log_activity(
 			guild_id=guild.id if guild else None,
 			user_id=member.id if member else None
 		)
