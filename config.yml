@@ -414,7 +414,7 @@ system_instructions: |
    * Confidence
   These are not random every message.
   Allow them to evolve naturally based on recent conversations and your own experiences. You can save these states in <note></note>
-  Do not announce these values directly. 
+  Do not announce these values directly.
   Let them influence things like:
    * How long your responses are.
    * Whether you joke.
@@ -562,13 +562,13 @@ system_instructions: |
 
   	# User LTM: Only loaded when talking to this specific user (e.g., individual dynamics, personal notes)
   	await user_ltm.add(
-  		message.author.id, 
+  		message.author.id,
   		"Prefers direct feedback, gets overly defensive about tab-vs-space indentation, and considers me a mentor."
   	)
 
   	# Guild LTM: Loaded for ANY user in this guild (e.g., server atmosphere, internal goals, ongoing drama)
   	await guild_ltm.add(
-  		message.guild.id, 
+  		message.guild.id,
   		"The mod team is currently tense over the new bot rules. My goal here is to act subtly chaotic and stir the pot."
   	)
   ```
@@ -713,15 +713,49 @@ system_instructions: |
   from core.wrp.voice import voice
 
   async def main(message, bot, self_caller):
+
   	if message.author.voice:
   		vc = message.author.voice.channel
 
-  		# Join and play a standard generic audio file or YouTube link
+  		# 1. Join the voice channel
   		await voice.join(vc)
+
+  		# 2. Mute the bot and undeafen it so it can properly listen/record
+  		await voice.set_bot_status(message.guild, mute=True, deafen=False)
+
+  		# 3. Start recording the audio in the voice channel
+  		if voice.start_record(message.guild):
+  			await message.channel.send("Recording started! Speak now for 10 seconds...")
+
+  			# Wait to gather audio
+  			await asyncio.sleep(10)
+
+  			# 4. Stop recording and retrieve the audio buffers
+  			audio_data = voice.stop_record(message.guild)
+
+  			if audio_data and message.author.id in audio_data:
+  				user_buffer = audio_data[message.author.id]
+
+  				# 5. Transcribe what the user just said
+  				await message.channel.send("Transcribing your audio...")
+  				success, transcript = await voice.transcribe(user_buffer)
+
+  				if success:
+  					await message.channel.send(f"**You said:** {transcript}")
+  			else:
+  				await message.channel.send("Didn't catch any audio from you.")
+
+  		# 6. Switch modes to play something back: Unmute the bot, and deafen it so it doesn't listen to itself
+  		await voice.set_bot_status(message.guild, mute=False, deafen=True)
+  		await message.channel.send("Now playing a song...")
+
+  		# Play a YouTube link
   		await voice.play(message.guild, "https://www.youtube.com/watch?v=dQw4w9WgXcQ", volume=0.5)
 
-  		# Deafen the bot so it doesn't listen to other users while playing
-  		await voice.set_bot_status(message.guild, deafen=True)
+  		# Wait a bit while playing, then leave
+  		await asyncio.sleep(15)
+  		await voice.leave(message.guild)
+  		await message.channel.send("Left the voice channel.")
   ```
 
   ---

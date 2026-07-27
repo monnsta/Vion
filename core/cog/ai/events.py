@@ -71,7 +71,6 @@ class AIEvents(commands.Cog):
 			if not free_will:
 				continue
 
-			# Pick default/text channel with send permissions
 			target_channel = guild.system_channel
 			if not target_channel or not target_channel.permissions_for(guild.me).send_messages:
 				for channel in guild.text_channels:
@@ -99,7 +98,7 @@ class AIEvents(commands.Cog):
 			if time_diff < 7200:
 				continue
 
-			if consciousness.evaluate(self.bot, "on_inactivity", free_will, context_id=guild.id, guild=guild):
+			if consciousness.evaluate(self.bot, "on_inactivity", free_will, context_id=guild.id):
 				event_str = f"The server '{guild.name}' has been inactive for a while. Say something to revive the chat naturally."
 				await guild_audit.add(guild.id, event_str)
 
@@ -166,7 +165,7 @@ class AIEvents(commands.Cog):
 		_, guild_settings = await server.settings.load(message.guild.id)
 		free_will = guild_settings.get("free_will", True)
 
-		if consciousness.evaluate(self.bot, "on_message_delete", free_will, context_id=message.channel.id, guild=message.guild):
+		if consciousness.evaluate(self.bot, "on_message_delete", free_will, context_id=message.channel.id):
 			await ai.do_action(
 				"on_message_delete",
 				message.guild,
@@ -188,7 +187,7 @@ class AIEvents(commands.Cog):
 		_, guild_settings = await server.settings.load(before.guild.id)
 		free_will = guild_settings.get("free_will", True)
 
-		if consciousness.evaluate(self.bot, "on_message_edit", free_will, context_id=before.channel.id, guild=before.guild):
+		if consciousness.evaluate(self.bot, "on_message_edit", free_will, context_id=before.channel.id):
 			await ai.do_action(
 				"on_message_edit",
 				before.guild,
@@ -209,7 +208,7 @@ class AIEvents(commands.Cog):
 		_, guild_settings = await server.settings.load(reaction.message.guild.id)
 		free_will = guild_settings.get("free_will", True)
 
-		if consciousness.evaluate(self.bot, "on_reaction_add", free_will, context_id=reaction.message.channel.id, guild=reaction.message.guild):
+		if consciousness.evaluate(self.bot, "on_reaction_add", free_will, context_id=reaction.message.channel.id):
 			await ai.do_action(
 				"on_reaction_add",
 				reaction.message.guild,
@@ -228,7 +227,7 @@ class AIEvents(commands.Cog):
 		_, guild_settings = await server.settings.load(channel.guild.id)
 		free_will = guild_settings.get("free_will", True)
 
-		if consciousness.evaluate(self.bot, "on_guild_channel_create", free_will, context_id=channel.id, guild=channel.guild):
+		if consciousness.evaluate(self.bot, "on_guild_channel_create", free_will, context_id=channel.id):
 			await ai.do_action(
 				"on_guild_channel_create",
 				channel.guild,
@@ -240,7 +239,7 @@ class AIEvents(commands.Cog):
 
 
 	@commands.Cog.listener()
-	async def on_typing(self, channel: discord.abc.Messageable, user: discord.User | discord.Member, when: datetime):
+	async def on_typing(self, channel: discord.abc.Messageable, user: discord.User | discord.Member, _):
 		guild = getattr(channel, "guild", None)
 		if guild is None or user.id == config.bot.id: return
 
@@ -250,7 +249,7 @@ class AIEvents(commands.Cog):
 		channel_id = getattr(channel, "id", 0)
 		channel_name = getattr(channel, "name", "unknown")
 
-		if consciousness.evaluate(self.bot, "on_typing", free_will, context_id=channel_id, guild=guild):
+		if consciousness.evaluate(self.bot, "on_typing", free_will, context_id=channel_id):
 			event_str = f"{user.name} has been typing in #{channel_name}..."
 
 			await ai.do_action(
@@ -273,7 +272,7 @@ class AIEvents(commands.Cog):
 		_, guild_settings = await server.settings.load(member.guild.id)
 		free_will = guild_settings.get("free_will", True)
 
-		if consciousness.evaluate(self.bot, "on_member_join", free_will, context_id=member.guild.id, guild=member.guild):
+		if consciousness.evaluate(self.bot, "on_member_join", free_will, context_id=member.guild.id):
 			await ai.do_action(
 				"on_member_join",
 				member.guild,
@@ -287,7 +286,7 @@ class AIEvents(commands.Cog):
 	async def on_guild_join(self, guild: discord.Guild):
 		event_str = f"You have been added to a new server: {guild.name} read the rules via self_call and send your greetings in a general channel"
 
-		if consciousness.evaluate(self.bot, "on_guild_join", True, context_id=guild.id, guild=guild):
+		if consciousness.evaluate(self.bot, "on_guild_join", True, context_id=guild.id):
 			await ai.do_action(
 				"on_guild_join",
 				guild,
@@ -308,7 +307,7 @@ class AIEvents(commands.Cog):
 			_, guild_settings = await server.settings.load(member.guild.id)
 			free_will = guild_settings.get("free_will", True)
 
-			if consciousness.evaluate(self.bot, "on_voice_state_update", free_will, context_id=after.channel.id, guild=member.guild):
+			if consciousness.evaluate(self.bot, "on_voice_state_update", free_will, context_id=after.channel.id):
 				await ai.do_action(
 					"on_voice_state_update",
 					member.guild,

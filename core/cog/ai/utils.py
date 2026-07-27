@@ -8,15 +8,15 @@ from meta import config
 
 class Consciousness:
 	EVENT_CHANCES = {
-		"on_message_delete": 0.2,
-		"on_message_edit": 0.2,
-		"on_reaction_add": 0.2,
-		"on_guild_channel_create": 0.3,
-		"on_typing": 0.1,
-		"on_member_join": 0.4,
+		"on_message_delete": 0.16,
+		"on_message_edit": 0.16,
+		"on_reaction_add": 0.16,
+		"on_guild_channel_create": 0.5,
+		"on_typing": 0.04,
+		"on_member_join": 0.5,
 		"on_guild_join": 1.0,
 		"on_voice_state_update": 0.1,
-		"on_inactivity": 0.3,
+		"on_inactivity": 0.8,
 	}
 
 	def __init__(self):
@@ -46,7 +46,6 @@ class Consciousness:
 		**kwargs
 	) -> bool:
 		context_id = kwargs.get('context_id', 0)
-		guild = kwargs.get('guild', None)
 		now = time.time()
 
 		if now - self._last_cleanup > self._cleanup_interval:
@@ -76,7 +75,7 @@ class Consciousness:
 			should_trigger = False
 
 			if isinstance(message.channel, discord.DMChannel):
-				should_trigger = True if not message.flags.silent else get_random(0.1)
+				should_trigger = True if not message.flags.silent else get_random(0.05)
 			else:
 				is_reply_to_bot = False
 
@@ -85,8 +84,6 @@ class Consciousness:
 						replied_msg = message.reference.cached_message
 						if bot.user and replied_msg.author.id == bot.user.id:
 							is_reply_to_bot = True
-					elif message.reference.message_id:
-						pass
 
 				if is_reply_to_bot:
 					should_trigger = True
@@ -95,23 +92,20 @@ class Consciousness:
 				elif bot.user:
 					bot_names = (bot.user.display_name.lower(), bot.user.name.lower(), config.bot.name.lower())
 					if any(name in message.content.lower() for name in bot_names):
-						should_trigger = get_random(0.8) if free_will else True
+						should_trigger = get_random(0.95) if free_will else True
 
 				if not should_trigger and free_will:
 					if message.mention_everyone:
-						should_trigger = get_random(0.3)
+						should_trigger = get_random(0.4)
 					else:
-						should_trigger = get_random(0.02)
+						should_trigger = get_random(0.01)
 
 			if should_trigger:
 				self.message_trigger_cooldowns[cooldown_key] = now
 			return should_trigger
 
 		base_chance = self.EVENT_CHANCES.get(event_type, 0.0)
-		if guild and guild.member_count:
-			member_scale = min(1.0, max(0.05, guild.member_count / 50.0))
-			base_chance *= member_scale
-
+		
 		event_cooldown_key = f"{event_type}_{context_id}"
 		cooldown_time = 3600 if event_type == "on_inactivity" else 60
 
