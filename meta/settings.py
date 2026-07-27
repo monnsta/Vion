@@ -133,7 +133,12 @@ async def load_config(reload: bool = False):
 
 	try:
 		preserved_cmd = config.cmd if reload and config.get('cmd') else Data()
-		config.update(Data.load(data)) # type: ignore
+
+		if reload:
+			config.clear()
+			emoji.clear()
+
+		config.update(Data.load(data))
 	except Exception:
 		log.critical("An error occurred while parsing config into Data object", exc_info=True)
 		sys.exit(10)
@@ -174,7 +179,7 @@ async def load_config(reload: bool = False):
 	config.sandbox.allowed_builtins["__import__"] = safe_import
 
 	config.system_instructions = F(config.system_instructions).format(config=config)
-	config.summary_instrucgions = F(config.summary_instructions).format(config=config)
+	config.summary_instructions = F(config.summary_instructions).format(config=config)
 	config.prompt_template = F(cast(str, config.prompt_template))
 
 	config.cmd = preserved_cmd

@@ -43,13 +43,9 @@ class Reload(HybridGroup):
 		original_emoji = emoji.to_dict()
 
 		try:
-			config.clear()
-			emoji.clear()
-
 			await load_config(reload=True)
 
 			await asyncio.sleep(1)
-
 			await ctx.reply(view=Success("Successfully reloaded config"))
 
 		except Exception:
