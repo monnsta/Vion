@@ -3,11 +3,32 @@ import asyncio
 import io
 import wave
 import yt_dlp
-from typing import cast, Optional, Any, Tuple, Dict
+import logging
+from typing import cast, Any, Tuple, Dict
 from discord.ext import voice_recv
 
 from core.lib.llm import AssemblyAITranscriber
 from meta import config
+
+
+log = logging.getLogger(__name__)
+
+
+class YTDLPLogger:
+	def debug(self, msg: str):
+		if msg.lower().startswith("[debug] "):
+			log.debug(msg)
+		else:
+			log.info(msg)
+
+	def info(self, msg: str):
+		log.info(msg)
+
+	def warning(self, msg: str):
+		log.warning(msg)
+
+	def error(self, msg: str):
+		log.error(msg)
 
 
 ytdl_format_options: dict[str, Any] = {
@@ -17,9 +38,9 @@ ytdl_format_options: dict[str, Any] = {
 	'noplaylist': True,
 	'nocheckcertificate': True,
 	'ignoreerrors': False,
-	'logtostderr': False,
-	'quiet': True,
-	'no_warnings': True,
+	'quiet': False,
+	'no_warnings': False,
+	'logger': YTDLPLogger(),
 	'default_search': 'auto',
 	'source_address': '0.0.0.0',
 }
@@ -36,7 +57,7 @@ class MemoryAudioSink(voice_recv.AudioSink):
 	def wants_opus(self) -> bool:
 		return False
 
-	def write(self, user: Optional[discord.Member | discord.User], data: voice_recv.VoiceData):
+	def write(self, user: discord.Member | discord.User | None, data: voice_recv.VoiceData):
 		if not data.pcm:
 			return
 
@@ -96,7 +117,7 @@ class VoiceUtils:
 		if isinstance(source, str):
 			if source.startswith(('http://', 'https://')):
 				loop = asyncio.get_event_loop()
-				data = cast(Optional[dict[str, Any]], await loop.run_in_executor(None, lambda: ytdl.extract_info(source, download=False)))
+				data = cast(dict[str, Any] | None, await loop.run_in_executor(None, lambda: ytdl.extract_info(source, download=False)))
 
 				if not data:
 					return False
@@ -170,7 +191,7 @@ class VoiceUtils:
 		return False
 
 	@staticmethod
-	async def set_bot_status(guild: discord.Guild, mute: Optional[bool] = None, deafen: Optional[bool] = None) -> bool:
+	async def set_bot_status(guild: discord.Guild, mute: bool | None = None, deafen: bool | None = None) -> bool:
 		if guild.me.voice:
 			kwargs = {}
 			if mute is not None:
@@ -224,7 +245,7 @@ class VoiceUtils:
 		return True
 
 	@staticmethod
-	def stop_record(guild: discord.Guild) -> Optional[Dict[int, io.BytesIO]]:
+	def stop_record(guild: discord.Guild) -> Dict[int, io.BytesIO] | None:
 		if not guild.voice_client:
 			return None
 

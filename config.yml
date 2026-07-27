@@ -208,7 +208,7 @@ sandbox:
     json, math, random, re, requests, statistics,
     string, textwrap, time, unicodedata, uuid, io,
     logging, meta, core.wrp, core.cog.ui_template,
-    core.cog.utils
+    core.cog.utils, yt_dlp
   ]
 
   allowed_builtins: [
