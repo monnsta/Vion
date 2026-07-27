@@ -6,6 +6,7 @@ import discord
 
 from core.lib.converter import convert_message
 from core.lib.file import json_file
+from core.wrp.voice import voice
 from meta import config, file
 
 
@@ -88,6 +89,18 @@ class STM(_EntityListStore):
 			elif hasattr(message, "channel") and isinstance(message.channel, discord.DMChannel):
 				context_tag = "[Direct Message]"
 
+			transcripts = []
+			if hasattr(message, "attachments") and message.attachments:
+				for attachment in message.attachments:
+					if getattr(attachment, "is_voice_message", lambda: False)():
+						success, text = await voice.transcribe(attachment.url)
+						if success and text:
+							transcripts.append(text)
+
+			if transcripts:
+				if isinstance(entry, dict):
+					entry["_voice_transcript"] = transcripts
+
 			if isinstance(entry, dict):
 				entry["_context"] = context_tag
 			elif isinstance(entry, str) and context_tag:
@@ -104,6 +117,7 @@ class STM(_EntityListStore):
 			await self._save(entity_id, data)
 			log.debug(f"Added STM entry for {self.entity_type} {entity_id}")
 			return True
+			
 		except Exception as e:
 			log.error(f"Error adding STM for {self.entity_type} {entity_id}: {e}")
 			return False

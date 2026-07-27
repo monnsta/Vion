@@ -1,7 +1,13 @@
 import discord
 import asyncio
+import io
+import wave
 import yt_dlp
-from typing import cast, Optional, Any
+from typing import cast, Optional, Any, Tuple, Dict
+from discord.ext import voice_recv
+
+from core.lib.llm import AssemblyAITranscriber
+from meta import config
 
 
 ytdl_format_options: dict[str, Any] = {
@@ -21,6 +27,40 @@ ytdl_format_options: dict[str, Any] = {
 ytdl = yt_dlp.YoutubeDL(cast(Any, ytdl_format_options))
 
 
+class MemoryAudioSink(voice_recv.AudioSink):
+	def __init__(self):
+		super().__init__()
+		self.user_buffers: Dict[int, io.BytesIO] = {}
+		self.user_wavs: Dict[int, wave.Wave_write] = {}
+
+	def wants_opus(self) -> bool:
+		return False
+
+	def write(self, user: Optional[discord.Member | discord.User], data: voice_recv.VoiceData):
+		if not data.pcm:
+			return
+
+		user_id = user.id if user else 0
+
+		if user_id not in self.user_buffers:
+			buffer = io.BytesIO()
+			wav_writer = wave.open(buffer, 'wb')
+			wav_writer.setnchannels(2)
+			wav_writer.setsampwidth(2)
+			wav_writer.setframerate(48000)
+
+			self.user_buffers[user_id] = buffer
+			self.user_wavs[user_id] = wav_writer
+
+		self.user_wavs[user_id].writeframes(data.pcm)
+
+	def cleanup(self):
+		for wav_writer in self.user_wavs.values():
+			wav_writer.close()
+		for buffer in self.user_buffers.values():
+			buffer.seek(0)
+
+
 class VoiceUtils:
 	@staticmethod
 	async def join(channel: discord.VoiceChannel) -> discord.VoiceClient | None:
@@ -29,8 +69,8 @@ class VoiceUtils:
 			if vc.channel and vc.channel.id != channel.id:
 				await vc.move_to(channel)
 			return vc
-		
-		connection = await channel.connect()
+
+		connection = await channel.connect(cls=voice_recv.VoiceRecvClient)
 		return cast(discord.VoiceClient, connection)
 
 	@staticmethod
@@ -45,7 +85,7 @@ class VoiceUtils:
 	async def play(guild: discord.Guild, source: str | discord.AudioSource, volume: float = 1.0) -> bool:
 		if not guild.voice_client:
 			return False
-		
+
 		vc = cast(discord.VoiceClient, guild.voice_client)
 		if not vc.is_connected():
 			return False
@@ -57,23 +97,23 @@ class VoiceUtils:
 			if source.startswith(('http://', 'https://')):
 				loop = asyncio.get_event_loop()
 				data = cast(Optional[dict[str, Any]], await loop.run_in_executor(None, lambda: ytdl.extract_info(source, download=False)))
-				
+
 				if not data:
 					return False
-					
+
 				if 'entries' in data and data['entries']:
 					data = data['entries'][0]
-					
+
 				stream_url = data.get('url')
 				if not isinstance(stream_url, str):
 					return False
-					
+
 				audio_source: discord.AudioSource = discord.PCMVolumeTransformer(
 					discord.FFmpegPCMAudio(
 						stream_url,
 						before_options='-reconnect 1 -reconnect_streamed 1 -reconnect_delay_max 5',
 						options='-vn'
-					), 
+					),
 					volume=volume
 				)
 			else:
@@ -162,6 +202,41 @@ class VoiceUtils:
 			await member.edit(deafen=deafen)
 			return True
 		return False
+
+	@staticmethod
+	async def transcribe(item: Any, **config_kwargs: Any) -> Tuple[bool, str]:
+		transcriber = AssemblyAITranscriber(
+			api_key=config.secrets.assemblyai,
+			**config_kwargs
+		)
+		return await transcriber.call(item)
+
+	@staticmethod
+	def start_record(guild: discord.Guild) -> bool:
+		if not guild.voice_client:
+			return False
+
+		vc = cast(voice_recv.VoiceRecvClient, guild.voice_client)
+		if not vc.is_connected() or vc.is_listening():
+			return False
+
+		vc.listen(MemoryAudioSink())
+		return True
+
+	@staticmethod
+	def stop_record(guild: discord.Guild) -> Optional[Dict[int, io.BytesIO]]:
+		if not guild.voice_client:
+			return None
+
+		vc = cast(voice_recv.VoiceRecvClient, guild.voice_client)
+		if not vc.is_listening():
+			return None
+
+		sink = cast(MemoryAudioSink, vc.sink)
+
+		vc.stop_listening()
+
+		return sink.user_buffers
 
 
 voice = VoiceUtils()

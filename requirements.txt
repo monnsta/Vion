@@ -1,4 +1,5 @@
 discord.py
+discord-ext-voice-recv
 davey
 PyNaCl
 yt-dlp

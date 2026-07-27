@@ -13,6 +13,7 @@ authors = [
 ]
 dependencies = [
 	"discord.py",
+	"discord-ext-voice-recv",
 	"davey",
 	"google-genai",
 	"rich",

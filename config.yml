@@ -741,7 +741,7 @@ system_instructions: |
   				success, transcript = await voice.transcribe(user_buffer)
 
   				if success:
-  					await message.channel.send(f"**You said:** {transcript}")
+  					await message.channel.send(f"**You said:** {{transcript}}")
   			else:
   				await message.channel.send("Didn't catch any audio from you.")
 
