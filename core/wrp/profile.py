@@ -1,12 +1,11 @@
 import asyncio
 import datetime
 import io
-import json
 import logging
 import shutil
 import zipfile
 from pathlib import Path
-from typing import Any, Union
+from typing import Any
 
 import discord
 
@@ -149,7 +148,7 @@ class BaseProfileManager:
 				log.error(f"Error during permanent delete for {eid}", exc_info=True)
 				return False, "There was an error deleting your data, please report this"
 
-		async def get_zip(self, entity_id: int) -> tuple[bool, Union[io.BytesIO, str]]:
+		async def get_zip(self, entity_id: int) -> tuple[bool, io.BytesIO | str]:
 			eid = str(entity_id)
 			source_dir = Path(self.parent.active_dir) / eid
 
@@ -218,7 +217,7 @@ class BaseProfileManager:
 			success, data = await json_file.load(path)
 			return (success, data.get(self.parent.entity_type, {})) if success else (False, {})
 
-		async def save(self, entity: Union[discord.Guild, discord.User, discord.Member]) -> bool:
+		async def save(self, entity: discord.Guild | discord.User | discord.Member) -> bool:
 			log.debug(f"Updating cached info for {self.parent.entity_type} {entity.id}")
 			path = self.parent.file_routes.ai_data(str(entity.id))
 			success, data = await json_file.load(path)
@@ -267,7 +266,7 @@ class User(BaseProfileManager):
 			default_ai_data=config.ai_data.user
 		)
 
-	async def setup(self, user: Union[discord.User, discord.Member]) -> bool:
+	async def setup(self, user: discord.User | discord.Member) -> bool:
 		return await super()._setup(
 			entity_id=user.id,
 			entity_name=user.name

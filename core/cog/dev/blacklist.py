@@ -1,5 +1,5 @@
 import re
-from typing import Optional, Literal
+from typing import Literal
 
 from discord import app_commands as app
 from discord.ext import commands
@@ -39,7 +39,7 @@ class Blacklist(HybridGroup):
 		self.bot = bot
 		self.p = config.default_prefix[0]
 
-	async def _validate_args(self, ctx: commands.Context, entity_type: str, target_id: str) -> Optional[int]:
+	async def _validate_args(self, ctx: commands.Context, entity_type: str, target_id: str) -> int | None:
 		if entity_type not in ('user', 'server'):
 			await ctx.reply(view=Fail(
 				"Invalid Scope",
@@ -57,7 +57,7 @@ class Blacklist(HybridGroup):
 
 		return int(cleaned)
 
-	async def _get_entity_info(self, entity_type: str, tid: int) -> tuple[str, Optional[str]]:
+	async def _get_entity_info(self, entity_type: str, tid: int) -> tuple[str, str | None]:
 		label = f"Unknown {entity_type.capitalize()}"
 		icon = None
 
@@ -213,7 +213,7 @@ class Blacklist(HybridGroup):
 		new_duration='The modified duration (e.g., 7d, 12h, 30m). 0 for permanent',
 		new_reason='The modified reason for the blacklist'
 	)
-	async def edit(self, ctx: commands.Context, type: Literal['user', 'server'], target_id: str, new_duration: Optional[str] = None, *, new_reason: Optional[str] = None):
+	async def edit(self, ctx: commands.Context, type: Literal['user', 'server'], target_id: str, new_duration: str | None = None, *, new_reason: str | None = None):
 		if not new_reason and not new_duration:
 			return await ctx.reply(view=Fail(
 				"Error",
@@ -278,7 +278,7 @@ class Blacklist(HybridGroup):
 	@app.describe(
 		type='Filter by user or server'
 	)
-	async def list(self, ctx: commands.Context, type: Optional[Literal['user', 'server']] = None):
+	async def list(self, ctx: commands.Context, type: Literal['user', 'server'] | None = None):
 		entries = await blacklist.list_all(type)
 
 		if not entries:

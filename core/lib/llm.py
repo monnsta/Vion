@@ -5,7 +5,7 @@ import tempfile
 import time
 import mimetypes
 from pathlib import Path
-from typing import Tuple, List, Optional, Any
+from typing import Tuple, List, Any
 
 import httpx
 from google import genai
@@ -41,7 +41,7 @@ class GenerateContent:
 		self,
 		api_key: str,
 		model_name: str,
-		system_instruction: Optional[str] = None,
+		system_instruction: str | None = None,
 		temperature: float = 0.6,
 		top_p: float = 1.0,
 		top_k: int = 45
@@ -71,7 +71,7 @@ class GenerateContent:
 		self.cooldown_until = time.time() + seconds
 		log.debug(f"Cooldown set for {seconds} seconds. Active until: {self.cooldown_until}")
 
-	async def _upload_and_wait(self, path: str, mime_type: Optional[str] = None) -> Any:
+	async def _upload_and_wait(self, path: str, mime_type: str | None = None) -> Any:
 		log.debug(f"Uploading file: {path} with MIME type: {mime_type}")
 
 		upload_kwargs: dict[str, Any] = {"file": path}
@@ -158,7 +158,7 @@ class GenerateContent:
 		log.debug(f"Input passed through without specialized transformation: {type(item)}")
 		return item
 
-	async def call(self, prompt: str, inputs: Optional[List[Any]] = None) -> Tuple[bool, str]:
+	async def call(self, prompt: str, inputs: List[Any] | None = None) -> Tuple[bool, str]:
 		log.debug(f"call() invoked with prompt length: {len(prompt)} chars, inputs count: {len(inputs) if inputs else 0}")
 		if self.is_cooling_down:
 			remaining = self.cooldown_until - time.time()

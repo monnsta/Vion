@@ -1,7 +1,7 @@
 import json
 import types
 import warnings
-from typing import Any, Callable, Dict, Union, Type, TypeVar, Iterator
+from typing import Any, Callable, Dict, Type, TypeVar, Iterator
 from types import MappingProxyType
 
 
@@ -139,7 +139,7 @@ class Data:
 			self.set(k, v)
 
 	@classmethod
-	def load(cls: Type[T], data: Union[str, Dict[str, Any]]) -> T:
+	def load(cls: Type[T], data: str | Dict[str, Any]) -> T:
 		"""Loads a dictionary or JSON string, recursively converting nested dicts to Data instances."""
 		if isinstance(data, str):
 			try:
@@ -252,7 +252,7 @@ class Data:
 	def items(self) -> Iterator[tuple[str, Any]]:
 		return ((k, getattr(self, k)) for k in self._data)
 
-	def update(self, data: Union[Dict[str, Any], "Data"]) -> "Data":
+	def update(self, data: Dict[str, Any] | "Data") -> "Data":
 		"""Updates the Data instance with another dictionary or Data instance."""
 		iterable = data._data.items() if isinstance(data, Data) else data.items()
 		for k, v in iterable:

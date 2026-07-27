@@ -1,6 +1,6 @@
 import logging
 from datetime import datetime, timedelta
-from typing import Any, Dict, List, Optional, Tuple
+from typing import Any, Dict, List, Tuple
 
 from discord.ext import commands
 
@@ -12,7 +12,7 @@ log = logging.getLogger(__name__)
 
 
 class BlacklistedError(commands.CommandError):
-	def __init__(self, reason: str, expires_at: Optional[str] = None):
+	def __init__(self, reason: str, expires_at: str | None = None):
 		self.reason = reason
 		self.expires_at = expires_at
 		super().__init__(f"User is blacklisted. Reason: {reason}")
@@ -23,7 +23,7 @@ class Blacklist:
 	def _now() -> datetime:
 		return datetime.now(config.timezone)
 
-	def _parse_duration(self, duration: str) -> Optional[str]:
+	def _parse_duration(self, duration: str) -> str | None:
 		if duration == "0":
 			return None
 
@@ -77,7 +77,7 @@ class Blacklist:
 		return True, data
 
 
-	async def add(self, entity_id: int, entity_type: str, mod_id: int, reason: str, duration: Optional[str] = None) -> Tuple[bool, str]:
+	async def add(self, entity_id: int, entity_type: str, mod_id: int, reason: str, duration: str | None = None) -> Tuple[bool, str]:
 		if entity_type not in ("server", "user"):
 			log.warning(f"Attempted to blacklist invalid entity type: {entity_type}")
 			return False, "Invalid entity type"
@@ -139,7 +139,7 @@ class Blacklist:
 
 		return False, f"{entity_type.capitalize()} with id '{eid}' was not found."
 
-	async def edit(self, entity_id: int, entity_type: str, mod_id: int, reason: Optional[str] = None, duration: Optional[str] = None) -> Tuple[bool, str]:
+	async def edit(self, entity_id: int, entity_type: str, mod_id: int, reason: str | None = None, duration: str | None = None) -> Tuple[bool, str]:
 		if entity_type not in ("server", "user"):
 			return False, "Invalid entity type"
 
@@ -188,7 +188,7 @@ class Blacklist:
 		log.info(f"Successfully edited blacklist entry for {entity_type} {eid} by mod {mod_id}")
 		return True, "Blacklist entry updated successfully."
 
-	async def list_all(self, entity_type: Optional[str] = None) -> List[Dict[str, Any]]:
+	async def list_all(self, entity_type: str | None = None) -> List[Dict[str, Any]]:
 		log.debug(f"Listing all blacklisted entities (filter: {entity_type})")
 		success, data = await self._get_data()
 

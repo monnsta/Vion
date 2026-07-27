@@ -1,6 +1,6 @@
 import logging
 import io
-from typing import Any, Dict, List, Optional, Union
+from typing import Any, Dict, List
 from pathlib import Path
 
 import discord
@@ -21,9 +21,9 @@ class SelfCallAgent:
 	def __init__(
 		self,
 		parent_ai: 'AI',
-		guild: Optional[discord.Guild],
-		member: Optional[Union[discord.User, discord.Member]],
-		message: Optional[discord.Message],
+		guild: discord.Guild | None,
+		member: discord.User | discord.Member | None,
+		message: discord.Message | None,
 		bot_client: commands.Bot
 	):
 		self.parent_ai = parent_ai
@@ -35,7 +35,7 @@ class SelfCallAgent:
 	async def self_call(
 		self,
 		text: str,
-		*files: Union[str, bytes, io.BytesIO, io.IOBase, discord.Attachment],
+		*files: str | bytes | io.BytesIO | io.IOBase | discord.Attachment,
 		request_full_context: bool = False
 	) -> None:
 		"""
@@ -104,7 +104,7 @@ class AI:
 		]
 		log.debug(f"Loaded {len(self.base_modules)} base modules from configuration.")
 		self.custom_modules_cache: Dict[str, List[GenerateContent]] = {}
-		self.bot: Optional[commands.Bot] = None
+		self.bot: commands.Bot | None = None
 
 	def _get_custom_modules(self, custom_keys: List[str]) -> List[GenerateContent]:
 		cache_signature = ",".join(sorted(custom_keys))
@@ -132,7 +132,7 @@ class AI:
 		guild: discord.Guild | None = None,
 		member: discord.User | discord.Member | None = None,
 		extra: str | None = None,
-		inputs: Optional[List[Any]] = None,
+		inputs: List[Any] | None = None,
 		**kwargs: Any
 	) -> None:
 		log.info(f"Processing action for event: '{event}' (Guild: {guild.id if guild else 'None'}, Member: {member.id if member else 'None'})")

@@ -6,7 +6,7 @@ import re
 import html
 import traceback
 import types
-from typing import Any, Optional
+from typing import Any
 
 from core.lib.dataclass import Data, Repr
 from core.lib.utils import create_id
@@ -53,17 +53,17 @@ class Code:
 			result = None,
 			error = None
 		)
-		self._task: Optional[asyncio.Task] = None
+		self._task: asyncio.Task | None = None
 		self._log_buf = io.StringIO()
 
 		Code.tasks.set(self.execution_id, self)
 		log.debug(f"Code task initialized: {self.execution_id}")
 
 	@staticmethod
-	def get_task(execution_id: str) -> Optional['Code']:
+	def get_task(execution_id: str) -> 'Code | None':
 		return getattr(Code.tasks, execution_id, None)
 
-	async def execute(self, timeout: Optional[float] = None, **context_vars: Any) -> asyncio.Task:
+	async def execute(self, timeout: float | None = None, **context_vars: Any) -> asyncio.Task:
 		if self._task and not self._task.done():
 			log.warning(f"Execution attempt on already running task: {self.execution_id}")
 			raise RuntimeError("This code block is already running. Call stop() first.")

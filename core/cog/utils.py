@@ -1,4 +1,4 @@
-from typing import Any, Tuple, Optional, Callable, Iterable
+from typing import Any, Tuple, Callable, Iterable
 
 from discord.ext import commands
 
@@ -7,7 +7,7 @@ from core.cog.ui_template import Fail
 from meta import config
 
 
-async def resolve_target(ctx: commands.Context, scope: str) -> Tuple[Any, Optional[int]]:
+async def resolve_target(ctx: commands.Context, scope: str) -> Tuple[Any, int | None]:
 	if scope not in ('server', 'user'):
 		await ctx.reply(view=Fail(
 			"Invalid Scope",
