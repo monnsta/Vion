@@ -240,11 +240,11 @@ max_stm: 60
 max_ltm: 200
 max_previous_response: 10
 max_audit: 40
-ai_message_cooldown_seconds: 5
+event_cooldown: 5
 
 # AI SETTINGS
 gemini_models: [gemini-3.5-flash]
-free_will_frequency: 0.5
+free_will_frequency: 0.4
 temperature: 0.9
 top_p: 1.0
 top_k: 45

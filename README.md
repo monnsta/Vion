@@ -8,9 +8,7 @@
 
 # What is Vion?
 
-Vion isn't another chatbot or moderation bot.
-
-It's an AI member that lives inside your Discord server, remembers your community, understands natural language, and can perform complex tasks by reasoning about what you actually want.
+Vion is an AI member that lives inside your Discord server, remembers your community, understands natural language, and can perform complex tasks by reasoning about what you actually want.
 
 Instead of learning dozens of commands, you simply ask.
 
@@ -34,8 +32,6 @@ No command memorization.
 
 Mention it, reply to it, say its name naturally—or simply let it start conversations itself when Free Will is enabled.
 
----
-
 ## Long-Term Memory
 
 Vion remembers.
@@ -50,8 +46,6 @@ It keeps separate memories for
 Conversations don't reset every few messages.
 
 Over time, Vion develops familiarity with your community instead of treating every interaction as brand new.
-
----
 
 ## Intelligent Moderation
 
@@ -69,8 +63,6 @@ Examples include
 
 Rather than executing rigid commands, Vion reasons about what should happen.
 
----
-
 ## Permission Aware
 
 Vion does not blindly execute requests.
@@ -80,8 +72,6 @@ Administrative actions are only performed when requested by users who already po
 Regular users cannot simply convince the AI to ban members, delete channels, or perform privileged actions.
 
 The AI understands permission boundaries before deciding what it is allowed to do.
-
----
 
 ## Custom Behavior
 
@@ -96,8 +86,6 @@ Administrators can configure
 - server-specific settings
 
 Each server develops its own personality and behavior without affecting anyone else.
-
----
 
 ## Extendable
 

@@ -96,7 +96,7 @@ class AIStatsView(TimeoutView):
 		self.target_select = ui.Select(
 			placeholder="Select scope to view stats...",
 			options=[
-				discord.SelectOption(label="Global Stats", value="global", description="Network-wide AI metrics"),
+				discord.SelectOption(label="Global Stats", value="global", description="Server-wide AI metrics"),
 				discord.SelectOption(label="Server Stats", value="server", description="Metrics for this server"),
 				discord.SelectOption(label="User Stats", value="user", description="Your or someone else's metrics"),
 				discord.SelectOption(label="Leaderboard", value="leaderboard", description="Top interaction rankings")
