@@ -6,14 +6,20 @@ import matplotlib.dates as mdates
 from matplotlib.ticker import MaxNLocator
 
 
-def generate_timeline_graph(timeline_data: dict, title: str = "Activity Timeline") -> io.BytesIO:
-	plt.style.use('dark_background')
+def generate_timeline_graph(timeline_data: dict, title: str = "Activity Timeline", timeframe_days: int | None = None) -> io.BytesIO:
 	fig, ax = plt.subplots(figsize=(7, 3))
 
 	if not timeline_data:
 		timeline_data = {datetime.now().strftime("%Y-%m-%d %H:00"): 0}
 
 	parsed_data = {datetime.strptime(d, "%Y-%m-%d %H:%M"): v for d, v in timeline_data.items()}
+
+	if timeframe_days is not None:
+		cutoff_date = datetime.now() - timedelta(days=timeframe_days)
+		parsed_data = {d: v for d, v in parsed_data.items() if d >= cutoff_date}
+
+	if not parsed_data:
+		parsed_data = {datetime.now().replace(minute=0, second=0, microsecond=0): 0}
 
 	max_date = max(parsed_data.keys())
 	min_date = min(parsed_data.keys())
@@ -44,11 +50,15 @@ def generate_timeline_graph(timeline_data: dict, title: str = "Activity Timeline
 
 	ax.spines['top'].set_visible(False)
 	ax.spines['right'].set_visible(False)
+	ax.spines['left'].set_color('#B0B8C1')
+	ax.spines['bottom'].set_color('#B0B8C1')
+	ax.tick_params(colors='#B0B8C1')
 	ax.grid(color='gray', linestyle='--', linewidth=0.5, alpha=0.3)
 
-	plt.setp(ax.xaxis.get_majorticklabels(), rotation=30, ha='right')
+	plt.setp(ax.xaxis.get_majorticklabels(), rotation=30, ha='right', color='#B0B8C1')
+	plt.setp(ax.yaxis.get_majorticklabels(), color='#B0B8C1')
 
-	plt.title(title, color='white', pad=10)
+	plt.title(title, color='#B0B8C1', pad=10)
 	plt.tight_layout()
 
 	buf = io.BytesIO()

@@ -92,6 +92,7 @@ class AIStatsView(TimeoutView):
 		self.current_target = default_target
 		self.user_target = user_target
 		self.user = ctx.author
+		self.current_timeframe = "1"
 
 		self.target_select = ui.Select(
 			placeholder="Select scope to view stats...",
@@ -104,6 +105,17 @@ class AIStatsView(TimeoutView):
 		)
 		self.target_select.callback = self.change_target
 
+		self.timeframe_select = ui.Select(
+			placeholder="Select timeframe...",
+			options=[
+				discord.SelectOption(label="Last 24 Hours", value="1", description="Activity in the last 24 hours"),
+				discord.SelectOption(label="Last 7 Days", value="7", description="Activity in the last 7 days"),
+				discord.SelectOption(label="Last 30 Days", value="30", description="Activity in the last 30 days"),
+				discord.SelectOption(label="All Time", value="all", description="All recorded activity")
+			]
+		)
+		self.timeframe_select.callback = self.change_timeframe
+
 		self.refresh_btn = ui.Button(emoji=emoji.refresh, style=discord.ButtonStyle.secondary)
 		self.refresh_btn.callback = self.refresh_stats
 
@@ -112,6 +124,12 @@ class AIStatsView(TimeoutView):
 
 	async def _generate_content(self) -> tuple[ui.Container, discord.File | None]:
 		file = None
+		if self.current_timeframe == "all":
+			timeframe_days = None
+		elif self.current_timeframe == "1":
+			timeframe_days = 1
+		else:
+			timeframe_days = int(self.current_timeframe)
 
 		if self.current_target == 'leaderboard':
 			top_guilds = await tracker.get_leaderboard('guild', 5)
@@ -146,7 +164,7 @@ class AIStatsView(TimeoutView):
 					"> **Total Interactions**\n"
 					f"> ## `{interactions:,}`"
 				)
-				buf = generate_timeline_graph(timeline, "Global Interactions Over Time")
+				buf = generate_timeline_graph(timeline, "Global Interactions Over Time", timeframe_days)
 				file = discord.File(buf, filename="chart.png")
 
 			elif self.current_target == 'server':
@@ -166,7 +184,7 @@ class AIStatsView(TimeoutView):
 					"> **Total Interactions** · **Leaderboard Rank**\n"
 					f"> ## `{interactions:,}` `#{rank:,}`"
 				)
-				buf = generate_timeline_graph(timeline, "Server Interactions Over Time")
+				buf = generate_timeline_graph(timeline, "Server Interactions Over Time", timeframe_days)
 				file = discord.File(buf, filename="chart.png")
 
 			else:
@@ -181,11 +199,14 @@ class AIStatsView(TimeoutView):
 					f"> **Total Interactions** · **Leaderboard Rank**\n"
 					f"> ## `{interactions:,}` `#{rank:,}`"
 				)
-				buf = generate_timeline_graph(timeline, "User Interactions Over Time")
+				buf = generate_timeline_graph(timeline, "User Interactions Over Time", timeframe_days)
 				file = discord.File(buf, filename="chart.png")
 
 		for opt in self.target_select.options:
 			opt.default = (opt.value == self.current_target)
+
+		for opt in self.timeframe_select.options:
+			opt.default = (opt.value == self.current_timeframe)
 
 		container_elements: list[ui.TextDisplay | ui.MediaGallery] = [ui.TextDisplay(content)]
 
@@ -198,6 +219,8 @@ class AIStatsView(TimeoutView):
 
 		container = ui.Container(*container_elements, accent_color=0x00E9FE)
 		container.add_item(ui.ActionRow(self.target_select))
+		if self.current_target != 'leaderboard':
+			container.add_item(ui.ActionRow(self.timeframe_select))
 		container.add_item(ui.ActionRow(self.refresh_btn))
 
 		return container, file
@@ -213,6 +236,16 @@ class AIStatsView(TimeoutView):
 
 	async def change_target(self, interaction: discord.Interaction):
 		self.current_target = self.target_select.values[0]
+
+		container, file = await self._generate_content()
+		self.clear_items()
+		self.add_item(container)
+
+		attachments = [file] if file else []
+		await interaction.response.edit_message(view=self, attachments=attachments)
+
+	async def change_timeframe(self, interaction: discord.Interaction):
+		self.current_timeframe = self.timeframe_select.values[0]
 
 		container, file = await self._generate_content()
 		self.clear_items()
