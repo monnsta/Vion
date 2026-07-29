@@ -75,7 +75,6 @@ class AIEvents(commands.Cog):
 			if not free_will:
 				continue
 
-			# Scan channels for recent activity
 			now = datetime.now(timezone.utc)
 			three_minutes_ago = now - timedelta(minutes=3)
 
@@ -91,11 +90,9 @@ class AIEvents(commands.Cog):
 					log.debug(f"Could not fetch history for freewill loop in channel {channel.id}: {e}")
 					continue
 
-				# Requires at least 5 messages in the last 3 minutes to count as active conversation
 				if len(recent_msgs) < 5:
 					continue
 
-				# Avoid responding if the bot was the last sender
 				if recent_msgs[-1].author.id == config.bot.id:
 					continue
 
@@ -113,7 +110,7 @@ class AIEvents(commands.Cog):
 						channel=channel,
 						bot=self.bot
 					)
-					break  # Only hit one active channel per guild per iteration
+					break
 
 	@freewill_loop.before_loop
 	async def before_freewill_loop(self):
@@ -416,12 +413,10 @@ class AIEvents(commands.Cog):
 	async def on_presence_update(self, before: discord.Member, after: discord.Member):
 		if before.id == config.bot.id: return
 
-		# Status changes (e.g., online, idle, dnd, offline)
 		if before.status != after.status:
 			event_str = f"{after.name}'s status changed from {before.status} to {after.status}."
 			await guild_audit.add(after.guild.id, event_str)
 
-		# Activity changes (e.g., started playing a game, listening to Spotify, streaming)
 		if before.activities != after.activities:
 			b_acts = [act.name for act in before.activities if act.name]
 			a_acts = [act.name for act in after.activities if act.name]
