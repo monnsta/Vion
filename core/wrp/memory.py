@@ -1,3 +1,5 @@
+import json
+import hashlib
 import logging
 from pathlib import Path
 from typing import Any
@@ -79,6 +81,11 @@ class STM(_EntityListStore):
 	def __init__(self, entity_type="guild"):
 		super().__init__("stm", config.max_stm, entity_type)
 
+	def _normalize_entry(self, entry: Any) -> str:
+		if isinstance(entry, dict):
+			return json.dumps(entry, sort_keys=True)
+		return str(entry)
+
 	async def add(self, entity_id: int, message) -> bool:
 		try:
 			entry = await convert_message(message)
@@ -112,15 +119,56 @@ class STM(_EntityListStore):
 
 			items = self._get_list(data)
 			items.append(entry)
-			data[self.key] = self._trim(items)
+			items = self._trim(items)
+			data[self.key] = items
 
 			await self._save(entity_id, data)
 			log.debug(f"Added STM entry for {self.entity_type} {entity_id}")
+
+			await self._check_and_summarize(entity_id, items, data)
+
 			return True
-			
+
 		except Exception as e:
 			log.error(f"Error adding STM for {self.entity_type} {entity_id}: {e}")
 			return False
+
+	async def _check_and_summarize(self, entity_id: int, current_items: list[Any], data: dict) -> None:
+		if not current_items:
+			return
+
+		if len(current_items) < self.max_items:
+			return
+
+		normalized_current = [self._normalize_entry(i) for i in current_items]
+
+		current_hashes = [hashlib.md5(item.encode('utf-8')).hexdigest() for item in normalized_current]
+
+		last_summarized_hashes = data.get("_last_summarized_hashes", [])
+
+		has_overlap = any(h in last_summarized_hashes for h in current_hashes)
+
+		if not has_overlap:
+			log.info(f"STM entries for {self.entity_type} {entity_id} are completely unique. Triggering summarizer.")
+			from core.wrp.ai import summarizer
+
+			stm_text_block = "\n".join(normalized_current)
+			summary_result = await summarizer.summarize(stm_text_block)
+
+			if summary_result:
+				target_ltm = None
+				if self.entity_type == "guild":
+					target_ltm = guild_ltm
+				elif self.entity_type == "user":
+					target_ltm = user_ltm
+
+				if target_ltm:
+					await target_ltm.add(entity_id, f"[Auto-Summarized] {summary_result}")
+					log.info(f"Successfully added auto-summary into LTM for {self.entity_type} {entity_id}")
+
+				data["_last_summarized_hashes"] = current_hashes
+				await self._save(entity_id, data)
+
 
 class LTM(_EntityListStore):
 	def __init__(self, entity_type="guild"):
@@ -143,6 +191,7 @@ class LTM(_EntityListStore):
 			log.error(f"Error adding LTM for {self.entity_type} {entity_id}: {e}")
 			return False
 
+
 class Audit(_EntityListStore):
 	def __init__(self, entity_type="guild"):
 		super().__init__("audit_log", config.max_audit, entity_type)
@@ -163,6 +212,7 @@ class Audit(_EntityListStore):
 		except Exception as e:
 			log.error(f"Error adding audit for {self.entity_type} {entity_id}: {e}")
 			return False
+
 
 class Response(_EntityListStore):
 	def __init__(self, entity_type="guild"):

@@ -149,7 +149,7 @@ class AI:
 			_, g_full_obj = await server.info.load(guild.id)
 			_, g_settings = await server.settings.load(guild.id)
 			g_ins = g_settings.get("instructions")
-			
+
 			if s_keys_raw := g_settings.get("api_keys"):
 				log.debug(f"Extracting server-provided API keys for Guild ID: {guild.id}")
 				for k in s_keys_raw:
@@ -279,4 +279,42 @@ class AI:
 		)
 
 
+class Summarizer:
+	def __init__(self) -> None:
+		log.info("Initializing Summarizer engine.")
+		self.modules = [
+			GenerateContent(
+				k, m,
+				config.summary_instructions,
+				config.temperature,
+				config.top_p, config.top_k
+			)
+			for m in config.gemini_models
+			for k in config.secrets.gemini
+		]
+
+	async def summarize(self, text: str) -> str | None:
+		if not text.strip():
+			return None
+
+		active_pipeline = [m for m in self.modules if not m.is_cooling_down]
+		if not active_pipeline:
+			log.warning("No active modules available for summarization.")
+			return None
+
+		for idx, model in enumerate(active_pipeline):
+			log.debug(f"Attempting summarizer call (Index: {idx})")
+			success, response = await model.call(text)
+			if success and response:
+				log.info("Summarization successfully completed.")
+				return response.strip()
+
+		log.warning("All summarizer models failed to produce a response.")
+		return None
+
+
 ai = AI()
+summarizer = Summarizer()
+
+
+__all__ = ('ai', 'summarizer', 'SelfCallAgent', 'AI', 'Summarizer')
