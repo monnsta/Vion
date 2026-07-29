@@ -1,4 +1,5 @@
 import json
+import time
 import hashlib
 import logging
 from pathlib import Path
@@ -240,6 +241,7 @@ class MemoryCluster:
 	@staticmethod
 	async def build(guild: discord.Guild | None, user: discord.User | discord.Member | None) -> dict:
 		cluster = {
+			"linked_contexts": [],
 			"guild_audit": [],
 			"global_stm": [],
 			"global_ltm": [],
@@ -261,8 +263,79 @@ class MemoryCluster:
 			_, cluster["user_stm"] = await user_stm.get(user.id)
 			_, cluster["user_ltm"] = await user_ltm.get(user.id)
 
+		target_id = guild.id if guild else (user.id if user else None)
+
+		if target_id:
+			links = context_linker.get_links(target_id)
+
+			for link in links:
+				s_type = link["type"]
+				s_id = link["id"]
+
+				if s_type == "user":
+					_, stm = await user_stm.get(s_id)
+					_, ltm = await user_ltm.get(s_id)
+					cluster["linked_contexts"].append({
+						"type": "user",
+						"id": s_id,
+						"stm": stm,
+						"ltm": ltm
+					})
+
+				elif s_type == "guild":
+					_, stm = await guild_stm.get(s_id)
+					_, ltm = await guild_ltm.get(s_id)
+					cluster["linked_contexts"].append({
+						"type": "guild",
+						"id": s_id,
+						"stm": stm,
+						"ltm": ltm
+					})
+
 		return cluster
 
+
+class ContextLinker:
+	def __init__(self):
+		# target_id -> { "source_type_source_id": { data } }
+		self._links = {}
+
+	def add_link(self, target_id: int, source_type: str, source_id: int, ttl: int = 3600):
+		if target_id not in self._links:
+			self._links[target_id] = {}
+
+		key = f"{source_type}_{source_id}"
+		self._links[target_id][key] = {
+			"type": source_type,
+			"id": source_id,
+			"expires_at": time.time() + ttl
+		}
+
+	def get_links(self, target_id: int) -> list:
+		if target_id not in self._links:
+			return []
+
+		active_links = []
+		expired_keys = []
+
+		for key, link in self._links[target_id].items():
+			if time.time() < link["expires_at"]:
+				active_links.append(link)
+			else:
+				expired_keys.append(key)
+
+		for key in expired_keys:
+			del self._links[target_id][key]
+
+		return active_links
+
+	def remove_link(self, target_id: int, source_type: str, source_id: int):
+		key = f"{source_type}_{source_id}"
+		if target_id in self._links and key in self._links[target_id]:
+			del self._links[target_id][key]
+
+
+context_linker = ContextLinker()
 
 global_stm = STM(entity_type="global")
 global_ltm = LTM(entity_type="global")
@@ -280,5 +353,5 @@ user_response = Response(entity_type="user")
 __all__ = (
 	'global_stm', 'global_ltm',
 	'guild_stm', 'guild_ltm', 'guild_audit', 'guild_response',
-	'user_stm', 'user_ltm', 'user_response', 'MemoryCluster'
+	'user_stm', 'user_ltm', 'user_response', 'MemoryCluster', 'context_linker'
 )

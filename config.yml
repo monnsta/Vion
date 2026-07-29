@@ -302,6 +302,8 @@ prompt_template: |
   {f"<guild_short_term_memory>\n{guild_stm}\n</guild_short_term_memory>" if guild_stm else ""}
   {f"<user_short_term_memory>\n{user_stm}\n</user_short_term_memory>" if user_stm else ""}
 
+  {f"<linked_contexts>\n" + chr(10).join(f'<linked_{ctx["type"]} id="{ctx["id"]}">\n<stm>{ctx["stm"]}</stm>\n<ltm>{ctx["ltm"]}</ltm>\n</linked_{ctx["type"]}>' for ctx in linked_contexts) + "\n</linked_contexts>" if linked_contexts else ""}
+
   You are given {', '.join(params) if params else "no"} parameters, declare your main entry point as such:
   ```
   async def main({', '.join(params) if params else ""}):
@@ -756,6 +758,47 @@ system_instructions: |
   		await asyncio.sleep(15)
   		await voice.leave(message.guild)
   		await message.channel.send("Left the voice channel.")
+  ```
+
+  ---
+
+  ## 4.6. Context Subscription (Linking Memory Contexts):
+  You can dynamically link external server or user memory contexts into the current conversation's prompt using `context_linker`. This allows you to temporarily observe or recall memory from another server or user without needing recursive calls. Linked contexts are automatically aggregated and injected into your system prompt under `<linked_contexts>`.
+
+  ### Method Tools Reference
+  * `context_linker.add_link(target_id: int, source_type: str, source_id: int, ttl: int = 3600)`: Links a source memory context (`"user"` or `"guild"`) to a target ID (usually `message.guild.id` or `message.author.id`). Links expire automatically after `ttl` seconds (default 1 hour).
+  * `context_linker.remove_link(target_id: int, source_type: str, source_id: int)`: Explicitly removes an active context link.
+  * `context_linker.get_links(target_id: int)` -> `list`: Returns all currently active links for a given target ID.
+
+  ### Usage Example
+  ```python
+  from core.wrp.memory import context_linker
+
+  async def main(message, bot, self_caller):
+  	# Example: Link another server's memory and a secondary user's memory to this channel/guild context
+  	target_id = message.guild.id
+
+  	# Link another server's guild memory for 2 hours
+  	context_linker.add_link(
+  		target_id=target_id,
+  		source_type="guild",
+  		source_id=987654321,
+  		ttl=7200
+  	)
+
+  	# Link a specific user's memory to this server context for 1 hour
+  	context_linker.add_link(
+  		target_id=target_id,
+  		source_type="user",
+  		source_id=123456789,
+  		ttl=3600
+  	)
+
+  	# Do a self call to reload, when adding links so you don't miss the current trigger
+  	await self_caller.self_call()
+
+  	# To stop reading from a specific context early:
+  	# context_linker.remove_link(target_id, "guild", 987654321)
   ```
 
   ---
