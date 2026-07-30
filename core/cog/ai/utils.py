@@ -66,6 +66,15 @@ class MessageEventHandler(BaseEventHandler):
 		return should_trigger
 
 
+class DynamicChanceEventHandler(BaseEventHandler):
+	def __init__(self, cooldown_seconds: float = 60.0):
+		self.cooldown_seconds = cooldown_seconds
+
+	def evaluate(self, consciousness: "Consciousness", bot: commands.Bot, free_will: bool, **kwargs) -> bool:
+		chance = kwargs.get("chance", 0.0)
+		return self.get_random(free_will, chance)
+
+
 class GenericChanceEventHandler(BaseEventHandler):
 	def __init__(self, base_chance: float, cooldown_seconds: float = 60.0):
 		self.base_chance = base_chance
@@ -102,6 +111,7 @@ class Consciousness:
 		self.register_handler("on_voice_state_update", GenericChanceEventHandler(base_chance=0.3))
 		self.register_handler("on_inactivity", GenericChanceEventHandler(base_chance=0.8, cooldown_seconds=3600))
 		self.register_handler("freewill", GenericChanceEventHandler(base_chance=0.3, cooldown_seconds=300))
+		self.register_handler("notification_freewill", DynamicChanceEventHandler(cooldown_seconds=300))
 
 	def _cleanup_cooldowns(self, now: float):
 		keys_to_remove = [k for k, v in self.message_trigger_cooldowns.items() if now - v > config.event_cooldown * 2]

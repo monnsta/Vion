@@ -10,6 +10,7 @@ from discord.ext import commands
 
 from core.wrp.profile import server, user
 from core.wrp.extension import extension, server_cog, map_command_mentions
+from core.wrp.trackers import runtime
 from meta import config
 
 
@@ -35,6 +36,8 @@ class Bot(commands.Bot):
 
 		await extension.load_all(self)
 		await server_cog.load_all(self)
+
+		await runtime.mark_event('startup')
 
 		try:
 			global_cmds = await self.tree.fetch_commands()
@@ -100,6 +103,16 @@ class Bot(commands.Bot):
 					ctx = await self.get_context(message)
 
 		await self.invoke(ctx)
+
+	async def on_disconnect(self):
+		await runtime.mark_event('disconnect')
+
+	async def on_resumed(self):
+		await runtime.mark_event('resume')
+
+	async def close(self):
+		await runtime.mark_event('shutdown')
+		await super().close()
 
 
 if __name__ == "__main__":

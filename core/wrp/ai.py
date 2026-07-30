@@ -21,14 +21,14 @@ class SelfCallAgent:
 	def __init__(
 		self,
 		parent_ai: 'AI',
-		guild: discord.Guild | None,
-		member: discord.User | discord.Member | None,
+		guild_obj: discord.Guild | None,
+		member_obj: discord.User | discord.Member | None,
 		message: discord.Message | None,
 		bot_client: commands.Bot
 	):
 		self.parent_ai = parent_ai
-		self.guild = guild
-		self.member = member
+		self.guild_obj = guild_obj
+		self.member_obj = member_obj
 		self.message = message
 		self.bot_client = bot_client
 
@@ -44,7 +44,7 @@ class SelfCallAgent:
 		or file-like objects (BytesIO, IOBase).
 		If request_full_context is True, full guild and user profile JSONs will be included.
 		"""
-		log.info(f"AI self-call initiated by {self.member.id if self.member else 'unknown'}")
+		log.info(f"AI self-call initiated by {self.member_obj.id if self.member_obj else 'unknown'}")
 
 		file_inputs_for_llm: List[Any] = []
 		file_descs_for_prompt: List[str] = []
@@ -79,8 +79,8 @@ class SelfCallAgent:
 
 		await self.parent_ai.do_action(
 			event="on_self_call",
-			guild=self.guild,
-			member=self.member,
+			guild_obj=self.guild_obj,
+			member_obj=self.member_obj,
 			extra=combined_extra,
 			inputs=file_inputs_for_llm,
 			message=self.message,
@@ -129,13 +129,13 @@ class AI:
 	async def do_action(
 		self,
 		event: str,
-		guild: discord.Guild | None = None,
-		member: discord.User | discord.Member | None = None,
+		guild_obj: discord.Guild | None = None,
+		member_obj: discord.User | discord.Member | None = None,
 		extra: str | None = None,
 		inputs: List[Any] | None = None,
 		**kwargs: Any
-	) -> None:
-		log.info(f"Processing action for event: '{event}' (Guild: {guild.id if guild else 'None'}, Member: {member.id if member else 'None'})")
+	) -> bool:
+		log.info(f"Processing action for event: '{event}' (Guild: {guild_obj.id if guild_obj else 'None'}, Member: {member_obj.id if member_obj else 'None'})")
 
 		g_obj, u_obj = None, None
 		g_ins = None
@@ -144,42 +144,42 @@ class AI:
 
 		request_full_context = kwargs.pop('request_full_context', False)
 
-		if guild:
-			log.debug(f"Fetching config objects for Guild ID: {guild.id}")
-			_, g_full_obj = await server.info.load(guild.id)
-			_, g_settings = await server.settings.load(guild.id)
+		if guild_obj:
+			log.debug(f"Fetching config objects for Guild ID: {guild_obj.id}")
+			_, g_full_obj = await server.info.load(guild_obj.id)
+			_, g_settings = await server.settings.load(guild_obj.id)
 			g_ins = g_settings.get("instructions")
 
 			if s_keys_raw := g_settings.get("api_keys"):
-				log.debug(f"Extracting server-provided API keys for Guild ID: {guild.id}")
+				log.debug(f"Extracting server-provided API keys for Guild ID: {guild_obj.id}")
 				for k in s_keys_raw:
 					custom_keys.append(k["key"] if isinstance(k, dict) else k)
 
 			if not g_full_obj:
-				await server.info.save(guild)
-				_, g_full_obj = await server.info.load(guild.id)
+				await server.info.save(guild_obj)
+				_, g_full_obj = await server.info.load(guild_obj.id)
 
 			if request_full_context:
 				g_obj = g_full_obj
 			else:
-				g_obj = f"Guild Name: {guild.name}, ID: {guild.id}\n(Full context omitted. Use self_call with request_full_context=True to retrieve.)"
+				g_obj = f"Guild Name: {guild_obj.name}, ID: {guild_obj.id}\n(Full context omitted. Use self_call with request_full_context=True to retrieve.)"
 
-		if member:
-			log.debug(f"Fetching config objects for Member ID: {member.id}")
-			_, u_full_obj = await user.info.load(member.id)
+		if member_obj:
+			log.debug(f"Fetching config objects for Member ID: {member_obj.id}")
+			_, u_full_obj = await user.info.load(member_obj.id)
 			if not u_full_obj:
-				await user.info.save(member)
-				_, u_full_obj = await user.info.load(member.id)
+				await user.info.save(member_obj)
+				_, u_full_obj = await user.info.load(member_obj.id)
 
-			_, u_sets = await user.settings.load(member.id)
+			_, u_sets = await user.settings.load(member_obj.id)
 
 			if request_full_context:
 				u_obj = u_full_obj
 			else:
-				u_obj = f"User Name: {member.name}, ID: {member.id}\n(Full context omitted. Use self_call with request_full_context=True to retrieve.)"
+				u_obj = f"User Name: {member_obj.name}, ID: {member_obj.id}\n(Full context omitted. Use self_call with request_full_context=True to retrieve.)"
 
 			if u_keys := u_sets.get("api_keys"):
-				log.debug(f"Extracting user-provided API keys for Member ID: {member.id}")
+				log.debug(f"Extracting user-provided API keys for Member ID: {member_obj.id}")
 				custom_keys.extend(u_keys)
 
 		if custom_keys:
@@ -189,7 +189,7 @@ class AI:
 			pipeline = custom_modules + pipeline
 
 		log.debug("Building Memory Cluster...")
-		cluster = await MemoryCluster.build(guild, member)
+		cluster = await MemoryCluster.build(guild_obj, member_obj)
 
 		inputs_summary = ""
 		if inputs:
@@ -227,7 +227,7 @@ class AI:
 		entity_id = None
 
 		if self.bot:
-			kwargs['self_caller'] = SelfCallAgent(self, guild, member, kwargs.get('message'), self.bot)
+			kwargs['self_caller'] = SelfCallAgent(self, guild_obj, member_obj, kwargs.get('message'), self.bot)
 		else:
 			log.error("AI instance has no bot client reference, self_caller will not be fully functional.")
 
@@ -238,12 +238,12 @@ class AI:
 
 			if success:
 				log.info(f"Model call succeeded via module index {idx}.")
-				if guild:
+				if guild_obj:
 					manager = guild_response
-					entity_id = guild.id
-				elif member:
+					entity_id = guild_obj.id
+				elif member_obj:
 					manager = user_response
-					entity_id = member.id
+					entity_id = member_obj.id
 				break
 			else:
 				log.warning(f"Model call failed at module index {idx}. Retrying next available model if any.")
@@ -274,9 +274,11 @@ class AI:
 			await manager.add(entity_id, response)
 
 		if success: await activity.log_activity(
-			guild_id=guild.id if guild else None,
-			user_id=member.id if member else None
+			guild_id=guild_obj.id if guild_obj else None,
+			user_id=member_obj.id if member_obj else None
 		)
+
+		return success
 
 
 class Summarizer:

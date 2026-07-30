@@ -136,11 +136,9 @@ class Runtime(BaseTracker):
         super().__init__(file.glob.bot_runtime)
 
     async def mark_event(self, event_type: Literal['startup', 'shutdown', 'disconnect', 'resume']) -> None:
-        """Logs lifecycle events to calculate precise offline windows."""
         async with json_file.edit(self.file_path) as data:
             now = datetime.now(timezone.utc).isoformat()
             
-            # Initialize schema if missing
             data.setdefault("history", [])
             data.setdefault("total_starts", 0)
             data.setdefault("total_disconnects", 0)
@@ -152,19 +150,16 @@ class Runtime(BaseTracker):
             elif event_type == 'disconnect':
                 data["total_disconnects"] += 1
             
-            # Maintain a rolling history of the last 50 state changes
             data["history"].append({"event": event_type, "timestamp": now})
             if len(data["history"]) > 50:
                 data["history"] = data["history"][-50:]
 
     async def update_stats(self, **kwargs) -> None:
-        """Arbitrary stat updates (e.g., active_guilds, latency peaks)."""
         async with json_file.edit(self.file_path) as data:
             for k, v in kwargs.items():
                 data[k] = v
 
     async def get_last_offline(self) -> datetime | None:
-        """Returns the most recent time the bot went offline (shutdown or disconnect)."""
         data = await self.get_all()
         
         disconnect_str = data.get("last_disconnect")

@@ -9,6 +9,7 @@ from core.wrp.ai import ai
 from core.wrp.blacklist import blacklist
 from core.wrp.profile import server, user
 from core.wrp.memory import guild_stm, user_stm, global_stm, guild_audit
+from core.wrp.trackers import notif, activity, runtime
 from meta import config
 
 from core.cog.ai.utils import consciousness
@@ -25,10 +26,12 @@ class AIEvents(commands.Cog):
 		ai.bot = bot
 		self.inactivity_check.start()
 		self.freewill_loop.start()
+		self.notif_freewill_loop.start()
 
 	async def cog_unload(self):
 		self.inactivity_check.cancel()
 		self.freewill_loop.cancel()
+		self.notif_freewill_loop.cancel()
 
 	async def do_memory_actions(self, message, manager, memory_manager, context):
 		entity = None
@@ -60,6 +63,99 @@ class AIEvents(commands.Cog):
 				await memory_manager.add(entity.id, msg)
 		else:
 			await memory_manager.add(entity.id, message)
+
+
+	@commands.Cog.listener()
+	async def on_ready(self):
+		if hasattr(self, '_missed_backfill_started') and self._missed_backfill_started:
+			return
+		self._missed_backfill_started = True
+
+		self.bot.loop.create_task(self._backfill_missed_notifications())
+
+	async def _backfill_missed_notifications(self):
+		last_offline = await runtime.get_last_offline()
+		if not last_offline:
+			return
+
+		now = datetime.now(timezone.utc)
+
+		if (now - last_offline).total_seconds() > 86400 * 3:
+			last_offline = now - timedelta(days=3)
+
+		log.info(f"Starting background backfill for missed messages since {last_offline}")
+
+		async def _check_and_log(msg: discord.Message):
+			if msg.author.id == config.bot.id or await blacklist.is_blacklisted(msg.author.id, "user"):
+				return
+
+			is_reply = False
+			if msg.reference:
+				if msg.reference.cached_message:
+					is_reply = msg.reference.cached_message.author.id == config.bot.id
+				elif hasattr(msg.reference, 'resolved') and isinstance(msg.reference.resolved, discord.Message):
+					is_reply = msg.reference.resolved.author.id == config.bot.id
+
+			is_direct_mention = self.bot.user in msg.mentions
+			is_everyone_mention = msg.mention_everyone
+			is_role_mention = any(role in msg.role_mentions for role in getattr(msg.guild.me, "roles", [])) if msg.guild else False
+
+			if is_reply or is_direct_mention or is_everyone_mention or is_role_mention or not msg.guild:
+				if is_reply:
+					notif_type = "reply"
+				elif is_direct_mention:
+					notif_type = "mention"
+				elif is_everyone_mention:
+					notif_type = "everyone_ping"
+				elif is_role_mention:
+					notif_type = "role_ping"
+				elif not msg.guild:
+					notif_type = "dm_ping"
+				else:
+					notif_type = "unread"
+
+				target_id = msg.guild.id if msg.guild else msg.author.id
+				channel_name = getattr(msg.channel, "name", "DM")
+
+				await notif.add(
+					target_id=target_id,
+					notif_type=notif_type,
+					author_id=msg.author.id,
+					author_name=msg.author.name,
+					channel_id=msg.channel.id,
+					channel_name=channel_name,
+					message_id=msg.id,
+					content=msg.content
+				)
+
+		for pm in self.bot.private_channels:
+			if isinstance(pm, discord.abc.Messageable):
+				try:
+					async for msg in pm.history(after=last_offline, limit=25, oldest_first=False):
+						await _check_and_log(msg)
+				except discord.HTTPException:
+					pass
+			await asyncio.sleep(0.5)
+
+		for guild in self.bot.guilds:
+			if await blacklist.is_blacklisted(guild.id, "server"):
+				continue
+
+			for channel in guild.text_channels:
+				if not channel.permissions_for(guild.me).read_message_history:
+					continue
+
+				try:
+					async for msg in channel.history(after=last_offline, limit=25, oldest_first=False):
+						await _check_and_log(msg)
+				except discord.HTTPException:
+					pass
+
+				await asyncio.sleep(0.5)
+
+			await asyncio.sleep(1.0)
+
+		log.info("Finished background backfill for missed messages.")
 
 
 	@tasks.loop(minutes=2)
@@ -167,12 +263,107 @@ class AIEvents(commands.Cog):
 					guild,
 					None,
 					extra=event_str,
-					channel=target_channel,
+					guild=guild,
 					bot=self.bot
 				)
 
 	@inactivity_check.before_loop
 	async def before_inactivity_check(self):
+		await self.bot.wait_until_ready()
+
+
+	@tasks.loop(minutes=5)
+	async def notif_freewill_loop(self):
+		await self.bot.wait_until_ready()
+
+		for guild in self.bot.guilds:
+			if await blacklist.is_blacklisted(guild.id, "server"):
+				continue
+
+			count = await notif.get(guild.id)
+			if len(count) <= 0:
+				continue
+
+			_, guild_settings = await server.settings.load(guild.id)
+			free_will = guild_settings.get("free_will", True)
+			if not free_will:
+				continue
+
+			chance = min(1.0, len(count) * 0.1)
+
+			if consciousness.evaluate(self.bot, "notification_freewill", free_will, chance=chance, context_id=guild.id):
+				target_channel = guild.system_channel
+				if not target_channel or not target_channel.permissions_for(guild.me).send_messages:
+					for channel in guild.text_channels:
+						if channel.permissions_for(guild.me).send_messages:
+							target_channel = channel
+							break
+
+				if not target_channel:
+					continue
+
+				if count:
+					formatted_notifs = []
+					for idx, item in enumerate(count, 1):
+						formatted_notifs.append(
+							f"{idx}. [{item['type'].upper()}] {item['author_name']} in #{item['channel_name']} "
+							f"(Channel ID: {item['channel_id']}, Msg ID: {item['message_id']}): \"{item['content']}\""
+						)
+
+					event_str = (
+						f"You have {len(count)} unhandled notification(s) in this server:\n"
+						+ "\n".join(formatted_notifs)
+						+ "\n\nYou can use these details (channel_id, message_id) to jump in, reply to specific messages."
+					)
+
+					success = await ai.do_action(
+						"notification_freewill",
+						guild,
+						None,
+						extra=event_str,
+						guild=guild,
+						bot=self.bot
+					)
+
+					if success:
+						await notif.clear(guild.id)
+
+		active_users = await activity.get_leaderboard("user", limit=100)
+		for user_id_str, _ in active_users:
+			user_id = int(user_id_str)
+			if await blacklist.is_blacklisted(user_id, "user"):
+				continue
+
+			count = await notif.get(user_id)
+			if len(count) <= 0:
+				continue
+
+			chance = min(1.0, len(count) * 0.1)
+
+			if consciousness.evaluate(self.bot, "notification_freewill", True, chance=chance, context_id=user_id):
+				user_obj = self.bot.get_user(user_id)
+				if not user_obj:
+					try:
+						user_obj = await self.bot.fetch_user(user_id)
+					except discord.NotFound:
+						continue
+
+				event_str = f"You have {len(count)} unhandled DM ping(s) from this user. Reach out and reply to them."
+
+				success = await ai.do_action(
+					"notification_freewill",
+					None,
+					user_obj,
+					extra=event_str,
+					user=user_obj,
+					bot=self.bot
+				)
+
+				if success:
+					await notif.clear(user_id)
+
+	@notif_freewill_loop.before_loop
+	async def before_notif_freewill_loop(self):
 		await self.bot.wait_until_ready()
 
 
@@ -217,13 +408,51 @@ class AIEvents(commands.Cog):
 					f"Responding to message: {msg.content if msg.content else '*empty message*'}"
 				)
 
-				await ai.do_action(
+				success = await ai.do_action(
 					"on_message",
 					msg.guild,
 					msg.author,
 					message=msg,
 					bot=self.bot
 				)
+
+				is_reply = False
+				if message.reference and message.reference.cached_message:
+					if message.reference.cached_message.author.id == config.bot.id:
+						is_reply = True
+
+				is_direct_mention = self.bot.user in message.mentions
+				is_everyone_mention = message.mention_everyone
+				is_role_mention = any(role in message.role_mentions for role in getattr(message.guild.me, "roles", [])) if message.guild else False
+
+				if is_reply or is_direct_mention or is_everyone_mention or is_role_mention or not message.guild:
+					if is_reply:
+						notif_type = "reply"
+					elif is_direct_mention:
+						notif_type = "mention"
+					elif is_everyone_mention:
+						notif_type = "everyone_ping"
+					elif is_role_mention:
+						notif_type = "role_ping"
+					elif not message.guild:
+						notif_type = "dm_ping"
+					else:
+						notif_type = "unread"
+
+					if not success:
+						target_id = message.guild.id if message.guild else message.author.id
+						channel_name = getattr(message.channel, "name", "DM")
+
+						await notif.add(
+							target_id=target_id,
+							notif_type=notif_type,
+							author_id=message.author.id,
+							author_name=message.author.name,
+							channel_id=message.channel.id,
+							channel_name=channel_name,
+							message_id=message.id,
+							content=message.content
+						)
 
 			except asyncio.CancelledError:
 				pass
@@ -385,6 +614,7 @@ class AIEvents(commands.Cog):
 				member.guild,
 				member,
 				extra=event_str,
+				guild=member.guild,
 				bot=self.bot
 			)
 
@@ -445,6 +675,7 @@ class AIEvents(commands.Cog):
 		event_str = f"Role deleted: '{role.name}'"
 		await guild_audit.add(role.guild.id, event_str)
 
+
 	@commands.Cog.listener()
 	async def on_guild_role_update(self, before: discord.Role, after: discord.Role):
 		if before.name != after.name:
@@ -474,6 +705,7 @@ class AIEvents(commands.Cog):
 				guild,
 				None,
 				extra=event_str,
+				guild=guild,
 				bot=self.bot
 			)
 
@@ -508,5 +740,6 @@ class AIEvents(commands.Cog):
 						member.guild,
 						member,
 						extra=event_str,
+						guild=member.guild,
 						bot=self.bot
 					)
