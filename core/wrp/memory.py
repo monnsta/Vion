@@ -156,19 +156,19 @@ class STM(_EntityListStore):
 			stm_text_block = "\n".join(normalized_current)
 			summary_result = await summarizer.summarize(stm_text_block)
 
-			if summary_result:
-				target_ltm = None
-				if self.entity_type == "guild":
-					target_ltm = guild_ltm
-				elif self.entity_type == "user":
-					target_ltm = user_ltm
+			target_ltm = None
+			if self.entity_type == "guild":
+				target_ltm = guild_ltm
+			elif self.entity_type == "user":
+				target_ltm = user_ltm
 
-				if target_ltm:
+			if target_ltm:
+				if summary_result:
 					await target_ltm.add(entity_id, f"[Auto-Summarized] {summary_result}")
 					log.info(f"Successfully added auto-summary into LTM for {self.entity_type} {entity_id}")
 
-				data["_last_summarized_hashes"] = current_hashes
-				await self._save(entity_id, data)
+			data["_last_summarized_hashes"] = current_hashes
+			await self._save(entity_id, data)
 
 
 class LTM(_EntityListStore):
