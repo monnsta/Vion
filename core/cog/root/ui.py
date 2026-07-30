@@ -4,7 +4,7 @@ import discord
 from discord import ui
 from discord.ext import commands
 
-from core.wrp.activity import tracker
+from core.wrp.trackers import activity
 from meta import emoji
 
 from core.cog.ui_template import TimeoutView, Fail, Success, Confirmation, global_interaction_check
@@ -132,8 +132,8 @@ class AIStatsView(TimeoutView):
 			timeframe_days = int(self.current_timeframe)
 
 		if self.current_target == 'leaderboard':
-			top_guilds = await tracker.get_leaderboard('guild', 5)
-			top_users = await tracker.get_leaderboard('user', 5)
+			top_guilds = await activity.get_leaderboard('guild', 5)
+			top_users = await activity.get_leaderboard('user', 5)
 
 			guild_lines = []
 			for idx, (g_id, count) in enumerate(top_guilds, 1):
@@ -155,7 +155,7 @@ class AIStatsView(TimeoutView):
 			)
 		else:
 			if self.current_target == 'global':
-				stats = await tracker.get_stats('global')
+				stats = await activity.get_stats('global')
 				interactions = stats.get('interactions', 0)
 				timeline = stats.get('timeline', {})
 				content = (
@@ -174,7 +174,7 @@ class AIStatsView(TimeoutView):
 					container.add_item(ui.ActionRow(self.refresh_btn))
 					return container, None
 
-				stats = await tracker.get_stats('guild', self.ctx.guild.id)
+				stats = await activity.get_stats('guild', self.ctx.guild.id)
 				interactions = stats.get('interactions', 0)
 				rank = stats.get('rank', 0)
 				timeline = stats.get('timeline', {})
@@ -189,7 +189,7 @@ class AIStatsView(TimeoutView):
 
 			else:
 				target = self.user_target or self.ctx.author
-				stats = await tracker.get_stats('user', target.id)
+				stats = await activity.get_stats('user', target.id)
 				interactions = stats.get('interactions', 0)
 				rank = stats.get('rank', 0)
 				timeline = stats.get('timeline', {})

@@ -10,7 +10,7 @@ from core.lib.llm import GenerateContent
 from core.lib.code import Code, extract
 from core.wrp.memory import MemoryCluster, guild_response, user_response
 from core.wrp.profile import server, user
-from core.wrp.activity import tracker
+from core.wrp.trackers import activity
 from meta import config
 
 
@@ -273,7 +273,7 @@ class AI:
 			log.debug(f"Persisting model response for entity ID: {entity_id}")
 			await manager.add(entity_id, response)
 
-		if success: await tracker.log_activity(
+		if success: await activity.log_activity(
 			guild_id=guild.id if guild else None,
 			user_id=member.id if member else None
 		)
@@ -317,4 +317,4 @@ ai = AI()
 summarizer = Summarizer()
 
 
-__all__ = ('ai', 'summarizer', 'SelfCallAgent', 'AI', 'Summarizer')
+__all__ = ('ai', 'summarizer', 'SelfCallAgent')
