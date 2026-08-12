@@ -11,6 +11,7 @@ from core.lib.code import Code, extract
 from core.wrp.memory import MemoryCluster, guild_response, user_response
 from core.wrp.profile import server, user
 from core.wrp.trackers import activity
+from core.wrp.extension import server_cog
 from meta import config
 
 
@@ -139,6 +140,7 @@ class AI:
 
 		g_obj, u_obj = None, None
 		g_ins = None
+		g_cog = None
 		pipeline = list(self.base_modules)
 		custom_keys: List[str] = []
 
@@ -149,6 +151,10 @@ class AI:
 			_, g_full_obj = await server.info.load(guild_obj.id)
 			_, g_settings = await server.settings.load(guild_obj.id)
 			g_ins = g_settings.get("instructions")
+
+			success_cog, cog_code = await server_cog.read(guild_obj.id)
+			if success_cog and cog_code:
+				g_cog = cog_code
 
 			if s_keys_raw := g_settings.get("api_keys"):
 				log.debug(f"Extracting server-provided API keys for Guild ID: {guild_obj.id}")
@@ -215,6 +221,7 @@ class AI:
 		prompt = config.prompt_template.format(
 			guild=g_obj,
 			instructions=g_ins,
+			guild_cog=g_cog,
 			user=u_obj,
 			**cluster,
 			params=kwargs.keys() | {'self_caller'},

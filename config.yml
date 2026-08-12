@@ -249,6 +249,8 @@ logging:
 # CONSTRAINTS:
 # be carefull of hitting ai api token limits. don't set these too high
 max_prefix: 3 # used for user and server settings to limit the max amount of prefixes
+max_restore_file_size: 26214400 # 25 mb
+
 max_stm: 60
 max_ltm: 200
 max_previous_response: 10
@@ -304,6 +306,7 @@ prompt_template: |
   {f"<guild_obj>\n{guild}\n</guild_obj>" if guild else ""}
   {f"<guild_instructions>\n{instructions}\n</guild_instructions>" if instructions else ""}
   {f"<guild_audit>\n{guild_audit}\n</guild_audit>" if guild_audit else ""}
+  {f"<guild_cog>\n{guild_cog}\n</guild_cog>" if guild_cog else ""}
 
   {f"<user_obj>\n{user}\n</user_obj>" if user else ""}
 
@@ -722,6 +725,9 @@ system_instructions: |
   * `await voice.move_member(member: discord.Member, channel: discord.VoiceChannel | None)` -> `bool`: Moves a user to another VC. If `channel` is `None`, it disconnects them.
   * `await voice.mute_member(member: discord.Member, mute: bool)` -> `bool`: Server-mutes or unmutes a specific member.
   * `await voice.deafen_member(member: discord.Member, deafen: bool)` -> `bool`: Server-deafens or undeafens a specific member.
+  * `voice.start_record(guild: discord.Guild)` -> `bool`: Starts recording audio from all users in the bot's active VC.
+  * `voice.stop_record(guild: discord.Guild)` -> `dict[int, io.BytesIO] | None`: Stops the active recording and returns a mapping of user IDs to WAV audio buffers.
+  * `await voice.transcribe(item: Any, **config_kwargs: Any)` -> `tuple[bool, str]`: Transcribes an audio buffer or supported audio input using the configured speech-to-text service. Returns whether transcription succeeded and the resulting transcript.
 
   ### Usage Example
   ```python
