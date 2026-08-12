@@ -1,15 +1,101 @@
 import random
+from typing import cast
 
 import discord
 from discord import ui
 from discord.ext import commands
 
 from core.wrp.trackers import activity
-from meta import emoji
+from meta import config, emoji
 
 from core.cog.ui_template import TimeoutView, Fail, Success, Confirmation, global_interaction_check
 from core.cog.root.utils import generate_timeline_graph
 
+
+ALLOWED_DOMAINS = {"cdn.discordapp.com", "media.discordapp.net"}
+
+
+class RestoreDataModal(ui.Modal, title="Restore Data Backup"):
+	uploaded_file = ui.Label(
+		text="Backup ZIP",
+		description="Upload the ZIP file you previously exported.",
+		component=ui.FileUpload(
+			custom_id="data_backup_zip",
+			min_values=1,
+			max_values=1,
+			required=True
+		)
+	)
+
+	def __init__(self, manager, target_id: int):
+		super().__init__()
+		self.manager = manager
+		self.target_id = target_id
+
+	async def on_submit(self, interaction: discord.Interaction):
+		await interaction.response.defer(ephemeral=True)
+
+		if self.manager.entity_type == "user" and self.target_id != interaction.user.id:
+			return await interaction.followup.send(
+				view=Fail("Restore Failed", "Unauthorized target profile."),
+				ephemeral=True
+			)
+
+		upload = cast(ui.FileUpload, self.uploaded_file.component)
+
+		if not upload.values:
+			return await interaction.followup.send(
+				view=Fail("Restore Failed", "No file was received."),
+				ephemeral=True
+			)
+
+		attachment = upload.values[0]
+		filename = attachment.filename
+
+		if not filename.lower().endswith(".zip"):
+			return await interaction.followup.send(
+				view=Fail(
+					"Invalid File",
+					"Please upload a valid `.zip` backup file."
+				),
+				ephemeral=True
+			)
+
+		if attachment.size > config.max_restore_file_size:
+			return await interaction.followup.send(
+				view=Fail(
+					"Restore Failed",
+					"File size exceeds the configured limit."
+				),
+				ephemeral=True
+			)
+
+		try:
+			zip_bytes = await attachment.read()
+		except discord.HTTPException:
+			return await interaction.followup.send(
+				view=Fail(
+					"Restore Failed",
+					"Failed to download the uploaded file."
+				),
+				ephemeral=True
+			)
+
+		success, result = await self.manager.data.restore_zip(
+			self.target_id,
+			zip_bytes
+		)
+
+		if success:
+			await interaction.followup.send(
+				view=Success("Restore Complete", result),
+				ephemeral=True
+			)
+		else:
+			await interaction.followup.send(
+				view=Fail("Restore Failed", result),
+				ephemeral=True
+			)
 
 class ManageDataView(TimeoutView):
 	def __init__(self, ctx: commands.Context, manager, target_id: int, data_type: str):
@@ -22,17 +108,20 @@ class ManageDataView(TimeoutView):
 
 		container = ui.Container(
 			ui.TextDisplay(f"### Manage {data_type.title()} Data"),
-			ui.TextDisplay("Choose whether to export or permanently delete your data."),
+			ui.TextDisplay("Choose whether to export, restore, or permanently delete your data."),
 			accent_color=0x00E9FE
 		)
 
 		export_btn = ui.Button(label="Export Data", style=discord.ButtonStyle.primary)
 		export_btn.callback = self.export_data
 
+		restore_btn = ui.Button(label="Restore Data", style=discord.ButtonStyle.secondary)
+		restore_btn.callback = self.restore_data
+
 		delete_btn = ui.Button(label="Delete Data", style=discord.ButtonStyle.danger)
 		delete_btn.callback = self.delete_data
 
-		container.add_item(ui.ActionRow(export_btn, delete_btn))
+		container.add_item(ui.ActionRow(export_btn, restore_btn, delete_btn))
 		self.add_item(container)
 
 	async def interaction_check(self, interaction: discord.Interaction) -> bool:
@@ -57,6 +146,9 @@ class ManageDataView(TimeoutView):
 				"User Error",
 				"I couldn't send you a DM. Please open your privacy settings."
 			), ephemeral=True)
+
+	async def restore_data(self, interaction: discord.Interaction):
+		await interaction.response.send_modal(RestoreDataModal(self.manager, self.target_id))
 
 	async def delete_data(self, interaction: discord.Interaction):
 		if not await self.manager.data.exists(self.target_id):
