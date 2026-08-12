@@ -9,8 +9,8 @@ import warnings
 import glob
 
 from core.lib.file import json_file
-from meta import base, config, load_config, setup_directory
 from core.lib.logging import JsonFormatter, HtmlFormatter, TextFormatter, SessionFileHandler, RichHandlerv2
+from meta import base, config, load_config, setup_directory
 
 
 log = logging.getLogger(__name__)

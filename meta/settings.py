@@ -49,6 +49,7 @@ class Config(Data):
 	class Secrets(Data):
 		discord: str
 		assemblyai: str
+		hmac: str
 		gemini: list[str]
 
 	bot: Bot
@@ -61,6 +62,7 @@ class Config(Data):
 	sandbox: Sandbox
 	logging: Logging
 	max_prefix: int
+	max_restore_file_size: int
 	max_stm: int
 	max_ltm: int
 	max_previous_response: int
