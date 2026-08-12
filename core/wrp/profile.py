@@ -4,6 +4,8 @@ import io
 import logging
 import shutil
 import zipfile
+import hmac
+import hashlib
 from pathlib import Path
 from typing import Any
 
@@ -126,6 +128,61 @@ class BaseProfileManager:
 				await asyncio.to_thread(rollback)
 				return False
 
+		async def restore_zip(self, entity_id: int, zip_bytes: bytes) -> tuple[bool, str]:
+			eid = str(entity_id)
+			dest_dir = (Path(self.parent.active_dir) / eid).resolve()
+
+			def process_restore():
+				buffer = io.BytesIO(zip_bytes)
+
+				buffer.seek(0)
+
+				try:
+					zf = zipfile.ZipFile(buffer, "r")
+				except zipfile.BadZipFile:
+					log.error("BadZipFile while opening restore archive", exc_info=True)
+					return False, "The uploaded file is corrupted or not a valid ZIP archive."
+
+				with zf:
+					if '.signature' not in zf.namelist():
+						return False, "Restore Failed: Missing security signature (`.signature`). Ensure you are uploading an unmodified backup export."
+
+					try:
+						expected_sig = zf.read('.signature').decode('utf-8')
+						h = hmac.new(config.secrets.hmac.encode('utf-8'), digestmod=hashlib.sha256)
+
+						files_to_check = [n for n in zf.namelist() if n not in ('.signature', 'README.md')]
+
+						for path in sorted(files_to_check):
+							h.update(path.encode('utf-8'))
+							h.update(zf.read(path))
+
+						if not hmac.compare_digest(h.hexdigest(), expected_sig):
+							return False, "Restore Failed: Signature verification failed. The data inside the backup appears to have been modified or tampered with."
+					except Exception:
+						return False, "Restore Failed: Could not verify archive integrity or security signatures."
+
+					try:
+						if dest_dir.exists():
+							shutil.rmtree(dest_dir)
+						dest_dir.mkdir(parents=True, exist_ok=True)
+
+						for path in files_to_check:
+							extracted_path = (dest_dir / path).resolve()
+							if not str(extracted_path).startswith(str(dest_dir)):
+								return False, "Restore Failed: Security violation detected (Invalid archive path structure)."
+
+							extracted_path.parent.mkdir(parents=True, exist_ok=True)
+							extracted_path.write_bytes(zf.read(path))
+
+						return True, "Data successfully restored."
+					except Exception:
+						log.error(f"Error writing restored files for {eid}", exc_info=True)
+						return False, "Restore Failed: An error occurred while unpacking and writing your backup files."
+
+			log.info(f"Restoring archive for {self.parent.entity_type} {eid}")
+			return await asyncio.to_thread(process_restore)
+
 		async def delete_permanent(self, entity_id: int) -> tuple[bool, str]:
 			eid = str(entity_id)
 			source = Path(self.parent.active_dir) / eid
@@ -174,14 +231,25 @@ class BaseProfileManager:
 							"\n\n*Note: JSON files can be opened in any text editor "
 							"(like Notepad, VS Code) or viewed nicely online using a JSON viewer.*"
 						)
-						zf.writestr("README.md", readme_content)
+
+						h = hmac.new(config.secrets.hmac.encode('utf-8'), digestmod=hashlib.sha256)
+						files_for_sig = {}
 
 						for file_path in source_dir.rglob('*'):
 							if not file_path.is_file():
 								continue
 
-							rel_path = file_path.relative_to(source_dir)
-							zf.write(file_path, str(rel_path).replace('\\', '/'))
+							rel_path = str(file_path.relative_to(source_dir)).replace('\\', '/')
+							content = file_path.read_bytes()
+							files_for_sig[rel_path] = content
+							zf.writestr(rel_path, content)
+
+						for path in sorted(files_for_sig.keys()):
+							h.update(path.encode('utf-8'))
+							h.update(files_for_sig[path])
+
+						zf.writestr('.signature', h.hexdigest())
+						zf.writestr("README.md", readme_content)
 
 					buffer.seek(0)
 					return True, buffer
