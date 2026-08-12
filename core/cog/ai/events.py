@@ -255,7 +255,7 @@ class AIEvents(commands.Cog):
 				continue
 
 			if consciousness.evaluate(self.bot, "on_inactivity", free_will, context_id=guild.id):
-				event_str = f"The server '{guild.name}' has been inactive for a while. Say something to revive the chat naturally."
+				event_str = f"The server '{guild.name}' was detected to be inactive, you can try to revive it. NOTE: This event can trigger falsely, so if you seem to have already sent a message or did any action on inactivity, ignore this one or do something else, likely responding to missed messages"
 				await guild_audit.add(guild.id, event_str)
 
 				await ai.do_action(
@@ -641,7 +641,8 @@ class AIEvents(commands.Cog):
 
 	@commands.Cog.listener()
 	async def on_presence_update(self, before: discord.Member, after: discord.Member):
-		if before.id == config.bot.id: return
+		if after.bot and after.id != config.bot.id:
+			return
 
 		if before.status != after.status:
 			event_str = f"{after.name}'s status changed from {before.status} to {after.status}."

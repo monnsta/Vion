@@ -105,7 +105,7 @@ class Consciousness:
 		self.register_handler("on_message_edit", GenericChanceEventHandler(base_chance=0.2))
 		self.register_handler("on_reaction_add", GenericChanceEventHandler(base_chance=0.1))
 		self.register_handler("on_guild_channel_create", GenericChanceEventHandler(base_chance=0.5))
-		self.register_handler("on_typing", GenericChanceEventHandler(base_chance=0.1))
+		self.register_handler("on_typing", GenericChanceEventHandler(base_chance=0.06))
 		self.register_handler("on_member_join", GenericChanceEventHandler(base_chance=0.6))
 		self.register_handler("on_guild_join", GenericChanceEventHandler(base_chance=1.0))
 		self.register_handler("on_voice_state_update", GenericChanceEventHandler(base_chance=0.3))
