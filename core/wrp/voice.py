@@ -7,7 +7,7 @@ import logging
 from typing import cast, Any, Tuple, Dict
 from discord.ext import voice_recv
 
-from core.lib.llm import AssemblyAITranscriber
+from core.lib.llm import AssemblyAITranscriber, GeminiTTS, GeminiVoice
 from meta import config
 
 
@@ -83,6 +83,19 @@ class MemoryAudioSink(voice_recv.AudioSink):
 
 
 class VoiceUtils:
+	def __init__(self):
+		log.info("Initializing VoiceUtils.")
+
+		self.tts_modules = [
+			GeminiTTS(
+				api_key=key,
+				model_name="gemini-2.5-flash-preview-tts"
+			)
+			for key in config.secrets.gemini
+		]
+
+		log.info(f"Loaded {len(self.tts_modules)} Gemini TTS module(s).")
+
 	@staticmethod
 	async def join(channel: discord.VoiceChannel) -> discord.VoiceClient | None:
 		if channel.guild.voice_client:
@@ -225,14 +238,6 @@ class VoiceUtils:
 		return False
 
 	@staticmethod
-	async def transcribe(item: Any, **config_kwargs: Any) -> Tuple[bool, str]:
-		transcriber = AssemblyAITranscriber(
-			api_key=config.secrets.assemblyai,
-			**config_kwargs
-		)
-		return await transcriber.call(item)
-
-	@staticmethod
 	def start_record(guild: discord.Guild) -> bool:
 		if not guild.voice_client:
 			return False
@@ -259,5 +264,53 @@ class VoiceUtils:
 
 		return sink.user_buffers
 
+	@staticmethod
+	async def transcribe(item: Any, **config_kwargs: Any) -> Tuple[bool, str]:
+		transcriber = AssemblyAITranscriber(
+			api_key=config.secrets.assemblyai,
+			**config_kwargs
+		)
+		return await transcriber.call(item)
+
+	async def tts(self, text: str, voice: GeminiVoice = GeminiVoice.KORE) -> io.BytesIO | None:
+		if not text or not text.strip():
+			log.warning("VoiceUtils.tts() received empty text.")
+			return None
+
+		active_modules = [
+			module
+			for module in self.tts_modules
+			if not module.is_cooling_down
+		]
+
+		if not active_modules:
+			log.warning("No active Gemini TTS modules available.")
+			return None
+
+		for idx, module in enumerate(active_modules):
+			log.debug(f"Attempting Gemini TTS call (Index: {idx}, Voice: {voice.value})")
+
+			success, audio = await module.call(
+				text=text,
+				voice=voice
+			)
+
+			if success and audio:
+				log.info(f"Gemini TTS succeeded via module index {idx}.")
+
+				file = io.BytesIO(audio)
+				file.name = "tts.wav"
+				file.seek(0)
+
+				return file
+
+			log.warning(f"Gemini TTS module index {idx} failed. Trying next available module.")
+
+		log.warning("All Gemini TTS modules failed.")
+		return None
+
 
 voice = VoiceUtils()
+
+
+__all__ = ('voice', 'GeminiVoice')
