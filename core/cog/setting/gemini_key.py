@@ -8,7 +8,7 @@ from core.lib.llm import validate_key
 from core.lib.utils import mt, em
 from meta import config, emoji
 
-from core.cog.utils import resolve_target, load_settings, handle_common_errors, HybridGroup, hybrid_command, is_admin
+from core.cog.utils import resolve_target, load_settings, HybridGroup, hybrid_command, is_admin
 from core.cog.ui_template import Fail, Success, Generic, Confirmation, UnexpectedError
 
 
@@ -153,10 +153,6 @@ class GeminiKey(HybridGroup):
 			return
 		await ctx.reply(view=UnexpectedError)
 
-	@add.error
-	async def add_error(self, ctx: commands.Context, error):
-		await handle_common_errors(ctx, error)
-
 
 	@hybrid_command(
 		name='remove',
@@ -232,10 +228,6 @@ class GeminiKey(HybridGroup):
 
 			if not success:
 				await message.edit(view=UnexpectedError)
-
-	@remove.error
-	async def remove_error(self, ctx: commands.Context, error):
-		await handle_common_errors(ctx, error)
 
 
 	@hybrid_command(

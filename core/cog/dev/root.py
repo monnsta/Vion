@@ -57,13 +57,13 @@ class DevRoot(commands.Cog):
 				"```",
 				"* send          (s )",
 				"* code          (c )",
-				"* reload_config (r )",
 				"* update        (u )",
 				"* help          (h )",
+				"* clearstm      (cs)",
 				"",
+				"* reload        (r )",
 				"* extension     (e )",
 				"* blacklist     (b )",
-				"* clearstm      (cs)",
 				"```"
 			))
 

@@ -6,7 +6,7 @@ from discord.ext import commands
 from core.lib.utils import mt, em
 from meta import config
 
-from core.cog.utils import resolve_target, load_settings, handle_common_errors, HybridGroup, hybrid_command, is_admin
+from core.cog.utils import resolve_target, load_settings, HybridGroup, hybrid_command, is_admin
 from core.cog.ui_template import Success, Fail, Generic, Confirmation, UnexpectedError
 
 
@@ -137,10 +137,6 @@ class Prefix(HybridGroup):
 			f"{f'Successfully added prefix: `{char}`' if char != ':3' else f'suckess fukly added {char} as ur plefix >:3'}"
 		))
 
-	@add.error
-	async def add_error(self, ctx: commands.Context, error):
-		await handle_common_errors(ctx, error)
-
 
 	@hybrid_command(
 		name='remove',
@@ -199,10 +195,6 @@ class Prefix(HybridGroup):
 
 			if not success:
 				await message.edit(view=UnexpectedError)
-
-	@remove.error
-	async def remove_error(self, ctx: commands.Context, error):
-		await handle_common_errors(ctx, error)
 
 
 	@hybrid_command(

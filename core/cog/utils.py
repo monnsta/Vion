@@ -32,13 +32,6 @@ async def load_settings(manager: Any, target_id: int, scope: str) -> dict:
 		return data
 	return config.settings.get(scope, {})
 
-async def handle_common_errors(ctx: commands.Context, error):
-	if isinstance(error, commands.CheckFailure):
-		return await ctx.reply(view=Fail(
-			"Missing Required Permission",
-			"You need **Administrator** permissions for that."
-		))
-
 def format_dt(dt_obj):
 	if not dt_obj: return "Never"
 	ts = int(dt_obj.timestamp()) if hasattr(dt_obj, 'timestamp') else dt_obj

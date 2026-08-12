@@ -277,10 +277,9 @@ class CoreEvents(commands.Cog):
 			)
 			return
 
-		elif isinstance(error, commands.CommandNotFound):
+		if isinstance(error, commands.CommandNotFound):
 			prefix_len = len(ctx.prefix) if ctx.prefix else 0
-			content = ctx.message.content[prefix_len:].strip()
-			display_attempt = " ".join(content.split())
+			display_attempt = ctx.message.content[prefix_len:].strip()
 
 			def flatten_commands(node, prefix=""):
 				cmds = {}
@@ -289,54 +288,42 @@ class CoreEvents(commands.Cog):
 
 				for k, v in node.items():
 					path = f"{prefix} {k}".strip()
-					if hasattr(v, "mention") and isinstance(getattr(v, "mention"), str):
+					if hasattr(v, "mention") and isinstance(v.mention, str):
 						cmds[path] = v.mention
 					elif isinstance(v, dict):
 						cmds.update(flatten_commands(v, path))
 				return cmds
 
 			flat_cmds_map = flatten_commands(config.cmd)
-			matches = difflib.get_close_matches(display_attempt, list(flat_cmds_map.keys()), n=1, cutoff=0.6)
+
+			attempted_base_cmd = display_attempt.split()[0] if display_attempt else ""
+			matches = difflib.get_close_matches(attempted_base_cmd, list(flat_cmds_map.keys()), n=1, cutoff=0.6)
 
 			if matches:
 				suggestion_name = matches[0]
 				suggestion_mention_str = flat_cmds_map[suggestion_name]
-				description = f"The command `{display_attempt}` does not exist. Did you mean {suggestion_mention_str}?"
-			else:
-				description = "The command you entered does not exist."
 
-			await ctx.reply(view=Fail("Invalid Command", description), ephemeral=True)
+				await ctx.reply(view=Fail(
+					"Invalid Command",
+					f"The command `{display_attempt}` does not exist. Did you mean {suggestion_mention_str}?"
+				))
 			return
 
-		elif isinstance(error, commands.DisabledCommand):
+		if isinstance(error, commands.DisabledCommand):
 			await ctx.reply(view=Fail(
 				"Command Disabled",
 				"This command is currently disabled."
 			), ephemeral=True)
 			return
 
-		elif isinstance(error, commands.CommandOnCooldown):
-			await ctx.reply(view=Fail(
-				"On Cooldown",
-				f"You can try this again in **{error.retry_after:.1f}s**."
-			), ephemeral=True)
-			return
-
-		elif isinstance(error, commands.MaxConcurrencyReached):
-			await ctx.reply(view=Fail(
-				"Too Many Uses",
-				f"This command is currently being used by too many people. Please try again later."
-			), ephemeral=True)
-			return
-
-		elif isinstance(error, commands.MissingRequiredArgument):
+		if isinstance(error, commands.MissingRequiredArgument):
 			await ctx.reply(view=Fail(
 				"Missing Argument",
 				f"You missed the `{error.param.name}` parameter. Please provide all required arguments."
 			), ephemeral=True)
 			return
 
-		elif isinstance(error, commands.BadLiteralArgument):
+		if isinstance(error, commands.BadLiteralArgument):
 			literals = ", ".join(f"`{l}`" for l in error.literals)
 			await ctx.reply(view=Fail(
 				"Invalid Option",
@@ -344,63 +331,63 @@ class CoreEvents(commands.Cog):
 			), ephemeral=True)
 			return
 
-		elif isinstance(error, commands.BadUnionArgument):
+		if isinstance(error, commands.BadUnionArgument):
 			await ctx.reply(view=Fail(
 				"Invalid Input",
 				f"The argument provided for `{error.param.name}` could not be parsed. Please check the format."
 			), ephemeral=True)
 			return
 
-		elif isinstance(error, (commands.UserNotFound, commands.MemberNotFound)):
+		if isinstance(error, (commands.UserNotFound, commands.MemberNotFound)):
 			await ctx.reply(view=Fail(
 				"User Not Found",
 				"I couldn't find that user. Please provide a valid username,ID, or mention."
 			), ephemeral=True)
 			return
 
-		elif isinstance(error, commands.ChannelNotFound):
+		if isinstance(error, commands.ChannelNotFound):
 			await ctx.reply(view=Fail(
 				"Channel Not Found",
 				"I couldn't find that channel. Please provide a valid channel name, ID, or mention."
 			), ephemeral=True)
 			return
 
-		elif isinstance(error, commands.RoleNotFound):
+		if isinstance(error, commands.RoleNotFound):
 			await ctx.reply(view=Fail(
 				"Role Not Found",
 				"I couldn't find that role. Please provide a valid role name, ID, or mention."
 			), ephemeral=True)
 			return
 
-		elif isinstance(error, commands.GuildNotFound):
+		if isinstance(error, commands.GuildNotFound):
 			await ctx.reply(view=Fail(
 				"Server Not Found",
 				"I couldn't find that server. Please provide a valid server ID."
 			), ephemeral=True)
 			return
 
-		elif isinstance(error, commands.EmojiNotFound):
+		if isinstance(error, commands.EmojiNotFound):
 			await ctx.reply(view=Fail(
 				"Emoji Not Found",
 				"I couldn't find that emoji. Please provide a valid emoji (custom or unicode)."
 			), ephemeral=True)
 			return
 
-		elif isinstance(error, commands.BadArgument):
+		if isinstance(error, commands.BadArgument):
 			await ctx.reply(view=Fail(
 				"Invalid Argument",
 				f"There was an issue with one of the arguments you provided: {error}"
 			), ephemeral=True)
 			return
 
-		elif isinstance(error, commands.NotOwner):
+		if isinstance(error, commands.NotOwner):
 			await ctx.reply(view=Fail(
 				"Restricted Command",
 				"Only the bot owner can use this command."
 			), ephemeral=True)
 			return
 
-		elif isinstance(error, commands.MissingPermissions):
+		if isinstance(error, commands.MissingPermissions):
 			perms = ", ".join(
 				f"`{p.replace('_', ' ').title()}`"
 				for p in error.missing_permissions
@@ -411,7 +398,7 @@ class CoreEvents(commands.Cog):
 			), ephemeral=True)
 			return
 
-		elif isinstance(error, commands.BotMissingPermissions):
+		if isinstance(error, commands.BotMissingPermissions):
 			perms = ", ".join([f"`{p.replace('_', ' ').title()}`" for p in error.missing_permissions])
 			await ctx.reply(view=Fail(
 				"Missing Permissions",
@@ -419,27 +406,26 @@ class CoreEvents(commands.Cog):
 			), ephemeral=True)
 			return
 
-		elif isinstance(error, commands.NoPrivateMessage):
+		if isinstance(error, commands.NoPrivateMessage):
 			await ctx.reply(view=Fail(
 				"Server Only",
 				"This command can only be used in a server."
 			), ephemeral=True)
 			return
 
-		elif isinstance(error, commands.PrivateMessageOnly):
+		if isinstance(error, commands.PrivateMessageOnly):
 			await ctx.reply(view=Fail(
 				"DM Only",
 				"This command can only be used in a private message."
 			), ephemeral=True)
 			return
 
-		elif isinstance(error, commands.CheckFailure):
+		if isinstance(error, commands.CheckFailure):
 			await ctx.reply(view=Fail(
-				"Permission Denied",
-				"You do not have permission to use this command."
-			), ephemeral=True)
+				"Missing Required Permission",
+				"You need **Administrator** permissions for that."
+			))
 			return
 
-		else:
-			await ctx.reply(view=UnexpectedError, ephemeral=True)
-			log.error(f"Ignoring exception in command {ctx.command}:", exc_info=error)
+		await ctx.reply(view=UnexpectedError, ephemeral=True)
+		log.error(f"Ignoring exception in command {ctx.command}:", exc_info=error)

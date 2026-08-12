@@ -6,7 +6,7 @@ from discord.ext import commands
 from core.lib.utils import mt
 from meta import config
 
-from core.cog.utils import resolve_target, load_settings, handle_common_errors, HybridGroup, hybrid_command, is_admin
+from core.cog.utils import resolve_target, load_settings, HybridGroup, hybrid_command, is_admin
 from core.cog.ui_template import Success, Fail, Generic, Confirmation, TextForm, UnexpectedError
 
 
@@ -132,10 +132,6 @@ class Instruction(HybridGroup):
 			f"Successfully {'updated' if instructions else 'added'} the instructions."
 		))
 
-	@set.error
-	async def set_error(self, ctx: commands.Context, error):
-		await handle_common_errors(ctx, error)
-
 
 	@hybrid_command(
 		name='delete',
@@ -171,10 +167,6 @@ class Instruction(HybridGroup):
 
 			if not success:
 				await message.edit(view=UnexpectedError)
-
-	@delete.error
-	async def delete_error(self, ctx: commands.Context, error):
-		await handle_common_errors(ctx, error)
 
 
 	@hybrid_command(

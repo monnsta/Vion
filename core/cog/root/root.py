@@ -6,7 +6,7 @@ from discord.ext import commands
 
 from meta import config, emoji
 
-from core.cog.utils import resolve_target, handle_common_errors, is_admin
+from core.cog.utils import resolve_target, is_admin
 from core.cog.ui_template import Generic
 from core.cog.root.ui import ManageDataView, AIStatsView
 
@@ -192,7 +192,3 @@ class Root(commands.Cog):
 		view = ManageDataView(ctx, manager, target_id, type) # type: ignore
 		message = await ctx.reply(view=view, ephemeral=True)
 		view.message = message
-
-	@manage_data.error
-	async def manage_data_error(self, ctx: commands.Context, error):
-		await handle_common_errors(ctx, error)
