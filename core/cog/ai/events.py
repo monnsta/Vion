@@ -1,5 +1,6 @@
 import asyncio
 import logging
+import time
 from datetime import datetime, timezone, timedelta
 
 import discord
@@ -23,6 +24,10 @@ class AIEvents(commands.Cog):
 		self.bot = bot
 		self.pending_message_tasks: dict[tuple[int, int], asyncio.Task] = {}
 		self.pending_messages: dict[tuple[int, int], discord.Message] = {}
+
+		self.active_typing_states: dict[tuple[int, int], float] = {}
+		self.typing_monitor_tasks: dict[tuple[int, int], asyncio.Task] = {}
+
 		ai.bot = bot
 		self.inactivity_check.start()
 		self.freewill_loop.start()
@@ -376,6 +381,12 @@ class AIEvents(commands.Cog):
 			await message.guild.leave()
 			return
 
+		key = (message.author.id, message.channel.id)
+		if key in self.typing_monitor_tasks:
+			self.typing_monitor_tasks[key].cancel()
+			self.typing_monitor_tasks.pop(key, None)
+		self.active_typing_states.pop(key, None)
+
 		if message.guild:
 			await self.do_memory_actions(message, server, guild_stm, "server")
 
@@ -399,14 +410,16 @@ class AIEvents(commands.Cog):
 		async def delayed_response():
 			try:
 				await asyncio.sleep(3.0)
+				
+				while key in self.active_typing_states and (time.time() - self.active_typing_states[key] < 4.0):
+					log.debug(f"Delaying response, {message.author} is still typing another message...")
+					await asyncio.sleep(3.0)
 
 				msg = self.pending_messages.get(key)
 				if msg is None:
 					return
 
-				log.info(
-					f"Responding to message: {msg.content if msg.content else '*empty message*'}"
-				)
+				log.info(f"Responding to message: {msg.content if msg.content else '*empty message*'}")
 
 				success = await ai.do_action(
 					"on_message",
@@ -575,27 +588,58 @@ class AIEvents(commands.Cog):
 
 
 	@commands.Cog.listener()
-	async def on_typing(self, channel: discord.abc.Messageable, user: discord.User | discord.Member, _):
+	async def on_typing(self, channel: discord.abc.Messageable, user: discord.User | discord.Member, when: datetime):
 		guild = getattr(channel, "guild", None)
 		if guild is None or user.id == config.bot.id: return
+
+		channel_id = getattr(channel, "id", 0)
+		channel_name = getattr(channel, "name", "unknown")
+		key = (user.id, channel_id)
+
+		current_time = time.time()
+
+		is_new_typing_session = key not in self.active_typing_states
+		self.active_typing_states[key] = current_time
+
+		if key in self.typing_monitor_tasks:
+			return
 
 		_, guild_settings = await server.settings.load(guild.id)
 		free_will = guild_settings.get("free_will", True)
 
-		channel_id = getattr(channel, "id", 0)
-		channel_name = getattr(channel, "name", "unknown")
+		async def typing_monitor():
+			try:
+				await asyncio.sleep(7.0)
+
+				if key not in self.active_typing_states:
+					return
+
+				last_typed = self.active_typing_states.get(key, 0)
+				time_since_last_type = time.time() - last_typed
+
+				if time_since_last_type < 4.0:
+					context_str = f"{user.name} has been typing for a noticeably long time in #{channel_name} but hasn't hit send yet. They might be struggling to articulate something."
+				else:
+					context_str = f"{user.name} started typing in #{channel_name} a moment ago, but gave up and didn't send anything."
+
+				if consciousness.evaluate(self.bot, "on_typing", free_will, context_id=channel_id):
+					await ai.do_action(
+						"on_typing",
+						guild,
+						user,
+						extra=context_str,
+						channel=channel,
+						bot=self.bot
+					)
+			except asyncio.CancelledError:
+				pass
+			finally:
+				self.typing_monitor_tasks.pop(key, None)
+				if time.time() - self.active_typing_states.get(key, 0) > 10.0:
+					self.active_typing_states.pop(key, None)
 
 		if consciousness.evaluate(self.bot, "on_typing", free_will, context_id=channel_id):
-			event_str = f"{user.name} has been typing in #{channel_name}..."
-
-			await ai.do_action(
-				"on_typing",
-				guild,
-				user,
-				extra=event_str,
-				channel=channel,
-				bot=self.bot
-			)
+			self.typing_monitor_tasks[key] = asyncio.create_task(typing_monitor())
 
 
 	@commands.Cog.listener()
