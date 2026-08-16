@@ -123,7 +123,7 @@ class Root(commands.Cog):
 
 	@commands.hybrid_command(
 		name='ping',
-		aliases=['p'],
+		aliases=['pi'],
 		description='Check the bots responsiveness.'
 	)
 	async def ping(self, ctx: commands.Context):

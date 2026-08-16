@@ -3,4 +3,5 @@ __pycache__/
 data/
 logs/
 temp/
+meta/asset/
 .env
