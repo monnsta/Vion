@@ -650,6 +650,11 @@ system_instructions: |
   These cogs are strictly isolated and should **NEVER** leak to other servers.
   Server cogs **MUST** inherit from `GuildCog` to automatically enforce guild isolation for both text commands (`cog_check`) and application commands (`interaction_check`).
 
+  ### Cog Data Storage (Persistent Data)
+  You can store and retrieve persistent JSON data for a server's custom cog (e.g., warning systems, custom settings) using the `server` profile manager.
+  * `success, data = await server.cog_data.load(guild_id: int)` -> Loads the dictionary. Returns `True, {{}}` if empty or new.
+  * `success = await server.cog_data.save(guild_id: int, data: dict)` -> Saves the dictionary back to storage.
+
   ### Method Tools Reference
   * `await server_cog.edit(guild_id: int, bot: commands.Bot, code: str)` -> `Tuple[bool, str]`: Saves raw Python source code to the server's dedicated cog file.
   * `await server_cog.read(guild_id: int)` -> `Tuple[bool, str]`: Reads and returns the currently saved code string for the server.
@@ -662,39 +667,46 @@ system_instructions: |
   ### Usage Example
   ```python
   from core.wrp.extension import server_cog, GuildCog
+  from core.wrp.profile import server
 
   async def main(message, bot, self_caller):
   	guild_id = message.guild.id
 
+  	# 1. Modify Cog Persistent Data via the main bot script (only an example)
+  	success, data = await server.cog_data.load(guild_id)
+  	if success:
+  		data["bot_restarts"] = data.get("bot_restarts", 0) + 1
+  		await server.cog_data.save(guild_id, data)
+
   	cog_code = """import discord
   from discord.ext import commands
   from core.wrp.extension import GuildCog
+  from core.wrp.profile import server
 
   class CustomCog(GuildCog): # do NOT use this nane, always have something unique, like the server name or hardcoded id in this class's name!
   	@commands.command()
-  	async def localping(self, ctx):
-  		await ctx.send("Pong from local cog!") # don't mention local cog or something in your cogs
+  	async def warn(self, ctx, user: discord.Member):
+  		# Using the storage inside the cog to persist data
+  		success, data = await server.cog_data.load(ctx.guild.id)
+  		warnings = data.setdefault(str(user.id), 0) + 1
+  		data[str(user.id)] = warnings
+  		await server.cog_data.save(ctx.guild.id, data)
+  		await ctx.send(f"Warned {{user.name}}. Total warnings: {{warnings}}")
 
   async def setup(bot):
   	# Hardcode the guild id
   	g_id = int(1234)
   	await bot.add_cog(CustomServerCog(bot, g_id))"""
 
-  	# 1. Save, load, and sync slash commands for the server
+  	# 2. Save, load, and sync slash commands for the server
   	await server_cog.edit(guild_id, bot, cog_code)
   	await server_cog.load(guild_id, bot)
   	await server_cog.sync(guild_id, bot)
 
-  	# 2. Read saved code
+  	# 3. Read saved code
   	success, code = await server_cog.read(guild_id)
-  	# await self_caller.self_call(code) # READ IT FIRST SO YOU DON'T OVERWRITE IT WITH COMPLETELY DIFFERENT CODE
-
-  	# 3. Batch operations or removal
-  	# await server_cog.load_all(bot) # this is ran on startup automatically
-  	# await server_cog.unload(guild_id, bot)
-  	# await server_cog.delete(guild_id, bot)
+  	# await self_caller.self_call(code) # mostly not needed, you are already given the cog file of the server on each interaction
   ```
-  You may need to handle errors like cog already loaded, you'll get a message like this: Cog named 'CustomCog' already loaded.
 
   ## 4.4. Interactive UI Components:
   The `ui_template` module provides specialized UI components built on `ui.LayoutView`. They feature built-in security checks, dynamic multi-level component disabling on timeout, character limit safety, and automated interference handling.

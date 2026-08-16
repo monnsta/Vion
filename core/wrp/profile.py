@@ -30,6 +30,7 @@ class BaseProfileManager:
 		self.data = self.Data(self)
 		self.settings = self.Settings(self)
 		self.info = self.Info(self)
+		self.cog_data = self.CogData(self)
 
 	async def is_setup(self, entity_id: int) -> bool:
 		return await self.data.exists(entity_id)
@@ -56,6 +57,30 @@ class BaseProfileManager:
 		except Exception:
 			log.error(f"Error setting up {self.entity_type} {eid}", exc_info=True)
 			return False
+
+	class CogData:
+		def __init__(self, parent: "BaseProfileManager"):
+			self.parent = parent
+
+		async def load(self, entity_id: int) -> tuple[bool, dict[str, Any]]:
+			log.debug(f"Loading cog data for {self.parent.entity_type} {entity_id}")
+			if not hasattr(self.parent.file_routes, "data"):
+				return False, {}
+
+			path = self.parent.file_routes.data(str(entity_id))
+			if not await asyncio.to_thread(path.exists):
+				return True, {}
+
+			success, data = await json_file.load(path)
+			return success, data
+
+		async def save(self, entity_id: int, data: dict[str, Any]) -> bool:
+			log.debug(f"Saving cog data for {self.parent.entity_type} {entity_id}")
+			if not hasattr(self.parent.file_routes, "data"):
+				return False
+
+			path = self.parent.file_routes.data(str(entity_id))
+			return await json_file.save(path, data)
 
 	class Data:
 		def __init__(self, parent: "BaseProfileManager"):
@@ -226,6 +251,7 @@ class BaseProfileManager:
 						)
 						if self.parent.entity_type == "guild":
 							readme_content += "- `cog/*`: Custom commands & events setup for this server.\n"
+							readme_content += "- `cog/data.json`: Persistent storage data for your custom cogs.\n"
 
 						readme_content += (
 							"\n\n*Note: JSON files can be opened in any text editor "
