@@ -588,7 +588,7 @@ class AIEvents(commands.Cog):
 
 
 	@commands.Cog.listener()
-	async def on_typing(self, channel: discord.abc.Messageable, user: discord.User | discord.Member, when: datetime):
+	async def on_typing(self, channel: discord.abc.Messageable, user: discord.User | discord.Member, _):
 		guild = getattr(channel, "guild", None)
 		if guild is None or user.id == config.bot.id: return
 
@@ -598,7 +598,6 @@ class AIEvents(commands.Cog):
 
 		current_time = time.time()
 
-		is_new_typing_session = key not in self.active_typing_states
 		self.active_typing_states[key] = current_time
 
 		if key in self.typing_monitor_tasks:

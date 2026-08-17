@@ -3,7 +3,7 @@ import difflib
 import logging
 import random
 import shutil
-from datetime import datetime, timedelta
+from datetime import datetime, timedelta, timezone
 from pathlib import Path
 from typing import Any
 
@@ -11,7 +11,7 @@ import discord
 from discord.ext import commands, tasks
 
 from core.lib.file import json_file
-from core.wrp.profile import server
+from core.wrp.profile import server, user
 from core.wrp.blacklist import blacklist, BlacklistedError
 from meta import config, file, sub
 
@@ -153,6 +153,29 @@ class CoreEvents(commands.Cog):
 						await server.data.delete(int(folder.name))
 					except ValueError:
 						pass
+
+		users_path = Path(sub.users)
+		if users_path.exists():
+			cutoff = datetime.now(timezone.utc) - timedelta(days=getattr(config.logging, "cleanup_days", 30))
+			for folder in users_path.iterdir():
+				if folder.is_dir() and folder.name.isdigit():
+					user_id = int(folder.name)
+
+					is_stale = False
+
+					mtime = datetime.fromtimestamp(folder.stat().st_mtime, tz=timezone.utc)
+					if mtime < cutoff:
+						is_stale = True
+
+					if is_stale:
+						log.info(f"Removing inactive user profile data: {user_id}")
+						try:
+							if hasattr(user, "data") and hasattr(user.data, "delete"):
+								await user.data.delete(user_id)
+							else:
+								shutil.rmtree(folder)
+						except Exception as e:
+							log.error(f"Error purging user profile {user_id}: {e}")
 
 		current_time = datetime.now(config.timezone)
 		bin_path = Path(sub.trash)
