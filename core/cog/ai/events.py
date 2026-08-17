@@ -38,7 +38,7 @@ class AIEvents(commands.Cog):
 		self.freewill_loop.cancel()
 		self.notif_freewill_loop.cancel()
 
-	async def do_memory_actions(self, message, manager, memory_manager, context):
+	async def do_memory_actions(self, message, manager, memory_manager, context, force_setup=False):
 		entity = None
 
 		if context == "server" and message.guild:
@@ -58,8 +58,12 @@ class AIEvents(commands.Cog):
 			log.error("Could not resolve entity.")
 			return
 
-		if not await manager.is_setup(entity.id):
-			await manager.setup(entity)
+		if context == "server":
+			if not await manager.is_setup(entity.id):
+				await manager.setup(entity)
+		elif force_setup or await manager.is_setup(entity.id):
+			if not await manager.is_setup(entity.id):
+				await manager.setup(entity)
 
 		_, current_memories = await memory_manager.get(entity.id)
 
@@ -202,6 +206,8 @@ class AIEvents(commands.Cog):
 
 					event_str = f"The channel #{channel.name} is currently very active. Jump into the chat naturally."
 					await guild_audit.add(guild.id, event_str)
+
+					await user.setup(recent_msgs[-1].author)
 
 					await ai.do_action(
 						"freewill",
@@ -355,6 +361,7 @@ class AIEvents(commands.Cog):
 
 				event_str = f"You have {len(count)} unhandled DM ping(s) from this user. Reach out and reply to them."
 
+				await user.setup(user_obj)
 				success = await ai.do_action(
 					"notification_freewill",
 					None,
@@ -387,22 +394,35 @@ class AIEvents(commands.Cog):
 			self.typing_monitor_tasks.pop(key, None)
 		self.active_typing_states.pop(key, None)
 
+		prefixes = await self.bot.determine_prefix(None, message) # type: ignore
+		
+		is_reply = False
+		if message.reference:
+			if message.reference.cached_message:
+				is_reply = message.reference.cached_message.author.id == config.bot.id
+			elif hasattr(message.reference, 'resolved') and isinstance(message.reference.resolved, discord.Message):
+				is_reply = message.reference.resolved.author.id == config.bot.id
+
+		is_direct_mention = self.bot.user in message.mentions
+		is_dm = not message.guild
+		has_prefix = any(message.content.startswith(p) for p in prefixes if p) if isinstance(prefixes, (list, tuple)) else False
+
+		is_triggered = is_reply or is_direct_mention or is_dm or has_prefix
+
 		if message.guild:
 			await self.do_memory_actions(message, server, guild_stm, "server")
 
 			if message.author.id != config.bot.id:
-				await self.do_memory_actions(message, user, user_stm, "user")
+				await self.do_memory_actions(message, user, user_stm, "user", force_setup=is_triggered)
 		else:
 			if message.author.id != config.bot.id:
-				await self.do_memory_actions(message, user, user_stm, "user")
+				await self.do_memory_actions(message, user, user_stm, "user", force_setup=is_triggered)
 			else:
-				await self.do_memory_actions(message, user, user_stm, "self")
+				await self.do_memory_actions(message, user, user_stm, "self", force_setup=is_triggered)
 
 		await global_stm.add(0, message)
 
 		_, guild_settings = await server.settings.load(message.guild.id) if message.guild else ("", {})
-
-		prefixes = await self.bot.determine_prefix(None, message) # type: ignore
 		free_will = guild_settings.get("free_will", True)
 
 		key = (message.author.id, message.channel.id)
@@ -421,6 +441,8 @@ class AIEvents(commands.Cog):
 
 				log.info(f"Responding to message: {msg.content if msg.content else '*empty message*'}")
 
+				await user.setup(msg.author)
+
 				success = await ai.do_action(
 					"on_message",
 					msg.guild,
@@ -429,12 +451,6 @@ class AIEvents(commands.Cog):
 					bot=self.bot
 				)
 
-				is_reply = False
-				if message.reference and message.reference.cached_message:
-					if message.reference.cached_message.author.id == config.bot.id:
-						is_reply = True
-
-				is_direct_mention = self.bot.user in message.mentions
 				is_everyone_mention = message.mention_everyone
 				is_role_mention = any(role in message.role_mentions for role in getattr(message.guild.me, "roles", [])) if message.guild else False
 
@@ -515,6 +531,7 @@ class AIEvents(commands.Cog):
 		free_will = guild_settings.get("free_will", True)
 
 		if consciousness.evaluate(self.bot, "on_message_delete", free_will, context_id=message.channel.id):
+			await user.setup(message.author)
 			await ai.do_action(
 				"on_message_delete",
 				message.guild,
@@ -537,6 +554,7 @@ class AIEvents(commands.Cog):
 		free_will = guild_settings.get("free_will", True)
 
 		if consciousness.evaluate(self.bot, "on_message_edit", free_will, context_id=before.channel.id):
+			await user.setup(before.author)
 			await ai.do_action(
 				"on_message_edit",
 				before.guild,
@@ -548,20 +566,21 @@ class AIEvents(commands.Cog):
 
 
 	@commands.Cog.listener()
-	async def on_reaction_add(self, reaction: discord.Reaction, user: discord.User | discord.Member):
-		if not reaction.message.guild or user.id == config.bot.id: return
+	async def on_reaction_add(self, reaction: discord.Reaction, user_obj: discord.User | discord.Member):
+		if not reaction.message.guild or user_obj.id == config.bot.id: return
 
-		event_str = f"{user.name} reacted with {reaction.emoji} to a message by {reaction.message.author.name}"
+		event_str = f"{user_obj.name} reacted with {reaction.emoji} to a message by {reaction.message.author.name}"
 		await guild_audit.add(reaction.message.guild.id, event_str)
 
 		_, guild_settings = await server.settings.load(reaction.message.guild.id)
 		free_will = guild_settings.get("free_will", True)
 
 		if consciousness.evaluate(self.bot, "on_reaction_add", free_will, context_id=reaction.message.channel.id):
+			await user.setup(user_obj)
 			await ai.do_action(
 				"on_reaction_add",
 				reaction.message.guild,
-				user,
+				user_obj,
 				extra=event_str,
 				message=reaction.message,
 				bot=self.bot
@@ -588,17 +607,16 @@ class AIEvents(commands.Cog):
 
 
 	@commands.Cog.listener()
-	async def on_typing(self, channel: discord.abc.Messageable, user: discord.User | discord.Member, when: datetime):
+	async def on_typing(self, channel: discord.abc.Messageable, user_obj: discord.User | discord.Member, when: datetime):
 		guild = getattr(channel, "guild", None)
-		if guild is None or user.id == config.bot.id: return
+		if guild is None or user_obj.id == config.bot.id: return
 
 		channel_id = getattr(channel, "id", 0)
 		channel_name = getattr(channel, "name", "unknown")
-		key = (user.id, channel_id)
+		key = (user_obj.id, channel_id)
 
 		current_time = time.time()
 
-		is_new_typing_session = key not in self.active_typing_states
 		self.active_typing_states[key] = current_time
 
 		if key in self.typing_monitor_tasks:
@@ -618,15 +636,16 @@ class AIEvents(commands.Cog):
 				time_since_last_type = time.time() - last_typed
 
 				if time_since_last_type < 4.0:
-					context_str = f"{user.name} has been typing for a noticeably long time in #{channel_name} but hasn't hit send yet. They might be struggling to articulate something."
+					context_str = f"{user_obj.name} has been typing for a noticeably long time in #{channel_name} but hasn't hit send yet. They might be struggling to articulate something."
 				else:
-					context_str = f"{user.name} started typing in #{channel_name} a moment ago, but gave up and didn't send anything."
+					context_str = f"{user_obj.name} started typing in #{channel_name} a moment ago, but gave up and didn't send anything."
 
 				if consciousness.evaluate(self.bot, "on_typing", free_will, context_id=channel_id):
+					await user.setup(user_obj)
 					await ai.do_action(
 						"on_typing",
 						guild,
-						user,
+						user_obj,
 						extra=context_str,
 						channel=channel,
 						bot=self.bot
@@ -653,6 +672,7 @@ class AIEvents(commands.Cog):
 		free_will = guild_settings.get("free_will", True)
 
 		if consciousness.evaluate(self.bot, "on_member_join", free_will, context_id=member.guild.id):
+			await user.setup(member)
 			await ai.do_action(
 				"on_member_join",
 				member.guild,
@@ -672,14 +692,14 @@ class AIEvents(commands.Cog):
 
 
 	@commands.Cog.listener()
-	async def on_member_ban(self, guild: discord.Guild, user: discord.User | discord.Member):
-		event_str = f"{user.name} was banned from the server."
+	async def on_member_ban(self, guild: discord.Guild, user_obj: discord.User | discord.Member):
+		event_str = f"{user_obj.name} was banned from the server."
 		await guild_audit.add(guild.id, event_str)
 
 
 	@commands.Cog.listener()
-	async def on_member_unban(self, guild: discord.Guild, user: discord.User):
-		event_str = f"{user.name} was unbanned from the server."
+	async def on_member_unban(self, guild: discord.Guild, user_obj: discord.User):
+		event_str = f"{user_obj.name} was unbanned from the server."
 		await guild_audit.add(guild.id, event_str)
 
 
@@ -780,6 +800,7 @@ class AIEvents(commands.Cog):
 				free_will = guild_settings.get("free_will", True)
 
 				if consciousness.evaluate(self.bot, "on_voice_state_update", free_will, context_id=after.channel.id):
+					await user.setup(member)
 					await ai.do_action(
 						"on_voice_state_update",
 						member.guild,
