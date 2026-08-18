@@ -5,8 +5,7 @@ import discord
 from discord import app_commands as app
 from discord.ext import commands
 
-from core.lib.utils import em, mt
-from meta import config
+from core.lib.utils import em
 
 from core.cog.ui_template import Fail, Generic
 from core.cog.fun.ui import AvatarRPSView, TicTacToeView, SixBySevenTTTView
@@ -15,79 +14,20 @@ from core.cog.fun.ui import AvatarRPSView, TicTacToeView, SixBySevenTTTView
 class FunRoot(commands.Cog):
 	def __init__(self, bot: commands.Bot):
 		self.bot = bot
-		self.p = config.default_prefix[0]
 
 
-	@commands.hybrid_group(
+	fun = app.Group(
 		name='fun',
-		aliases=['f'],
 		description='Fun and mini-games commands.'
 	)
-	async def fun(self, ctx: commands.Context):
-		if ctx.invoked_subcommand is None:
-			await ctx.reply(view=Fail(
-				"Subcommand Missing",
-				"Available subcommands:",
-				"```",
-				"* 8ball     (8)",
-				"* rps       (r)",
-				"* tictactoe (t)",
-				"```"
-			))
-
-
-	@fun.command(
-		name='help',
-		aliases=['h'],
-		description='Get help for the fun group.'
-	)
-	async def help(self, ctx: commands.Context):
-		await ctx.reply(view=Generic(
-			"# Fun",
-			"This group contains all fun and games.",
-			None,
-			mt(
-				"## 8ball:",
-				"Ask the magic 8-ball a question.",
-				"Params:",
-				"* question: The question to ask",
-				"Usage:",
-				f"* `{self.p}fun 8ball Is my pp long enough`",
-				f"* `{self.p}f 8 Is my pp long enough`",
-				f"* {config.cmd.fun.get('8ball')} `question:` Is my pp long enough"
-			), None,
-			mt(
-				"## RPS:",
-				"Play Avatar Rock, Paper, Scissors. Exactly like rps but with the four elements.",
-				"Params:",
-				"* opponent: The user you want to play against. Choose a bot if you don't have friends",
-				"Usage:",
-				f"* `{self.p}fun rps @somebody`",
-				f"* `{self.p}f r @somebody`",
-				f"* {config.cmd.fun.rps} `opponent:` @somebody"
-			), None,
-			mt(
-				"## TicTacToe:",
-				"Play 3x3 or 6x7 grid Tic-Tac-Toe.",
-				"Params:",
-				"* opponent: The user you want to play against",
-				"* starter: Who should start first? (default: you)",
-				"* board: Choose board size (default: 3x3)",
-				"Usage:",
-				f"* `{self.p}fun tictactoe @somebody opponent 6x7`",
-				f"* `{self.p}f t @somebody opponent 6x7`",
-				f"* {config.cmd.fun.tictactoe} `opponent:` @somebody `starter:` opponent `board:` 6x7"
-			)
-		))
 
 
 	@fun.command(
 		name='8ball',
-		aliases=['8'],
 		description='Ask the magic 8-ball a question.'
 	)
 	@app.describe(question='The question to ask')
-	async def eightball(self, ctx: commands.Context, *, question: str):
+	async def eightball(self, interaction: discord.Interaction, *, question: str):
 		responses = [
 			# Positives
 			"It is certain.", "It is decidedly so.", "Without a doubt.",
@@ -102,7 +42,6 @@ class FunRoot(commands.Cog):
 			# Mid
 			"Reply hazy, try again.", "Ask again later.", "Better not tell you now.",
 			"Cannot predict now.", "Concentrate and ask again.",
-			"`Error 404: Could not find 'How_To_Answer_Stupid_Questions.pdf'.`",
 			"My crystal ball is buffering.",
 			"Signs point to... wait, I forgot my answer. I got distracted by a shiny rock.",
 			"Bold of you to assume the universe cares.",
@@ -121,7 +60,7 @@ class FunRoot(commands.Cog):
 			"NO, and the meat in the fridge agrees with me."
 		]
 
-		await ctx.reply(view=Generic(
+		await interaction.response.send_message(view=Generic(
 			f"### {random.choice(responses)}",
 			None,
 			f"> **{em(question)}**"
@@ -130,25 +69,23 @@ class FunRoot(commands.Cog):
 
 	@fun.command(
 		name='rps',
-		aliases=['r'],
 		description='Play Avatar Rock, Paper, Scissors.'
 	)
 	@app.describe(opponent='The user you want to play against')
-	async def rps(self, ctx: commands.Context, opponent: discord.User | discord.Member):
-		if opponent.id == ctx.author.id:
-			return await ctx.reply(view=Fail(
+	async def rps(self, interaction: discord.Interaction, opponent: discord.User):
+		if opponent.id == interaction.user.id:
+			return await interaction.response.send_message(view=Fail(
 				"Invalid Opponent",
 				"You can't play against yourself."
-			))
+			), ephemeral=True)
 
-		view = AvatarRPSView(ctx.author, opponent)
-		msg = await ctx.reply(view=view)
-		view.message = msg
+		view = AvatarRPSView(interaction.user, opponent)
+		await interaction.response.send_message(view=view)
+		view.message = await interaction.original_response()
 
 
 	@fun.command(
 		name='tictactoe',
-		aliases=['t'],
 		description='Play 3x3 or 6x7 grid Tic-Tac-Toe.'
 	)
 	@app.describe(
@@ -156,22 +93,23 @@ class FunRoot(commands.Cog):
 		starter='Who should start first? (default: you)',
 		board='Choose board size (default: 3x3)'
 	)
-	async def tictactoe(self, ctx: commands.Context, opponent: discord.User | discord.Member, starter: Literal['me', 'opponent'] = 'me', board: Literal['3x3', '6x7'] = '3x3'):
-		if opponent.id == ctx.author.id:
-			return await ctx.reply(view=Fail(
+	async def tictactoe(self, interaction: discord.Interaction, opponent: discord.User, starter: Literal['me', 'opponent'] = 'me', board: Literal['3x3', '6x7'] = '3x3'):
+		if opponent.id == interaction.user.id:
+			return await interaction.response.send_message(view=Fail(
 				"Invalid Opponent",
 				"You can't play against yourself."
-			))
+			), ephemeral=True)
 
-		p1 = ctx.author if starter == 'me' else opponent
-		p2 = opponent if starter == 'me' else ctx.author
+		p1 = interaction.user if starter == 'me' else opponent
+		p2 = opponent if starter == 'me' else interaction.user
 
 		if board == '3x3':
 			view = TicTacToeView(p1, p2, self.bot)
 		else:
 			view = SixBySevenTTTView(p1, p2, self.bot)
 
-		msg = await ctx.reply(view=view)
+		await interaction.response.send_message(view=view)
+		msg = await interaction.original_response()
 		view.message = msg
 
 		if p1.bot:

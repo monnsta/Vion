@@ -52,6 +52,7 @@ def setup_console_logging():
 	logging.getLogger("asyncio").setLevel(logging.WARNING)
 	logging.getLogger("core.wrp.memory").setLevel(logging.INFO)
 	logging.getLogger("core.wrp.profile").setLevel(logging.INFO)
+	logging.getLogger("core.wrp.blacklist").setLevel(logging.INFO)
 
 def setup_file_logging():
 	if not config.logging.file:

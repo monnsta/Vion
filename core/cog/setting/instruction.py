@@ -1,95 +1,33 @@
-from typing import Literal
-
+import discord
 from discord import app_commands as app
 from discord.ext import commands
 
-from core.lib.utils import mt
+from core.cog.utils import resolve_target, load_settings, is_admin
+from core.cog.ui_template import Success, Generic, Confirmation, TextForm, UnexpectedError
 from meta import config
 
-from core.cog.utils import resolve_target, load_settings, HybridGroup, hybrid_command, is_admin
-from core.cog.ui_template import Success, Fail, Generic, Confirmation, TextForm, UnexpectedError
 
-
-async def callback(ctx: commands.Context):
-	if ctx.invoked_subcommand is None:
-		await ctx.reply(view=Fail(
-			"Subcommand Missing",
-			"Available subcommands:",
-			"```",
-			"set    (s)",
-			"delete (d)",
-			"view   (v)",
-			"help   (h)",
-			"```"
-		))
-
-
-class Instruction(HybridGroup):
+class InstructionGroup(app.Group):
 	def __init__(self, bot: commands.Bot):
-		super().__init__(
-			callback,
-			name='instruction',
-			aliases=['i'],
-			description='Group for instruction commands.'
-		)
+		super().__init__(name='instruction', description='Manage contextual guidelines for the server AI.')
 		self.bot = bot
-		self.p = config.default_prefix[0]
 
 
-	@hybrid_command(
-		name='help',
-		aliases=['h'],
-		description='Get help for the instruction group.'
-	)
-	async def help(self, ctx: commands.Context):
-		await ctx.reply(view=Generic(
-			"# Instruction",
-			"This group is used to manage the server instructions for the AI.",
-			"These instructions are given straight to the AI.",
-			None,
-			mt(
-				"## Set:",
-				"Add instructions to the current server.",
-				"Params:",
-				"* text: The instruction text. Leave empty to edit in a form",
-				"Usage:",
-				f"* `{self.p}setting instruction set Never send a message in the #furry_role_play channel`",
-				f"* `{self.p}s i s`",
-				f"* {config.cmd.setting.instruction.set}"
-			), None,
-			mt(
-				"## Delete:",
-				"Delete instructions for the current server.",
-				"Usage:",
-				f"* `{self.p}setting instruction delete`",
-				f"* `{self.p}s i d`",
-				f"* {config.cmd.setting.instruction.delete}"
-			), None,
-			mt(
-				"## View:",
-				"View added instructions for the current server.",
-				"Usage:",
-				f"* `{self.p}setting instruction view`",
-				f"* `{self.p}s i v`",
-				f"* {config.cmd.setting.instruction.view}"
-			)
-		))
-
-
-	@hybrid_command(
+	@app.command(
 		name='set',
-		aliases=['s'],
-		description='Add instructions to the current server.'
+		description='Add contextual guidelines or instructions to the current server.'
 	)
-	@app.describe(text='The instruction text')
+	@app.describe(
+		text='The instruction text, skip to edit the existing one'
+	)
 	@is_admin(config.dev_ids)
-	async def set(self, ctx: commands.Context, *, text: str | None = None):
-		type: Literal['server', 'user'] = 'server'
-		manager, target_id = await resolve_target(ctx, type)
+	@app.guild_only()
+	async def set(self, interaction: discord.Interaction, *, text: str | None = None):
+		manager, target_id = await resolve_target(interaction, 'server')
 		if not manager:
 			return
 
-		data = await load_settings(manager, target_id, type) # type: ignore
+		data = await load_settings(manager, target_id, 'server')  # type: ignore
 		instructions = data.get("instructions", "")
 
 		if text is not None:
@@ -97,12 +35,12 @@ class Instruction(HybridGroup):
 			success = await manager.settings.save(target_id, data)
 
 			if not success:
-				await ctx.reply(view=UnexpectedError)
+				await interaction.response.send_message(view=UnexpectedError, ephemeral=True)
 				return
 
-			await ctx.reply(view=Success(
+			await interaction.response.send_message(view=Success(
 				f"Successfully {'updated' if instructions else 'added'} the instructions."
-			))
+			), ephemeral=True)
 			return
 
 		view = TextForm(
@@ -111,80 +49,74 @@ class Instruction(HybridGroup):
 			"Instructions",
 			"Text",
 			instructions,
-			ctx.author
+			interaction.user
 		)
-		message = await ctx.reply(view=view)
+		await interaction.response.send_message(view=view, ephemeral=True)
 
-		input = await view.wait_for_input()
+		input_val = await view.wait_for_input()
 
-		if input is None:
-			await message.edit(view=Fail("Action Aborted"))
+		if input_val is None:
 			return
 
-		data["instructions"] = input
+		data["instructions"] = input_val
 		success = await manager.settings.save(target_id, data)
 
 		if not success:
-			await message.edit(view=UnexpectedError)
+			await interaction.edit_original_response(view=UnexpectedError)
 			return
 
-		await message.edit(view=Success(
+		await interaction.edit_original_response(view=Success(
 			f"Successfully {'updated' if instructions else 'added'} the instructions."
 		))
 
 
-	@hybrid_command(
+	@app.command(
 		name='delete',
-		aliases=['d'],
 		description='Delete instructions for the current server.'
 	)
 	@is_admin(config.dev_ids)
-	async def delete(self, ctx: commands.Context):
-		type: Literal['server', 'user'] = 'server'
-		manager, target_id = await resolve_target(ctx, type)
+	@app.guild_only()
+	async def delete(self, interaction: discord.Interaction):
+		manager, target_id = await resolve_target(interaction, 'server')
 		if not manager:
 			return
 
-		data = await load_settings(manager, target_id, type) # type: ignore
+		data = await load_settings(manager, target_id, 'server')  # type: ignore
 
 		if data.get("instructions", "") == "":
-			await ctx.reply(view=Generic("No need to. It's already empty."))
+			await interaction.response.send_message(view=Generic("No need to. It's already empty."), ephemeral=True)
 			return
 
 		view = Confirmation(
 			"Are you sure you want to do this?",
 			"Instructions deleted successfully",
 			"Action Aborted",
-			ctx.author
+			interaction.user
 		)
-		message = await ctx.reply(view=view)
+		await interaction.response.send_message(view=view, ephemeral=True)
 
 		confirmed = await view.wait_for_answer()
 
 		if confirmed:
 			data["instructions"] = ""
-			success = await manager.settings.save(target_id, data)
-
-			if not success:
-				await message.edit(view=UnexpectedError)
+			await manager.settings.save(target_id, data)
 
 
-	@hybrid_command(
+	@app.command(
 		name='view',
-		aliases=['v'],
 		description='View added instructions for the current server.'
 	)
-	async def view(self, ctx: commands.Context):
-		type: Literal['server', 'user'] = 'server'
-		manager, target_id = await resolve_target(ctx, type)
+	@app.guild_only()
+	async def view(self, interaction: discord.Interaction):
+		manager, target_id = await resolve_target(interaction, 'server')
 		if not manager:
 			return
 
-		data = await load_settings(manager, target_id, type) # type: ignore
+		data = await load_settings(manager, target_id, 'server')  # type: ignore
 		instructions = data.get("instructions", "")
 
 		if not instructions:
-			await ctx.reply(view=Generic("No instructions added..."))
+			await interaction.response.send_message(view=Generic("No instructions added..."), ephemeral=True)
 			return
 
-		await ctx.reply(view=Generic(instructions))
+		await interaction.response.send_message(view=Generic(instructions), ephemeral=True)

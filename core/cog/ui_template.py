@@ -7,7 +7,9 @@ from discord import ui
 
 from meta import emoji
 
+
 INTERFERENCE_TRACKER = Counter()
+
 
 def get_annoyance_message(user_id: int) -> str | None:
 	INTERFERENCE_TRACKER[user_id] += 1
@@ -26,7 +28,7 @@ def get_annoyance_message(user_id: int) -> str | None:
 			"You're starting to get on my nerves.",
 			"Do you have nothing better to do?",
 			"Clicking this won't make it yours. Trust me.",
-			"I'm busy. Talk to the hand. ✋",
+			"I'm busy. Talk to the hand.",
 			"Every time you click, a pixel dies. Think of the pixels.",
 			"This button has a restraining order against you."
 		])

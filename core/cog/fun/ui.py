@@ -137,7 +137,7 @@ class TicTacToeView(TimeoutView):
 		for y in range(3):
 			for x in range(3):
 				idx = y * 3 + x
-				btn = ui.Button(style=discord.ButtonStyle.secondary, label="\u200b")
+				btn = ui.Button(style=discord.ButtonStyle.secondary, emoji=emoji.char_absolute_empty)
 				btn.callback = make_callback(btn, idx)
 				self.buttons.append(btn)
 

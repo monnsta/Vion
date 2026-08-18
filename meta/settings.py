@@ -43,6 +43,7 @@ class Config(Data):
 		user: dict
 
 	class AIData(Data):
+		glob: dict
 		server: dict
 		user: dict
 
@@ -58,10 +59,8 @@ class Config(Data):
 	dev_servers: List[Tuple[str, int, str]]
 	domain: str
 	timezone: Any
-	default_prefix: Tuple[str, ...]
 	sandbox: Sandbox
 	logging: Logging
-	max_prefix: int
 	max_restore_file_size: int
 	max_stm: int
 	max_ltm: int
@@ -139,7 +138,7 @@ async def load_config(reload: bool = False):
 		sys.exit(10)
 
 	try:
-		preserved_cmd = config.cmd if reload and config.get('cmd') else Data()
+		preserved_cmd = config.cmd.to_dict() if reload else None
 
 		if reload:
 			config.clear()
@@ -189,7 +188,7 @@ async def load_config(reload: bool = False):
 	config.summary_instructions = F(config.summary_instructions).format(config=config)
 	config.prompt_template = F(cast(str, config.prompt_template))
 
-	config.cmd = preserved_cmd
+	config.cmd = Data.load(preserved_cmd) if preserved_cmd else Data()
 
 
 __all__ = ('load_config', 'emoji', 'config')

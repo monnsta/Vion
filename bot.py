@@ -8,7 +8,6 @@ import aiohttp
 import discord
 from discord.ext import commands
 
-from core.wrp.profile import server, user
 from core.wrp.extension import extension, server_cog, map_command_mentions
 from core.wrp.trackers import runtime
 from meta import config
@@ -25,7 +24,7 @@ class Bot(commands.Bot):
 		intents.message_content = True
 
 		super().__init__(
-			command_prefix=self.determine_prefix,
+			command_prefix=[],
 			intents=intents,
 			help_command=None
 		)
@@ -51,58 +50,6 @@ class Bot(commands.Bot):
 				pass
 		except discord.HTTPException:
 			log.error("Failed to fetch commands during startup", exc_info=True)
-
-	async def determine_prefix(self, _, message):
-		guild_settings = {}
-		user_settings = {}
-
-		if message.guild:
-			_, guild_settings = await server.settings.load(message.guild.id)
-		_, user_settings = await user.settings.load(message.author.id)
-
-		return [
-			*config.default_prefix,
-			*guild_settings.get("prefix", []),
-			*user_settings.get("prefix", [])
-		]
-
-	async def process_commands(self, message):
-		if message.author.bot:
-			return
-
-		ctx = await self.get_context(message)
-
-		if ctx.command is None and ctx.prefix:
-			unprefixed = message.content[len(ctx.prefix):]
-			first_word = unprefixed.split()[0] if unprefixed else ""
-
-			if len(first_word) > 1:
-				node = config.cmd
-				resolved = []
-
-				for char in first_word:
-					if not hasattr(node, "keys"):
-						resolved.clear()
-						break
-
-					match = next((k for k in node.keys() if k.startswith(char)), None)
-					if match:
-						resolved.append(match)
-						node = getattr(node, match)
-					else:
-						resolved.clear()
-						break
-
-				if resolved and len(resolved) == len(first_word) and hasattr(node, "mention"):
-					spaced = " ".join(resolved)
-
-					old_prefix_len = len(f"{ctx.prefix}{first_word}")
-					new_prefix_str = f"{ctx.prefix}{spaced}"
-					message.content = new_prefix_str + message.content[old_prefix_len:]
-
-					ctx = await self.get_context(message)
-
-		await self.invoke(ctx)
 
 	async def on_disconnect(self):
 		await runtime.mark_event('disconnect')

@@ -394,8 +394,6 @@ class AIEvents(commands.Cog):
 			self.typing_monitor_tasks.pop(key, None)
 		self.active_typing_states.pop(key, None)
 
-		prefixes = await self.bot.determine_prefix(None, message) # type: ignore
-		
 		is_reply = False
 		if message.reference:
 			if message.reference.cached_message:
@@ -405,9 +403,8 @@ class AIEvents(commands.Cog):
 
 		is_direct_mention = self.bot.user in message.mentions
 		is_dm = not message.guild
-		has_prefix = any(message.content.startswith(p) for p in prefixes if p) if isinstance(prefixes, (list, tuple)) else False
 
-		is_triggered = is_reply or is_direct_mention or is_dm or has_prefix
+		is_triggered = is_reply or is_direct_mention or is_dm
 
 		if message.guild:
 			await self.do_memory_actions(message, server, guild_stm, "server")
@@ -508,7 +505,6 @@ class AIEvents(commands.Cog):
 				"on_message",
 				free_will,
 				message=message,
-				prefixes=prefixes,
 				context_id=message.channel.id
 			):
 				return

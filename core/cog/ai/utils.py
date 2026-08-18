@@ -31,12 +31,11 @@ class BaseEventHandler(ABC):
 class MessageEventHandler(BaseEventHandler):
 	def evaluate(self, consciousness: "Consciousness", bot: commands.Bot, free_will: bool, **kwargs) -> bool:
 		message: discord.Message | None = kwargs.get("message")
-		prefixes: tuple = kwargs.get("prefixes", ())
 
 		if message is None:
 			return False
 
-		if message.content.startswith(tuple(prefixes)) or message.author == bot.user:
+		if message.content.startswith('/') or message.author == bot.user or message.interaction_metadata:
 			return False
 
 		should_trigger = False

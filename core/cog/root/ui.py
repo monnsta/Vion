@@ -3,7 +3,6 @@ from typing import cast
 
 import discord
 from discord import ui
-from discord.ext import commands
 
 from core.wrp.trackers import activity
 from meta import config, emoji
@@ -13,6 +12,125 @@ from core.cog.root.utils import generate_timeline_graph
 
 
 ALLOWED_DOMAINS = {"cdn.discordapp.com", "media.discordapp.net"}
+
+
+class HelpSelect(ui.Select):
+	def __init__(self):
+		options = [
+			discord.SelectOption(label="Overview & Chatting", value="overview", description="How to interact with the AI companion."),
+			discord.SelectOption(label="Gemini API Key Setup", value="gemini", description="Configuring personal custom LLM credentials."),
+			discord.SelectOption(label="Custom Instructions", value="instructions", description="Guiding personality and channel boundaries."),
+			discord.SelectOption(label="Interactive Mini-Games", value="games", description="Elemental RPS and adaptive Tic-Tac-Toe."),
+			discord.SelectOption(label="Data & Statistics", value="data", description="Exporting or deleting database logs and activity stats.")
+		]
+		super().__init__(placeholder="Select a category to view detailed info...", min_values=1, max_values=1, options=options)
+
+	async def callback(self, interaction: discord.Interaction):
+		view = cast("HelpView", self.view)
+		val = self.values[0]
+		content = view.get_category_content(val)
+		await interaction.response.edit_message(content=content, view=view)
+
+class HelpView(TimeoutView):
+	def __init__(self, user: discord.User | discord.Member):
+		super().__init__(timeout=300.0)
+		self.user = user
+		self.current_category = "overview"
+		
+		self.select = HelpSelect()
+		self.select.callback = self.on_select_category
+		
+		self._build_container()
+
+	async def interaction_check(self, interaction: discord.Interaction) -> bool:
+		return await global_interaction_check(interaction, self.user)
+
+	def _build_container(self) -> None:
+		for opt in self.select.options:
+			opt.default = (opt.value == self.current_category)
+
+		content = self.get_category_content(self.current_category)
+
+		container = ui.Container(
+			ui.TextDisplay(content),
+			accent_color=0x00E9FE
+		)
+		container.add_item(ui.ActionRow(self.select))
+
+		self.clear_items()
+		self.add_item(container)
+
+	async def on_select_category(self, interaction: discord.Interaction):
+		self.current_category = self.select.values[0]
+		self._build_container()
+		await interaction.response.edit_message(view=self)
+
+	def get_category_content(self, category: str) -> str:
+		match category:
+			case "overview": return (
+				f"# Meet {config.bot.name}\n"
+				f"{config.bot.name} is an AI member that lives inside your Discord server, remembers your community, understands natural language, and can perform complex tasks by reasoning about what you actually want.\n\n"
+				"Instead of learning dozens of commands, you simply ask.\n\n"
+				"* \"Delete only the spam messages from Alice across every channel, but leave anything that isn't spam.\"\n"
+				"* \"Summarize everything that happened while I was asleep.\"\n"
+				"* \"Make a role called Verified and give it to everyone who joined this month.\"\n"
+				f"{config.bot.name} figures out how to accomplish the task while respecting your server's permission hierarchy.\n\n"
+				"### How to Start a Conversation:\n"
+				f"* **Mentions:** Ping the bot (<@{config.bot.id}>) inside any channel.\n"
+				f"* **Replies:** Reply directly to any message sent by {config.bot.name}.\n"
+				f"* **Direct Invocation:** Simply use its name (`{config.bot.name}`) inside active chat channels.\n"
+				f"* **Free Will:** If allowed, {config.bot.name} can join ongoing conversations entirely on its own!\n\n"
+				"### Permissions & Safety:\n"
+				"The bot implements strict administrative controls, adhering entirely to Discord's hierarchy. "
+				"Moderation actions are executed only when requested by authorized administrators."
+			)
+			case "gemini": return (
+				"# Gemini API Key Configuration\n"
+				"The bot supports personal API keys, enabling unlimited, private AI models.\n\n"
+				"### How to Obtain an API Key:\n"
+				"1. Go to **[Google AI Studio](https://aistudio.google.com/)**.\n"
+				"2. Sign in with your Google Account.\n"
+				"3. Click on the **Get API Key** button on the top sidebar.\n"
+				"4. Click **Create API Key**, select an active Cloud project, and copy the string.\n"
+				f"5. Execute {config.cmd.setting.gemini_key.add} to submit it. **Keys are treated with zero logs and are completely hidden from other users.**\n\n"
+				"### Available Subcommands:\n"
+				f"* {config.cmd.setting.gemini_key.add} — Add your secret key. Keys are automatically validated before saving.\n"
+				f"* {config.cmd.setting.gemini_key.remove} — Remove a saved key from your registry by position.\n"
+				f"* {config.cmd.setting.gemini_key.list} — View your obfuscated credentials."
+			)
+			case "instructions": return (
+				"# Custom AI Behavior Guidelines\n"
+				"You can shape the bot's communication patterns, rules, restrictions, and behaviors directly.\n"
+				"This is a legacy feature and not really used anymore, you as the server owner can tailer the bot's behavior by requesting it directly.\n\n"
+				"### Instructions Setup:\n"
+				f"* **Set Instructions:** Execute {config.cmd.setting.instruction.set}. If you leave the text blank, the bot prompts an interactive editor modal with your previous instructions.\n"
+				f"* **View Guidelines:** Inspect currently saved parameters utilizing {config.cmd.setting.instruction.view}.\n"
+				f"* **Clear Configuration:** Erase active guidelines via {config.cmd.setting.instruction.delete}.\n\n"
+				"### Best Practices:\n"
+				"Provide concrete instructions such as 'Speak concisely', 'Always use lowercase', or 'Do not reply to messages in general'. "
+				"The engine is built to evaluate guidelines alongside system contextual files."
+			)
+			case "games": return (
+				"# Interactive Mini-Games\n"
+				"Challenge other server members or play against an adaptive AI algorithm.\n\n"
+				"### Elemental Rock-Paper-Scissors:\n"
+				f"* Initiate a game via {config.cmd.fun.rps}. Choose elements representing the Avatar nations:\n"
+				f"  - **Water** over Fire & Earth\n"
+				f"  - **Earth** over Fire & Air\n"
+				f"  - **Fire** over Air\n"
+				f"  - **Air** over Water\n\n"
+				"### Classic & Advanced Tic-Tac-Toe:\n"
+				f"* Launch via {config.cmd.fun.tictactoe}. Select from classic 3x3 grids or a complex 6x7 board. "
+				"Challenge other members, or test your skills against our custom minimax bot."
+			)
+			case "data": return (
+				"# Data Security & Statistics\n"
+				"You have full control over all personal data stored by the bot.\n\n"
+				"### Management Utilities:\n"
+				f"* **Data Dashboard:** Access the secure panel utilizing {config.cmd.manage_data} to export backup files or trigger permanent deletions.\n"
+				f"* **Interactions Stats:** Run {config.cmd.stats} to render interaction graphs, leaderboard ranks, and server standings."
+			)
+			case _: return "Select a category below to explore details."
 
 
 class RestoreDataModal(ui.Modal, title="Restore Data Backup"):
@@ -98,13 +216,13 @@ class RestoreDataModal(ui.Modal, title="Restore Data Backup"):
 			)
 
 class ManageDataView(TimeoutView):
-	def __init__(self, ctx: commands.Context, manager, target_id: int, data_type: str):
+	def __init__(self, interaction: discord.Interaction, manager, target_id: int, data_type: str):
 		super().__init__()
-		self.ctx = ctx
+		self.interaction = interaction
 		self.manager = manager
 		self.target_id = target_id
 		self.data_type = data_type
-		self.user = ctx.author
+		self.user = interaction.user
 
 		container = ui.Container(
 			ui.TextDisplay(f"### Manage {data_type.title()} Data"),
@@ -139,7 +257,7 @@ class ManageDataView(TimeoutView):
 
 		try:
 			file = discord.File(result, filename=f"{self.data_type}_{self.target_id}_data.zip")
-			await self.ctx.author.send(file=file)
+			await self.user.send(file=file)
 			await interaction.followup.send(view=Success("I've sent your data export to your DMs."), ephemeral=True)
 		except discord.Forbidden:
 			await interaction.followup.send(view=Fail(
@@ -161,7 +279,7 @@ class ManageDataView(TimeoutView):
 
 		cancel = "Action Aborted"
 		if random.random() < 0.5:
-			cancel += "\n-# I promise you we don't read your data when we are bored :3"
+			cancel += "\n-# I promise you we don't read your data when we are bored"
 
 		view = Confirmation(
 			question,
@@ -178,12 +296,12 @@ class ManageDataView(TimeoutView):
 
 
 class AIStatsView(TimeoutView):
-	def __init__(self, ctx: commands.Context, default_target: str, user_target: discord.User | discord.Member | None = None):
+	def __init__(self, interaction: discord.Interaction, default_target: str, user_target: discord.User | discord.Member | None = None):
 		super().__init__()
-		self.ctx = ctx
+		self.interaction = interaction
 		self.current_target = default_target
 		self.user_target = user_target
-		self.user = ctx.author
+		self.user = interaction.user
 		self.current_timeframe = "1"
 
 		self.target_select = ui.Select(
@@ -223,19 +341,21 @@ class AIStatsView(TimeoutView):
 		else:
 			timeframe_days = int(self.current_timeframe)
 
+		bot = self.interaction.client
+
 		if self.current_target == 'leaderboard':
 			top_guilds = await activity.get_leaderboard('guild', 5)
 			top_users = await activity.get_leaderboard('user', 5)
 
 			guild_lines = []
 			for idx, (g_id, count) in enumerate(top_guilds, 1):
-				guild_obj = self.ctx.bot.get_guild(int(g_id))
+				guild_obj = bot.get_guild(int(g_id))
 				name = guild_obj.name if guild_obj else f"Server {g_id}"
 				guild_lines.append(f"{idx}. **{name}**\n-# `{count:,}` interactions")
 
 			user_lines = []
 			for idx, (u_id, count) in enumerate(top_users, 1):
-				user_obj = self.ctx.bot.get_user(int(u_id))
+				user_obj = bot.get_user(int(u_id))
 				name = user_obj.display_name if user_obj else f"User {u_id}"
 				user_lines.append(f"{idx}. **{name}**\n-# `{count:,}` interactions")
 
@@ -260,18 +380,18 @@ class AIStatsView(TimeoutView):
 				file = discord.File(buf, filename="chart.png")
 
 			elif self.current_target == 'server':
-				if not self.ctx.guild:
+				if not self.interaction.guild:
 					container = ui.Container(ui.TextDisplay("### Server Stats\nCannot fetch server stats in DMs."), accent_color=0xFE0065)
 					container.add_item(ui.ActionRow(self.target_select))
 					container.add_item(ui.ActionRow(self.refresh_btn))
 					return container, None
 
-				stats = await activity.get_stats('guild', self.ctx.guild.id)
+				stats = await activity.get_stats('guild', self.interaction.guild.id)
 				interactions = stats.get('interactions', 0)
 				rank = stats.get('rank', 0)
 				timeline = stats.get('timeline', {})
 				content = (
-					f"## Server Statistics: {self.ctx.guild.name}\n"
+					f"## Server Statistics: {self.interaction.guild.name}\n"
 					"Current server standing and activity metrics.\n\n"
 					"> **Total Interactions** · **Leaderboard Rank**\n"
 					f"> ## `{interactions:,}` `#{rank:,}`"
@@ -280,7 +400,7 @@ class AIStatsView(TimeoutView):
 				file = discord.File(buf, filename="chart.png")
 
 			else:
-				target = self.user_target or self.ctx.author
+				target = self.user_target or self.interaction.user
 				stats = await activity.get_stats('user', target.id)
 				interactions = stats.get('interactions', 0)
 				rank = stats.get('rank', 0)
@@ -317,14 +437,16 @@ class AIStatsView(TimeoutView):
 
 		return container, file
 
-	async def start(self) -> discord.Message:
+	async def start(self, interaction: discord.Interaction) -> None:
 		container, file = await self._generate_content()
 		self.clear_items()
 		self.add_item(container)
 
 		if file:
-			return await self.ctx.reply(view=self, file=file)
-		return await self.ctx.reply(view=self)
+			await interaction.response.send_message(view=self, file=file)
+		else:
+			await interaction.response.send_message(view=self)
+		self.message = await interaction.original_response()
 
 	async def change_target(self, interaction: discord.Interaction):
 		self.current_target = self.target_select.values[0]

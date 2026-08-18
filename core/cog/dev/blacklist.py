@@ -1,58 +1,39 @@
 import re
 from typing import Literal
 
+import discord
 from discord import app_commands as app
 from discord.ext import commands
 
 from core.lib.utils import mt, em
 from core.wrp.blacklist import blacklist
-from meta import config
 
-from core.cog.utils import format_dt, HybridGroup, hybrid_command
+from core.cog.utils import format_dt
 from core.cog.ui_template import Fail, Success, Generic, Paginated
 
 
-async def callback(ctx: commands.Context):
-	if ctx.invoked_subcommand is None:
-		await ctx.reply(view=Fail(
-			"Subcommand Missing",
-			"Available subcommands:",
-			"```",
-			"* add    (a)",
-			"* remove (r)",
-			"* edit   (e)",
-			"* view   (v)",
-			"* list   (l)",
-			"* help   (h)",
-			"```"
-		))
-
-
-class Blacklist(HybridGroup):
+class BlacklistGroup(app.Group):
 	def __init__(self, bot: commands.Bot):
 		super().__init__(
-			callback,
 			name='blacklist',
-			aliases=['b'],
 			description='Manage the global bot blacklist.'
 		)
 		self.bot = bot
-		self.p = config.default_prefix[0]
 
-	async def _validate_args(self, ctx: commands.Context, entity_type: str, target_id: str) -> int | None:
+	async def _validate_args(self, interaction: discord.Interaction, entity_type: str, target_id: str) -> int | None:
 		if entity_type not in ('user', 'server'):
-			await ctx.reply(view=Fail(
+			await interaction.response.send_message(view=Fail(
 				"Invalid Scope",
 				f"Scope must be either 'server' or 'user', not '{entity_type}'."
-			))
+			), ephemeral=True)
 			return None
 
 		cleaned = re.sub(r'\D', '', target_id)
 		if not cleaned:
-			await ctx.reply(view=Fail(
+			await interaction.response.send_message(view=Fail(
 				"Invalid Scope",
 				"Target ID must be a valid integer or mention."
-			))
+			), ephemeral=True)
 			return None
 
 		return int(cleaned)
@@ -80,80 +61,8 @@ class Blacklist(HybridGroup):
 		return label, icon
 
 
-	@hybrid_command(
-		name='help',
-		aliases=['h'],
-		description='Get help for the blacklist group.'
-	)
-	async def help_cmd(self, ctx: commands.Context):
-		await ctx.reply(view=Generic(
-			"# Blacklist",
-			"This group is used to manage the global blacklist for users and servers.",
-			None,
-			mt(
-				"## Add:",
-				"Add a user or server to the blacklist.",
-				"Params:",
-				"* type: Whether this is a user or server",
-				"* target_id: The ID or mention of the user/server",
-				"* duration: Duration (e.g., 7d, 12h, 30m). 0 for permanent",
-				"* reason: Reason for blacklisting",
-				"Usage:",
-				f"* `{self.p}dev blacklist add user 123456789 7d Spamming`",
-				f"* `{self.p}d b a user 123456789 7d Spamming`",
-				f"* {config.cmd.dev.blacklist.add} `type:` user `target_id:` 123456789 `duration:` 7d `reason:` Spamming"
-			), None,
-			mt(
-				"## Remove:",
-				"Remove a user or server from the blacklist.",
-				"Params:",
-				"* type: Whether this is a user or server",
-				"* target_id: The ID or mention of the user/server",
-				"Usage:",
-				f"* `{self.p}dev blacklist remove user 123456789`",
-				f"* `{self.p}d b r user 123456789`",
-				f"* {config.cmd.dev.blacklist.remove} `type:` user `target_id:` 123456789"
-			), None,
-			mt(
-				"## Edit:",
-				"Edit an existing blacklist entry.",
-				"Params:",
-				"* type: Whether this is a user or server",
-				"* target_id: The ID or mention of the user/server",
-				"* duration: Duration (e.g., 7d, 12h, 30m). 0 for permanent",
-				"* new_reason: Reason for blacklisting",
-				"Usage:",
-				f"* `{self.p}dev blacklist edit user 123456789 8d Spamming + Arguing with mods`",
-				f"* `{self.p}d b e user 123456789 8d Spamming + Arguing with mods`",
-				f"* {config.cmd.dev.blacklist.edit} `type:` user `target_id:` 123456789 `new_duration:` 8d `new_reason:` Spamming + Arguing with mods"
-			), None,
-			mt(
-				"## View:",
-				"View detailed info about a specific blacklist entry.",
-				"Params:",
-				"* type: Whether this is a user or server",
-				"* target_id: The ID or mention of the user/server",
-				"Usage:",
-				f"* `{self.p}dev blacklist view user 123456789`",
-				f"* `{self.p}d b v user 123456789`",
-				f"* {config.cmd.dev.blacklist.view} `type:` user `target_id:` 123456789"
-			), None,
-			mt(
-				"## List:",
-				"List all blacklisted entities.",
-				"Params:",
-				"* type: Filter by user or server",
-				"Usage:",
-				f"* `{self.p}dev blacklist list`",
-				f"* `{self.p}d b l`",
-				f"* {config.cmd.dev.blacklist.list}"
-			)
-		))
-
-
-	@hybrid_command(
+	@app.command(
 		name='add',
-		aliases=['a'],
 		description='Add a user or server to the blacklist.'
 	)
 	@app.describe(
@@ -162,49 +71,47 @@ class Blacklist(HybridGroup):
 		duration='Duration (e.g., 7d, 12h, 30m). 0 for permanent',
 		reason='Reason for blacklisting'
 	)
-	async def add(self, ctx: commands.Context, type: Literal['user', 'server'], target_id: str, duration: str, *, reason: str):
-		tid = await self._validate_args(ctx, type, target_id)
+	async def add(self, interaction: discord.Interaction, type: Literal['user', 'server'], target_id: str, duration: str, *, reason: str):
+		tid = await self._validate_args(interaction, type, target_id)
 		if not tid: return
 
-		success, msg = await blacklist.add(tid, type, ctx.author.id, reason, duration)
+		success, msg = await blacklist.add(tid, type, interaction.user.id, reason, duration)
 
 		if success:
 			label, _ = await self._get_entity_info(type, tid)
-			await ctx.reply(view=Success(
+			await interaction.response.send_message(view=Success(
 				"Success",
 				f"{label} has been added to the blacklist.",
 				f"**Reason:** {reason}",
 				f"**Duration:** {duration}"
-			))
+			), ephemeral=True)
 		else:
-			await ctx.reply(view=Fail("Failed", msg))
+			await interaction.response.send_message(view=Fail("Failed", msg), ephemeral=True)
 
 
-	@hybrid_command(
+	@app.command(
 		name='remove',
-		aliases=['r'],
 		description='Remove a user or server from the blacklist.'
 	)
 	@app.describe(
 		type='Whether this is a user or server',
 		target_id='The ID or mention of the user or server'
 	)
-	async def remove(self, ctx: commands.Context, type: Literal['user', 'server'], target_id: str):
-		tid = await self._validate_args(ctx, type, target_id)
+	async def remove(self, interaction: discord.Interaction, type: Literal['user', 'server'], target_id: str):
+		tid = await self._validate_args(interaction, type, target_id)
 		if not tid: return
 
 		success, msg = await blacklist.remove(tid, type)
 
 		if success:
 			label, _ = await self._get_entity_info(type, tid)
-			await ctx.reply(view=Success("Success", f"{label} has been removed from the blacklist."))
+			await interaction.response.send_message(view=Success("Success", f"{label} has been removed from the blacklist."), ephemeral=True)
 		else:
-			await ctx.reply(view=Fail("Failed", msg))
+			await interaction.response.send_message(view=Fail("Failed", msg), ephemeral=True)
 
 
-	@hybrid_command(
+	@app.command(
 		name='edit',
-		aliases=['e'],
 		description='Edit an already existing blacklisted user or server.'
 	)
 	@app.describe(
@@ -213,76 +120,74 @@ class Blacklist(HybridGroup):
 		new_duration='The modified duration (e.g., 7d, 12h, 30m). 0 for permanent',
 		new_reason='The modified reason for the blacklist'
 	)
-	async def edit(self, ctx: commands.Context, type: Literal['user', 'server'], target_id: str, new_duration: str | None = None, *, new_reason: str | None = None):
+	async def edit(self, interaction: discord.Interaction, type: Literal['user', 'server'], target_id: str, new_duration: str | None = None, *, new_reason: str | None = None):
 		if not new_reason and not new_duration:
-			return await ctx.reply(view=Fail(
+			return await interaction.response.send_message(view=Fail(
 				"Error",
 				"You must specify a new reason, a new duration, or both to make edits."
-			))
+			), ephemeral=True)
 
-		tid = await self._validate_args(ctx, type, target_id)
+		tid = await self._validate_args(interaction, type, target_id)
 		if not tid: return
 
 		success, msg = await blacklist.edit(
 			entity_id=tid,
 			entity_type=type,
-			mod_id=ctx.author.id,
+			mod_id=interaction.user.id,
 			reason=new_reason,
 			duration=new_duration
 		)
 
 		if success:
 			label, _ = await self._get_entity_info(type, tid)
-			await ctx.reply(view=Success(
+			await interaction.response.send_message(view=Success(
 				"Success",
 				f"Updated blacklist entry for {label}."
-			))
+			), ephemeral=True)
 		else:
-			await ctx.reply(view=Fail("Failed", msg))
+			await interaction.response.send_message(view=Fail("Failed", msg), ephemeral=True)
 
 
-	@hybrid_command(
+	@app.command(
 		name='view',
-		aliases=['v'],
 		description='Show detailed info about a specific blacklist entry.'
 	)
 	@app.describe(
 		type='Whether this is a user or server',
 		target_id='The ID or mention of the user or server'
 	)
-	async def view(self, ctx: commands.Context, type: Literal['user', 'server'], target_id: str):
-		tid = await self._validate_args(ctx, type, target_id)
+	async def view(self, interaction: discord.Interaction, type: Literal['user', 'server'], target_id: str):
+		tid = await self._validate_args(interaction, type, target_id)
 		if not tid: return
 
 		success, data = await blacklist.get(tid, type)
 		if not success:
-			return await ctx.reply(view=Fail(data))
+			return await interaction.response.send_message(view=Fail(data), ephemeral=True)
 
 		label, _ = await self._get_entity_info(type, tid)
 
-		await ctx.reply(view=Generic(
+		await interaction.response.send_message(view=Generic(
 			f"## Blacklisted {type.capitalize()}",
 			f"* **Target:** {label}",
 			f"* **Moderator:** <@{data['mod_id']}>",
 			f"* **Reason:** {data['reason']}",
 			f"* **Created:** {format_dt(data.get('created_at'))}",
 			f"* **Expires:** {format_dt(data.get('expires_at'))}"
-		))
+		), ephemeral=True)
 
 
-	@hybrid_command(
+	@app.command(
 		name='list',
-		aliases=['l'],
 		description='List all blacklisted entities.'
 	)
 	@app.describe(
 		type='Filter by user or server'
 	)
-	async def list(self, ctx: commands.Context, type: Literal['user', 'server'] | None = None):
+	async def list(self, interaction: discord.Interaction, type: Literal['user', 'server'] | None = None):
 		entries = await blacklist.list_all(type)
 
 		if not entries:
-			return await ctx.reply(view=Generic("### Global Blacklist", "The blacklist is currently empty."))
+			return await interaction.response.send_message(view=Generic("### Global Blacklist", "The blacklist is currently empty."), ephemeral=True)
 
 		results = []
 		for e in entries:
@@ -300,6 +205,6 @@ class Blacklist(HybridGroup):
 			results.append(block)
 
 		header = f"## Blacklisted {type.capitalize() + 's' if type else ''}"
-		view = Paginated(header=header, items=results, user=ctx.author)
-		message = await ctx.reply(view=view)
-		view.message = message
+		view = Paginated(header=header, items=results, user=interaction.user)
+		await interaction.response.send_message(view=view, ephemeral=True)
+		view.message = await interaction.original_response()

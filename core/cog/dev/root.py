@@ -6,224 +6,84 @@ from discord import app_commands as app
 from discord.ext import commands
 
 from core.lib.code import Code, status
-from core.lib.utils import mt
 from core.wrp.extension import map_command_mentions
 from core.wrp.memory import global_stm, guild_stm, user_stm
 from meta import config, sub
 
-from core.cog.ui_template import Fail, Success, Paginated, UnexpectedError
-from core.cog.dev.blacklist import Blacklist
-from core.cog.dev.extension import Extension
-from core.cog.dev.reload import Reload
+from core.cog.ui_template import Success, Fail, Paginated
+from core.cog.utils import is_dev
+from core.cog.dev.blacklist import BlacklistGroup
+from core.cog.dev.extension import ExtensionGroup
+from core.cog.dev.reload import ReloadGroup
 
 
 class DevRoot(commands.Cog):
 	def __init__(self, bot: commands.Bot):
 		self.bot = bot
-		self.p = config.default_prefix[0]
 		self.dev_only = True
 
-		self.dev.add_command(Blacklist(self.bot))
-		self.dev.add_command(Extension(self.bot))
-		self.dev.add_command(Reload(self.bot))
+		self.blacklist_group = BlacklistGroup(self.bot)
+		self.extension_group = ExtensionGroup(self.bot)
+		self.reload_group = ReloadGroup(self.bot)
 
-	async def cog_check(self, ctx: commands.Context) -> bool:
-		return any(ctx.author.id == dev_id for dev_id in config.dev_ids)
-
-	async def cog_command_error(self, ctx: commands.Context, error: Exception):
-		if isinstance(error, commands.CommandInvokeError):
-			error = getattr(error, 'original', error)
-
-		if isinstance(error, commands.CheckFailure):
-			await ctx.reply(view=Fail(
-				"Permission Denied",
-				"Only developers can use this command."
-			), ephemeral=True)
-
-			setattr(ctx, 'handled', True)
-			return
+		self.dev.add_command(self.blacklist_group)
+		self.dev.add_command(self.extension_group)
+		self.dev.add_command(self.reload_group)
 
 
-	@commands.hybrid_group(
+	dev = app.Group(
 		name='dev',
-		aliases=['d'],
-		description='Dev commands.'
+		description='Developer maintenance utilities.'
 	)
-	async def dev(self, ctx: commands.Context):
-		if ctx.invoked_subcommand is None:
-			await ctx.reply(view=Fail(
-				"Subcommand Missing",
-				"Available subcommands:",
-				"```",
-				"* send          (s )",
-				"* code          (c )",
-				"* update        (u )",
-				"* help          (h )",
-				"* clearstm      (cs)",
-				"",
-				"* reload        (r )",
-				"* extension     (e )",
-				"* blacklist     (b )",
-				"```"
-			))
-
-	@dev.error
-	async def dev_error(self, ctx: commands.Context, error):
-		if isinstance(error, commands.CheckFailure):
-			await ctx.reply(view=Fail("Only developers can use this command."))
-
-
-	@dev.command(
-		name='help',
-		aliases=['h'],
-		description='Get help for the dev group.'
-	)
-	async def help(self, ctx: commands.Context):
-		view = Paginated(
-			"",
-			[
-				mt(
-					"# Dev",
-					"This group contains developer-only commands for bot maintenance and testing."
-				),
-				mt(
-					"## Send:",
-					"Send a message to the current channel as the bot.",
-					"Params:",
-					"* message: The message you want to send",
-					"Usage:",
-					f"* `{self.p}dev send Hello.`",
-					f"* `{self.p}d s Hello.`",
-					f"* {config.cmd.dev.send} `message:` Hello."
-				),
-				mt(
-					"## Code:",
-					"Execute python code safely in a restricted environment.",
-					"Params:",
-					"* code: The python code to execute",
-					"Usage:",
-					f"* `{self.p}dev code async def main(**kwargs): print('test')`",
-					f"* `{self.p}d c async def main(**kwargs): print('test')`",
-					f"* {config.cmd.dev.code} `code:` `async def main(**kwargs): print('test')`"
-				),
-				mt(
-					"## Reload Config:",
-					"Reload the config file.",
-					"Usage:",
-					f"* `{self.p}dev reload config`",
-					f"* `{self.p}d r c`",
-					f"* {config.cmd.dev.reload.config}"
-				),
-				mt(
-					"## Reload Process:",
-					"Reload the entire process",
-					"usage:",
-					f"* `{self.p}dev reload process`",
-					f"* `{self.p}d r p`",
-					f"* {config.cmd.dev.reload.process}"
-				),
-				mt(
-					"## Update:",
-					"Update application slash commands so they are in-sync with the system.",
-					"Params:",
-					"* spec: The sync scope: global, dev, clear."
-					"Usage:",
-					f"* `{self.p}dev update global`",
-					f"* `{self.p}d u global`",
-					f"* {config.cmd.dev.get('update')} `spec:` global"
-				),
-				mt(
-					"## Clear STM:",
-					"Recursively clear Short-Term Memory (STM) globally, for all guilds, and all users.",
-					"Usage:",
-					f"* `{self.p}dev clearstm`",
-					f"* `{self.p}d cs`"
-				),
-				mt(
-					"## Extension:",
-					"Manage bot extensions (cogs).",
-					f"Use `{self.p}dev extension help` | `{self.p}d e h` | {config.cmd.dev.extension.help} to know more.",
-					"Command List:",
-					"```",
-					"load       (l )",
-					"unload     (u )",
-					"reload     (r )",
-					"load_all   (la)",
-					"unload_all (ua)",
-					"reload_all (ra)",
-					"list       (li)",
-					"help       (h )",
-					"```",
-					"Usage:",
-					f"* `{self.p}dev extension load core.cog.root`",
-					f"* `{self.p}d e l core.cog.root`",
-					f"* {config.cmd.dev.extension.get('load')} `path:` core.cog.root"
-				),
-				mt(
-					"## Blacklist:",
-					"Manage the global bot blacklist for users and servers.",
-					f"Use `{self.p}dev blacklist help` | `{self.p}d b h` | {config.cmd.dev.blacklist.help} to know more.",
-					"Command List:",
-					"```",
-					"add        (a )",
-					"remove     (r )",
-					"edit       (e )",
-					"view       (v )",
-					"list       (l )",
-					"help       (h )",
-					"```",
-					"Usage:",
-					f"* `{self.p}dev blacklist add user 123456789 \"Spamming\" 7d`",
-					f"* `{self.p}d b a user 123456789 \"Spamming\" 7d`",
-					f"* {config.cmd.dev.blacklist.add} `type:` user `target_id:` 123456789 `reason:` Spamming `duration:` 7d"
-				)
-			],
-			ctx.author
-		)
-		message = await ctx.reply(view=view)
-		view.message = message
 
 
 	@dev.command(
 		name='send',
-		aliases=['s'],
-		description='Send a message to the channel.'
+		description='Send a message to the current channel as the bot.'
 	)
-	@app.describe(message='The message you want to send')
-	async def send(self, ctx: commands.Context, *, message: str):
-		initial_message = None
-		if ctx.interaction:
-			initial_message = await ctx.reply(view=Success(
-				"Message sent."
-			), ephemeral=True)
-		else:
-			try:
-				await ctx.message.delete()
-			except (discord.Forbidden, discord.HTTPException):
-				pass
+	@app.describe(
+		message='The message you want to send'
+	)
+	@is_dev(config.dev_ids)
+	async def send(self, interaction: discord.Interaction, *, message: str):
+		if not interaction.channel or isinstance(interaction.channel, (discord.ForumChannel, discord.CategoryChannel)):
+			await interaction.response.send_message(
+				view=Fail("Cannot send messages directly to this channel type."), 
+				ephemeral=True
+			)
+			return
 
-		if initial_message and not (ctx.guild and ctx.guild.get_member(getattr(self.bot.user, 'id'))):
-			await initial_message.reply(message)
-		else:
-			await ctx.send(message)
+		await interaction.response.defer(ephemeral=True)
+
+		try:
+			await interaction.channel.send(message)
+			await interaction.followup.send(view=Success("Message dispatched."), ephemeral=True)
+		except discord.Forbidden:
+			await interaction.followup.send(
+				view=Fail("Missing permissions to send messages in this channel."), 
+				ephemeral=True
+			)
 
 
 	@dev.command(
 		name='code',
-		aliases=['c'],
-		description='Execute python code.'
+		description='Execute python code inside a secure sandbox.'
 	)
-	@app.describe(code='The code to execute')
-	async def code(self, ctx: commands.Context, *, code: str):
-		await ctx.defer(ephemeral=False)
+	@app.describe(
+		code='The code to execute'
+	)
+	@is_dev(config.dev_ids)
+	async def code(self, interaction: discord.Interaction, *, code: str):
+		await interaction.response.defer(ephemeral=False)
 
 		initial_view = Paginated(
 			header="**Execution Initializing**",
 			items=["**Status:** Preparing execution..."],
-			user=ctx.author,
+			user=interaction.user,
 			accent_color=0x7289da
 		)
-		msg = await ctx.reply(view=initial_view)
+		await interaction.followup.send(view=initial_view)
+		msg = await interaction.original_response()
 		initial_view.message = msg
 
 		runner = Code(code)
@@ -248,7 +108,7 @@ class DevRoot(commands.Cog):
 			return [f"**{title} ({i+1}/{len(chunks)}):**\n```py\n{chunk}\n```" for i, chunk in enumerate(chunks)]
 
 		try:
-			await runner.execute(timeout=30.0, message=ctx.message, bot=self.bot)
+			await runner.execute(timeout=30.0, message=interaction.message, bot=self.bot)
 
 			async def update_live_output():
 				last_content = ""
@@ -267,7 +127,7 @@ class DevRoot(commands.Cog):
 								live_view = Paginated(
 									header=f"**Execution Status: {data.status}**",
 									items=[content],
-									user=ctx.author,
+									user=interaction.user,
 									accent_color=0x7289da
 								)
 								await msg.edit(view=live_view)
@@ -304,7 +164,7 @@ class DevRoot(commands.Cog):
 			view = Paginated(
 				header=header,
 				items=items,
-				user=ctx.author,
+				user=interaction.user,
 				accent_color=color
 			)
 
@@ -318,7 +178,7 @@ class DevRoot(commands.Cog):
 			view = Paginated(
 				header="**Execution Setup Failed**",
 				items=[f"**Error:**\n```py\n{str(e)}\n```"],
-				user=ctx.author,
+				user=interaction.user,
 				accent_color=0xf04747
 			)
 			await msg.edit(view=view)
@@ -327,19 +187,22 @@ class DevRoot(commands.Cog):
 
 	@dev.command(
 		name='update',
-		aliases=['u'],
-		description='Update application commands so they are in-sync with the system'
+		description='Synchronize local code structures with Discord Application Commands.'
 	)
-	@app.describe(spec='The sync scope: global, dev, or clear.')
-	async def update(self, ctx: commands.Context, spec: Literal['global', 'dev', 'clear']):
+	@app.describe(
+		spec='The sync scope: global, dev, or clear.'
+	)
+	@is_dev(config.dev_ids)
+	async def update(self, interaction: discord.Interaction, spec: Literal['global', 'dev', 'clear']):
+		await interaction.response.defer(ephemeral=True)
 		if spec == 'global':
 			synced = await self.bot.tree.sync()
 			map_command_mentions(synced, self.bot)
 
-			await ctx.reply(view=Success(
+			await interaction.followup.send(view=Success(
 				"Success",
 				f"Synced {len(synced)} global application commands."
-			))
+			), ephemeral=True)
 		elif spec == 'dev':
 			dev_guilds = [discord.Object(id=g_id) for g_id in config.dev_server_ids]
 			total = 0
@@ -349,33 +212,29 @@ class DevRoot(commands.Cog):
 					map_command_mentions(synced, self.bot)
 					total += len(synced)
 				except discord.HTTPException:
-					await ctx.reply(view=UnexpectedError)
+					pass
 
-			await ctx.reply(view=Success(
+			await interaction.followup.send(view=Success(
 				"Success",
 				f"Synced {total} application commands across dev servers."
-			))
+			), ephemeral=True)
 		elif spec == 'clear':
-			self.bot.tree.clear_commands(guild=ctx.guild)
-			await self.bot.tree.sync(guild=ctx.guild)
+			self.bot.tree.clear_commands(guild=interaction.guild)
+			await self.bot.tree.sync(guild=interaction.guild)
 
-			await ctx.reply(view=Success(
+			await interaction.followup.send(view=Success(
 				"Success",
 				"Cleared and synced this guild's local tree commands."
-			))
+			), ephemeral=True)
 
 
 	@dev.command(
 		name='clearstm',
-		aliases=['cs'],
-		description='Recursively clear Short-Term Memory (STM) globally, for all guilds, and all users.'
+		description='Recursively clean all global, server, and member short-term memory files.'
 	)
-	async def clearstm(self, ctx: commands.Context):
-		await ctx.defer(ephemeral=False)
-		msg = await ctx.reply(view=Success(
-			"Processing...", 
-			"Recursively clearing STM across all entities."
-		))
+	@is_dev(config.dev_ids)
+	async def clearstm(self, interaction: discord.Interaction):
+		await interaction.response.defer(ephemeral=True)
 
 		global_cleared = await global_stm.clear(0)
 
@@ -401,7 +260,7 @@ class DevRoot(commands.Cog):
 			f"**Users Cleared:** {user_count}"
 		]
 
-		await msg.edit(view=Success(
+		await interaction.followup.send(view=Success(
 			"STM Successfully Cleared Everywhere",
 			*description
-		))
+		), ephemeral=True)

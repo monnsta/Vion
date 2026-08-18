@@ -177,7 +177,6 @@ domain: arctic-whales.in
 
 # APPLICATION
 timezone: Asia/Kolkata
-default_prefix: [";", "::", "//"]
 
 emoji:
   checkmark: "<:checkmark:1515554331192197150>"
@@ -248,7 +247,6 @@ logging:
 
 # CONSTRAINTS:
 # be carefull of hitting ai api token limits. don't set these too high
-max_prefix: 3 # used for user and server settings to limit the max amount of prefixes
 max_restore_file_size: 26214400 # 25 mb
 
 max_stm: 60
@@ -269,23 +267,21 @@ top_k: 45
 # DO NOT EDIT, the code heavily relies on this structure
 settings:
   # These should stay as json in config
-  global:
-    stm: []
-    ltm: []
-    previous_response: []
-
   server:
-    prefix: []
     free_will: true
     api_keys: []
     instructions: ""
 
   user:
-    prefix: []
     api_keys: []
 
 ai_data:
   # These should stay as json in config
+  glob:
+    stm: []
+    ltm: []
+    previous_response: []
+
   server:
     stm: []
     ltm: []
@@ -337,6 +333,7 @@ fallback_response: |
   from core.cog.ui_template import Fail
 
   async def main(**kwargs):
+  	return # disabling fallback message
   	message = kwargs.get("message")
   	bot = kwargs.get("bot")
 
@@ -649,6 +646,7 @@ system_instructions: |
   You can dynamically create, edit, read, load, unload, delete, sync, and batch-load server-specific cogs (Discord extensions) using `server_cog`.
   These cogs are strictly isolated and should **NEVER** leak to other servers.
   Server cogs **MUST** inherit from `GuildCog` to automatically enforce guild isolation for both text commands (`cog_check`) and application commands (`interaction_check`).
+  If adding commands ALWAYS add application commands, you do not handle prefix commands.
 
   ### Cog Data Storage (Persistent Data)
   You can store and retrieve persistent JSON data for a server's custom cog (e.g., warning systems, custom settings) using the `server` profile manager.

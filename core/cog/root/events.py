@@ -1,5 +1,4 @@
 import asyncio
-import difflib
 import logging
 import random
 import shutil
@@ -8,6 +7,7 @@ from pathlib import Path
 from typing import Any
 
 import discord
+from discord import app_commands
 from discord.ext import commands, tasks
 
 from core.lib.file import json_file
@@ -28,7 +28,10 @@ class CoreEvents(commands.Cog):
 
 	async def cog_load(self):
 		self.random_status_task = asyncio.create_task(self.random_status_change())
-		self.bot.before_invoke(self.verify_subcommand)
+		self.bot.tree.interaction_check = self.global_blacklist_validator
+		self.bot.tree.on_error = self.on_app_command_error
+		if not self.cleanup_old_data.is_running():
+			self.cleanup_old_data.start()
 
 	def cog_unload(self):
 		if self.cleanup_old_data.is_running():
@@ -38,21 +41,55 @@ class CoreEvents(commands.Cog):
 		return super().cog_unload()
 
 
-	async def verify_subcommand(self, ctx: commands.Context):
-		is_blocked, data = await blacklist.get(ctx.author.id, "user")
-
+	async def global_blacklist_validator(self, interaction: discord.Interaction) -> bool:
+		is_blocked, data = await blacklist.get(interaction.user.id, "user")
 		if is_blocked and isinstance(data, dict):
 			reason = data.get("reason", "No reason provided.")
 			expires_at = data.get("expires_at")
-
 			raise BlacklistedError(reason=reason, expires_at=expires_at)
+		return True
 
-		if isinstance(ctx.command, commands.Group):
-			if ctx.subcommand_passed is None:
-				return
+	async def on_app_command_error(self, interaction: discord.Interaction, error: app_commands.AppCommandError):
+		if isinstance(error, BlacklistedError):
+			duration_str = "Permanent"
+			if error.expires_at:
+				try:
+					dt = datetime.fromisoformat(error.expires_at)
+					duration_str = f"Expires <t:{int(dt.timestamp())}:R>"
+				except ValueError:
+					duration_str = "Temporary (The date got corrupted)"
 
-			if ctx.invoked_subcommand is None:
-				raise commands.CommandNotFound()
+			view = Fail(
+				"Access Denied",
+				"You are restricted from using this bot.\n\n",
+				f"**Reason:** {error.reason}\n",
+				f"**Duration:** {duration_str}"
+			)
+			if interaction.response.is_done():
+				await interaction.followup.send(view=view, ephemeral=True)
+			else:
+				await interaction.response.send_message(view=view, ephemeral=True)
+			return
+
+		if isinstance(error, app_commands.errors.CheckFailure):
+			view = Fail(
+				"Action Prohibited",
+				"You lack the authorization or administrator status required to trigger this utility."
+			)
+			if interaction.response.is_done():
+				await interaction.followup.send(view=view, ephemeral=True)
+			else:
+				await interaction.response.send_message(view=view, ephemeral=True)
+			return
+
+		log.error(f"Unresolved App Command Error in /{interaction.command.qualified_name if interaction.command else 'unknown'}:", exc_info=error)
+		try:
+			if interaction.response.is_done():
+				await interaction.followup.send(view=UnexpectedError, ephemeral=True)
+			else:
+				await interaction.response.send_message(view=UnexpectedError, ephemeral=True)
+		except Exception:
+			pass
 
 	async def random_status_change(self):
 		await self.bot.wait_until_ready()
@@ -271,184 +308,3 @@ class CoreEvents(commands.Cog):
 
 		log.info(f"Left guild: {guild.name} ({guild.id}). Purging data.")
 		await server.data.delete(guild.id)
-
-
-	@commands.Cog.listener()
-	async def on_command_error(self, ctx: commands.Context, error):
-		if hasattr(ctx.command, 'on_error'):
-			return
-
-		error = getattr(error, 'original', error)
-
-		if isinstance(error, BlacklistedError):
-			duration_str = "Permanent"
-			if error.expires_at:
-				try:
-					dt = datetime.fromisoformat(error.expires_at)
-					duration_str = f"Expires <t:{int(dt.timestamp())}:R>"
-				except ValueError:
-					duration_str = "Temporary (The date got corrupted)"
-
-			await ctx.reply(
-				view=Fail(
-					"Access Denied",
-					"You are restricted from using this bot.\n\n",
-					f"**Reason:** {error.reason}\n",
-					f"**Duration:** {duration_str}"
-				),
-				ephemeral=True
-			)
-			return
-
-		if isinstance(error, commands.CommandNotFound):
-			prefix_len = len(ctx.prefix) if ctx.prefix else 0
-			display_attempt = ctx.message.content[prefix_len:].strip()
-
-			def flatten_commands(node, prefix=""):
-				cmds = {}
-				if not isinstance(node, dict):
-					return cmds
-
-				for k, v in node.items():
-					path = f"{prefix} {k}".strip()
-					if hasattr(v, "mention") and isinstance(v.mention, str):
-						cmds[path] = v.mention
-					elif isinstance(v, dict):
-						cmds.update(flatten_commands(v, path))
-				return cmds
-
-			flat_cmds_map = flatten_commands(config.cmd)
-
-			attempted_base_cmd = display_attempt.split()[0] if display_attempt else ""
-			matches = difflib.get_close_matches(attempted_base_cmd, list(flat_cmds_map.keys()), n=1, cutoff=0.6)
-
-			if matches:
-				suggestion_name = matches[0]
-				suggestion_mention_str = flat_cmds_map[suggestion_name]
-
-				await ctx.reply(view=Fail(
-					"Invalid Command",
-					f"The command `{display_attempt}` does not exist. Did you mean {suggestion_mention_str}?"
-				))
-			return
-
-		if isinstance(error, commands.DisabledCommand):
-			await ctx.reply(view=Fail(
-				"Command Disabled",
-				"This command is currently disabled."
-			), ephemeral=True)
-			return
-
-		if isinstance(error, commands.MissingRequiredArgument):
-			await ctx.reply(view=Fail(
-				"Missing Argument",
-				f"You missed the `{error.param.name}` parameter. Please provide all required arguments."
-			), ephemeral=True)
-			return
-
-		if isinstance(error, commands.BadLiteralArgument):
-			literals = ", ".join(f"`{l}`" for l in error.literals)
-			await ctx.reply(view=Fail(
-				"Invalid Option",
-				f"Invalid option for `{error.param.name}`. Must be one of: {literals}"
-			), ephemeral=True)
-			return
-
-		if isinstance(error, commands.BadUnionArgument):
-			await ctx.reply(view=Fail(
-				"Invalid Input",
-				f"The argument provided for `{error.param.name}` could not be parsed. Please check the format."
-			), ephemeral=True)
-			return
-
-		if isinstance(error, (commands.UserNotFound, commands.MemberNotFound)):
-			await ctx.reply(view=Fail(
-				"User Not Found",
-				"I couldn't find that user. Please provide a valid username,ID, or mention."
-			), ephemeral=True)
-			return
-
-		if isinstance(error, commands.ChannelNotFound):
-			await ctx.reply(view=Fail(
-				"Channel Not Found",
-				"I couldn't find that channel. Please provide a valid channel name, ID, or mention."
-			), ephemeral=True)
-			return
-
-		if isinstance(error, commands.RoleNotFound):
-			await ctx.reply(view=Fail(
-				"Role Not Found",
-				"I couldn't find that role. Please provide a valid role name, ID, or mention."
-			), ephemeral=True)
-			return
-
-		if isinstance(error, commands.GuildNotFound):
-			await ctx.reply(view=Fail(
-				"Server Not Found",
-				"I couldn't find that server. Please provide a valid server ID."
-			), ephemeral=True)
-			return
-
-		if isinstance(error, commands.EmojiNotFound):
-			await ctx.reply(view=Fail(
-				"Emoji Not Found",
-				"I couldn't find that emoji. Please provide a valid emoji (custom or unicode)."
-			), ephemeral=True)
-			return
-
-		if isinstance(error, commands.BadArgument):
-			await ctx.reply(view=Fail(
-				"Invalid Argument",
-				f"There was an issue with one of the arguments you provided: {error}"
-			), ephemeral=True)
-			return
-
-		if isinstance(error, commands.NotOwner):
-			await ctx.reply(view=Fail(
-				"Restricted Command",
-				"Only the bot owner can use this command."
-			), ephemeral=True)
-			return
-
-		if isinstance(error, commands.MissingPermissions):
-			perms = ", ".join(
-				f"`{p.replace('_', ' ').title()}`"
-				for p in error.missing_permissions
-			)
-			await ctx.reply(view=Fail(
-				"Missing Permissions",
-				f"You need the following permission(s) to do that: {perms}"
-			), ephemeral=True)
-			return
-
-		if isinstance(error, commands.BotMissingPermissions):
-			perms = ", ".join([f"`{p.replace('_', ' ').title()}`" for p in error.missing_permissions])
-			await ctx.reply(view=Fail(
-				"Missing Permissions",
-				f"I don't have the permissions required to run this: {perms}"
-			), ephemeral=True)
-			return
-
-		if isinstance(error, commands.NoPrivateMessage):
-			await ctx.reply(view=Fail(
-				"Server Only",
-				"This command can only be used in a server."
-			), ephemeral=True)
-			return
-
-		if isinstance(error, commands.PrivateMessageOnly):
-			await ctx.reply(view=Fail(
-				"DM Only",
-				"This command can only be used in a private message."
-			), ephemeral=True)
-			return
-
-		if isinstance(error, commands.CheckFailure):
-			await ctx.reply(view=Fail(
-				"Missing Required Permission",
-				"You need **Administrator** permissions for that."
-			))
-			return
-
-		await ctx.reply(view=UnexpectedError, ephemeral=True)
-		log.error(f"Ignoring exception in command {ctx.command}:", exc_info=error)

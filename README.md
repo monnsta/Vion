@@ -80,7 +80,6 @@ Every server is different.
 Administrators can configure
 
 - custom instructions
-- custom prefixes
 - API keys
 - autonomous behavior (Free Will)
 - server-specific settings
