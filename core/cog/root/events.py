@@ -12,7 +12,6 @@ from discord.ext import commands, tasks
 
 from core.lib.file import json_file
 from core.wrp.profile import server, user
-from core.wrp.trackers import activity
 from core.wrp.blacklist import blacklist, BlacklistedError
 from meta import config, file, sub
 

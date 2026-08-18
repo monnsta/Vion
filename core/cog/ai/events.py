@@ -607,7 +607,7 @@ class AIEvents(commands.Cog):
 
 
 	@commands.Cog.listener()
-	async def on_typing(self, channel: discord.abc.Messageable, user_obj: discord.User | discord.Member, when: datetime):
+	async def on_typing(self, channel: discord.abc.Messageable, user_obj: discord.User | discord.Member, _):
 		guild = getattr(channel, "guild", None)
 		if guild is None or user_obj.id == config.bot.id: return
 
