@@ -38,7 +38,7 @@ class AIEvents(commands.Cog):
 		self.freewill_loop.cancel()
 		self.notif_freewill_loop.cancel()
 
-	async def do_memory_actions(self, message, manager, memory_manager, context, force_setup=False):
+	async def do_memory_actions(self, message, manager, memory_manager, context):
 		entity = None
 
 		if context == "server" and message.guild:
@@ -58,12 +58,8 @@ class AIEvents(commands.Cog):
 			log.error("Could not resolve entity.")
 			return
 
-		if context == "server":
-			if not await manager.is_setup(entity.id):
-				await manager.setup(entity)
-		elif force_setup or await manager.is_setup(entity.id):
-			if not await manager.is_setup(entity.id):
-				await manager.setup(entity)
+		if not await manager.is_setup(entity.id):
+			await manager.setup(entity)
 
 		_, current_memories = await memory_manager.get(entity.id)
 
@@ -206,8 +202,6 @@ class AIEvents(commands.Cog):
 
 					event_str = f"The channel #{channel.name} is currently very active. Jump into the chat naturally."
 					await guild_audit.add(guild.id, event_str)
-
-					await user.setup(recent_msgs[-1].author)
 
 					await ai.do_action(
 						"freewill",
@@ -361,7 +355,6 @@ class AIEvents(commands.Cog):
 
 				event_str = f"You have {len(count)} unhandled DM ping(s) from this user. Reach out and reply to them."
 
-				await user.setup(user_obj)
 				success = await ai.do_action(
 					"notification_freewill",
 					None,
@@ -402,20 +395,17 @@ class AIEvents(commands.Cog):
 				is_reply = message.reference.resolved.author.id == config.bot.id
 
 		is_direct_mention = self.bot.user in message.mentions
-		is_dm = not message.guild
-
-		is_triggered = is_reply or is_direct_mention or is_dm
 
 		if message.guild:
 			await self.do_memory_actions(message, server, guild_stm, "server")
 
 			if message.author.id != config.bot.id:
-				await self.do_memory_actions(message, user, user_stm, "user", force_setup=is_triggered)
+				await self.do_memory_actions(message, user, user_stm, "user")
 		else:
 			if message.author.id != config.bot.id:
-				await self.do_memory_actions(message, user, user_stm, "user", force_setup=is_triggered)
+				await self.do_memory_actions(message, user, user_stm, "user")
 			else:
-				await self.do_memory_actions(message, user, user_stm, "self", force_setup=is_triggered)
+				await self.do_memory_actions(message, user, user_stm, "self")
 
 		await global_stm.add(0, message)
 
@@ -437,8 +427,6 @@ class AIEvents(commands.Cog):
 					return
 
 				log.info(f"Responding to message: {msg.content if msg.content else '*empty message*'}")
-
-				await user.setup(msg.author)
 
 				success = await ai.do_action(
 					"on_message",
@@ -527,7 +515,6 @@ class AIEvents(commands.Cog):
 		free_will = guild_settings.get("free_will", True)
 
 		if consciousness.evaluate(self.bot, "on_message_delete", free_will, context_id=message.channel.id):
-			await user.setup(message.author)
 			await ai.do_action(
 				"on_message_delete",
 				message.guild,
@@ -550,7 +537,6 @@ class AIEvents(commands.Cog):
 		free_will = guild_settings.get("free_will", True)
 
 		if consciousness.evaluate(self.bot, "on_message_edit", free_will, context_id=before.channel.id):
-			await user.setup(before.author)
 			await ai.do_action(
 				"on_message_edit",
 				before.guild,
@@ -572,7 +558,6 @@ class AIEvents(commands.Cog):
 		free_will = guild_settings.get("free_will", True)
 
 		if consciousness.evaluate(self.bot, "on_reaction_add", free_will, context_id=reaction.message.channel.id):
-			await user.setup(user_obj)
 			await ai.do_action(
 				"on_reaction_add",
 				reaction.message.guild,
@@ -637,7 +622,6 @@ class AIEvents(commands.Cog):
 					context_str = f"{user_obj.name} started typing in #{channel_name} a moment ago, but gave up and didn't send anything."
 
 				if consciousness.evaluate(self.bot, "on_typing", free_will, context_id=channel_id):
-					await user.setup(user_obj)
 					await ai.do_action(
 						"on_typing",
 						guild,
@@ -668,7 +652,6 @@ class AIEvents(commands.Cog):
 		free_will = guild_settings.get("free_will", True)
 
 		if consciousness.evaluate(self.bot, "on_member_join", free_will, context_id=member.guild.id):
-			await user.setup(member)
 			await ai.do_action(
 				"on_member_join",
 				member.guild,
@@ -796,7 +779,6 @@ class AIEvents(commands.Cog):
 				free_will = guild_settings.get("free_will", True)
 
 				if consciousness.evaluate(self.bot, "on_voice_state_update", free_will, context_id=after.channel.id):
-					await user.setup(member)
 					await ai.do_action(
 						"on_voice_state_update",
 						member.guild,
