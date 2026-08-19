@@ -75,7 +75,7 @@ if __name__ == "__main__":
 			sys.exit(10)
 
 	except discord.LoginFailure:
-		log.critical("Invalid bot token. Check config.secrets.discord_api_key")
+		log.critical("Invalid bot token. Check config.secrets.discord")
 	except discord.PrivilegedIntentsRequired:
 		log.critical("Privileged intents not enabled in Developer Portal")
 	except discord.HTTPException as e:

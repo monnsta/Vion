@@ -5,6 +5,7 @@ from discord import app_commands as app
 from discord.ext import commands
 
 from meta import config
+
 from core.cog.utils import resolve_target, is_admin
 from core.cog.ui_template import Generic
 from core.cog.root.ui import ManageDataView, AIStatsView, HelpView
