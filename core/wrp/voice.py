@@ -272,7 +272,7 @@ class VoiceUtils:
 		)
 		return await transcriber.call(item)
 
-	async def tts(self, text: str, voice: GeminiVoice = GeminiVoice.KORE) -> io.BytesIO | None:
+	async def tts(self, text: str, voice: GeminiVoice = GeminiVoice.CHARON) -> io.BytesIO | None:
 		if not text or not text.strip():
 			log.warning("VoiceUtils.tts() received empty text.")
 			return None

@@ -720,7 +720,7 @@ system_instructions: |
   ---
 
   ## 4.5. Voice Utility Module:
-  You can fully manage voice channels, bot voice states, and member voice states using the `voice` module.
+  You can fully manage voice channels, bot voice states, member voice states, and text-to-speech using the `voice` module.
 
   ### Method Tools Reference
   * `await voice.join(channel: discord.VoiceChannel)` -> `discord.VoiceClient | None`: Joins or moves to the specified VC.
@@ -738,10 +738,21 @@ system_instructions: |
   * `voice.start_record(guild: discord.Guild)` -> `bool`: Starts recording audio from all users in the bot's active VC.
   * `voice.stop_record(guild: discord.Guild)` -> `dict[int, io.BytesIO] | None`: Stops the active recording and returns a mapping of user IDs to WAV audio buffers.
   * `await voice.transcribe(item: Any, **config_kwargs: Any)` -> `tuple[bool, str]`: Transcribes an audio buffer or supported audio input using the configured speech-to-text service. Returns whether transcription succeeded and the resulting transcript.
+  * `await voice.tts(text: str, voice: GeminiVoice = GeminiVoice.CHARON)` -> `io.BytesIO | None`: Generates WAV audio from text using Gemini TTS. Returns an `io.BytesIO` audio buffer (`tts.wav`) or `None` if it fails.
+
+  ### Voices (`GeminiVoice`)
+  To specify a voice for `voice.tts()`, import `GeminiVoice` from `core.wrp.voice` and pass it as the `voice` parameter.
+  Available voices:
+  * `GeminiVoice.ZEPHYR`, `GeminiVoice.PUCK`, `GeminiVoice.CHARON` (default), `GeminiVoice.KORE`, `GeminiVoice.FENRIR`
+  * `GeminiVoice.LEDA`, `GeminiVoice.ORUS`, `GeminiVoice.AOEDE`, `GeminiVoice.CALLIRRHOE`, `GeminiVoice.AUTONOE`
+  * `GeminiVoice.ENCELADUS`, `GeminiVoice.IAPETUS`, `GeminiVoice.UMBRIEL`, `GeminiVoice.ALGIEBA`, `GeminiVoice.DESPINA`
+  * `GeminiVoice.ERINOME`, `GeminiVoice.ALGENIB`, `GeminiVoice.RASALGETHI`, `GeminiVoice.LAOMEDEIA`, `GeminiVoice.ACHERNAR`
+  * `GeminiVoice.ALNILAM`, `GeminiVoice.SCHEDAR`, `GeminiVoice.GACRUX`, `GeminiVoice.PULCHERRIMA`, `GeminiVoice.ACHIRD`
+  * `GeminiVoice.ZUBENELGENUBI`, `GeminiVoice.VINDEMIATRIX`, `GeminiVoice.SADACHBIA`, `GeminiVoice.SADALTAGER`, `GeminiVoice.SULAFAT`
 
   ### Usage Example
   ```python
-  from core.wrp.voice import voice
+  from core.wrp.voice import voice, GeminiVoice
 
   async def main(message, bot, self_caller):
 
@@ -778,9 +789,22 @@ system_instructions: |
 
   		# 6. Switch modes to play something back: Unmute the bot, and deafen it so it doesn't listen to itself
   		await voice.set_bot_status(message.guild, mute=False, deafen=True)
-  		await message.channel.send("Now playing a song...")
+
+  		# 7. Generate TTS audio buffer using a custom Gemini voice
+  		tts_file = await voice.tts("Hello! This is a test using the Aoede voice.", voice=GeminiVoice.AOEDE)
+  		if tts_file:
+  			# Play the generated TTS buffer in the voice channel
+  			await voice.play(message.guild, tts_file)
+  			await asyncio.sleep(5)
+
+  		# You can also send this as a voice message:
+  		if tts_file:
+  			await message.channel.send(file=discord.File(tts_file, filename="voice_msg.wav"))
+  		else:
+  			await message.channel.send("sorry, can't record a voice right now, i'm in a meeting")
 
   		# Play a YouTube link
+  		await message.channel.send("Now playing a song...")
   		await voice.play(message.guild, "https://www.youtube.com/watch?v=dQw4w9WgXcQ", volume=0.5)
 
   		# Wait a bit while playing, then leave

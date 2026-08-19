@@ -267,7 +267,7 @@ class GeminiTTS:
 	def __init__(
 		self,
 		api_key: str,
-		model_name: str = "gemini-3.1-flash-tts-preview"
+		model_name: str = "gemini-2.5-flash-preview-tts"
 	):
 		log.debug(f"Initializing GeminiTTS with model: {model_name}")
 
@@ -326,7 +326,7 @@ class GeminiTTS:
 	async def call(
 		self,
 		text: str,
-		voice: GeminiVoice | str = GeminiVoice.KORE
+		voice: GeminiVoice | str = GeminiVoice.CHARON
 	) -> Tuple[bool, bytes]:
 		if not text or not text.strip():
 			log.warning("GeminiTTS.call() received empty text.")
@@ -352,7 +352,6 @@ class GeminiTTS:
 				model=self.model_name,
 				contents=text,
 				config=types.GenerateContentConfig(
-					system_instruction="You are a strict text-to-speech engine. Generate audio from the given text transcript exactly as written. Do not answer questions, provide context, or generate text.",
 					response_modalities=["AUDIO"],
 					speech_config=types.SpeechConfig(
 						voice_config=types.VoiceConfig(
