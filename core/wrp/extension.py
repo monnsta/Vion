@@ -71,6 +71,20 @@ class ServerCogManager:
 		rel_path = Path(cog_path).relative_to(Path.cwd())
 		return str(rel_path.with_suffix('')).replace('/', '.').replace('\\', '.')
 
+	def _isolate_cog_commands(self, guild_id: int, bot: commands.Bot, module: str) -> None:
+		guild_obj = discord.Object(id=guild_id)
+
+		for _, cog in bot.cogs.items():
+			if getattr(cog, '__module__', '') == module:
+				for app_cmd in cog.get_app_commands():
+					bot.tree.add_command(app_cmd, guild=guild_obj, override=True)
+					bot.tree.remove_command(app_cmd.name)  # Remove from global tree
+
+				for cmd in cog.get_commands():
+					if isinstance(cmd, (commands.HybridCommand, commands.HybridGroup)) and cmd.app_command:
+						bot.tree.add_command(cmd.app_command, guild=guild_obj, override=True)
+						bot.tree.remove_command(cmd.app_command.name)
+
 	async def edit(self, guild_id: int, bot: commands.Bot, code: str) -> Tuple[bool, str]:
 		path = file.server.cog(str(guild_id))
 
@@ -110,10 +124,12 @@ class ServerCogManager:
 		module = self._get_module_name(guild_id)
 		try:
 			await bot.load_extension(module)
+			self._isolate_cog_commands(guild_id, bot, module)
 			return True, "Cog loaded successfully."
 		except commands.ExtensionAlreadyLoaded:
 			try:
 				await bot.reload_extension(module)
+				self._isolate_cog_commands(guild_id, bot, module)
 				return True, "Cog reloaded successfully."
 			except commands.ExtensionFailed as e:
 				log.error(f"Failed to reload server cog {guild_id}: {e.original}")
