@@ -27,10 +27,10 @@ class AvatarRPSView(TimeoutView):
 			"### Avatar RPS\n"
 			"Choose your element!\n\n"
 			"**Matchup Rules:**\n"
-			f"{emoji.avatar_watertribe} **Water** beats {emoji.avatar_firenation} Fire & {emoji.avatar_earthkingdom} Earth\n"
-			f"{emoji.avatar_earthkingdom} **Earth** beats {emoji.avatar_firenation} Fire & {emoji.avatar_airnomad} Air\n"
-			f"{emoji.avatar_firenation} **Fire** beats {emoji.avatar_airnomad} Air\n"
-			f"{emoji.avatar_airnomad} **Air** beats {emoji.avatar_watertribe} Water"
+			f"**Water** beats Fire & Earth\n"
+			f"**Earth** beats Fire & Air\n"
+			f"**Fire** beats Air\n"
+			f"**Air** beats Water"
 		)
 		self.container.add_item(ui.TextDisplay(rules_text))
 

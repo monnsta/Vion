@@ -121,7 +121,7 @@ class HelpView(TimeoutView):
 				f"  - **Air** over Water\n\n"
 				"### Classic & Advanced Tic-Tac-Toe:\n"
 				f"* Launch via {config.cmd.fun.tictactoe}. Select from classic 3x3 grids or a complex 6x7 board. "
-				"Challenge other members, or test your skills against our custom minimax bot."
+				"Challenge other members, or test your skills against our custom minimax bot (just select vion as opponent or any other bot)."
 			)
 			case "data": return (
 				"# Data Security & Statistics\n"
