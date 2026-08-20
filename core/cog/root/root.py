@@ -33,7 +33,7 @@ class Root(commands.Cog):
 		await interaction.response.send_message(view=Generic(
 			"## Important Links",
 			None,
-			f"[Bot Invite]( <{config.bot.invite}> ) • [Support Server]( <{config.dev_servers[0][2]}> )",
+			f"[Bot Invite]( <{config.bot.invite}> ) • [Support Server]( <{config.dev_servers[0].invite}> )",
 			f"[Terms]( <https://{config.domain}/terms> ) • [Privacy]( <https://{config.domain}/privacy> )"
 		), ephemeral=True)
 

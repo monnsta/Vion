@@ -86,7 +86,7 @@ class Code:
 		log.info(f"Starting execution for ID: {self.execution_id}")
 
 		user_module = types.ModuleType(self.execution_id)
-		safe_builtins = dict(config.sandbox.allowed_builtins)
+		safe_builtins = config.sandbox.allowed_builtins.copy()
 		setattr(user_module, "__builtins__", safe_builtins)
 
 		try:
