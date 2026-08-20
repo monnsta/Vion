@@ -1,4 +1,3 @@
-import random
 from typing import cast
 
 import discord
@@ -36,10 +35,10 @@ class HelpView(TimeoutView):
 		super().__init__(timeout=300.0)
 		self.user = user
 		self.current_category = "overview"
-		
+
 		self.select = HelpSelect()
 		self.select.callback = self.on_select_category
-		
+
 		self._build_container()
 
 	async def interaction_check(self, interaction: discord.Interaction) -> bool:
@@ -255,15 +254,8 @@ class ManageDataView(TimeoutView):
 				result if isinstance(result, str) else "Failed to load data. Please report this."
 			), ephemeral=True)
 
-		try:
-			file = discord.File(result, filename=f"{self.data_type}_{self.target_id}_data.zip")
-			await self.user.send(file=file)
-			await interaction.followup.send(view=Success("I've sent your data export to your DMs."), ephemeral=True)
-		except discord.Forbidden:
-			await interaction.followup.send(view=Fail(
-				"User Error",
-				"I couldn't send you a DM. Please open your privacy settings."
-			), ephemeral=True)
+		file = discord.File(result, filename=f"{self.data_type}_{self.target_id}_data.zip")
+		await interaction.followup.send(file=file, ephemeral=True)
 
 	async def restore_data(self, interaction: discord.Interaction):
 		await interaction.response.send_modal(RestoreDataModal(self.manager, self.target_id))
@@ -272,14 +264,13 @@ class ManageDataView(TimeoutView):
 		if not await self.manager.data.exists(self.target_id):
 			return await interaction.response.send_message(view=Fail("We couldn't find any data to delete."), ephemeral=True)
 
-		if self.data_type == 'user':
-			question = "Are you sure you want to permanently delete your data?\nThe AI will forget everything about you. This process cannot be undone."
-		else:
-			question = "Are you sure you want to permanently delete your data?\nThe AI will forget everything about this server. This process cannot be undone."
+		question = (
+			f"Are you sure you want to permanently delete your {'' if self.data_type == 'user' else 'server'} data?\n"
+			f"The AI will forget everything about {'you' if self.data_type == 'user' else 'this server'}.\n"
+			f"{emoji.warn} **This process cannot be undone.**"
+		)
 
 		cancel = "Action Aborted"
-		if random.random() < 0.5:
-			cancel += "\n-# I promise you we don't read your data when we are bored"
 
 		view = Confirmation(
 			question,
@@ -354,7 +345,7 @@ class AIStatsView(Paginated):
 	async def start(self, interaction: discord.Interaction) -> None:
 		await self._fetch_and_update()
 		self.create_layout()
-		
+
 		if self.file:
 			await interaction.response.send_message(view=self, file=self.file)
 		else:
@@ -469,16 +460,16 @@ class AIStatsView(Paginated):
 		self.clear_items()
 		if self.current_target == 'leaderboard':
 			super().create_layout()
-			
+
 			container = cast(ui.Container, self.children[0])
 			container.add_item(ui.ActionRow(self.target_select))
 			container.add_item(ui.ActionRow(self.lb_target_select))
-			
+
 			if self.lb_target == 'users':
 				container.add_item(ui.ActionRow(self.lb_scope_select))
 		else:
 			container_elements: list[ui.TextDisplay | ui.MediaGallery] = [ui.TextDisplay(self.non_lb_content)]
-			
+
 			if self.file:
 				container_elements.append(
 					ui.MediaGallery(discord.MediaGalleryItem(media=self.file))
