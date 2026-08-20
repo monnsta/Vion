@@ -293,7 +293,7 @@ class CoreEvents(commands.Cog):
 			log.info(f"Setup performed for new guild {guild.id}.")
 			view = Generic(
 				"## Ding Dong.",
-				f"Use {config.cmd.help}, or your server's organic matter might achieve peak frustration with me.",
+				f"Use {config.cmd.get('help', '/help')}, or your server's organic matter might achieve peak frustration with me.",
 				None,
 				legal
 			)

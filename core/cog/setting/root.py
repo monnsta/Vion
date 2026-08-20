@@ -56,7 +56,7 @@ class SettingRoot(commands.Cog):
 			)
 		else:
 			lines.append(f"# Settings for {interaction.user.display_name}")
-			lines.append(f"**API Keys:** *Hidden for privacy.* Use {config.cmd.setting.gemini_key.list} to view them.")
+		lines.append(f"**API Keys:** *Hidden for privacy.* Use {config.cmd.get('setting.gemini_key.list')} to view them.")
 
 		await interaction.response.send_message(view=Generic(*lines), ephemeral=True)
 
