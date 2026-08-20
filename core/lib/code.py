@@ -6,9 +6,10 @@ import re
 import html
 import traceback
 import types
+import enum
 from typing import Any
+from dataclasses import dataclass
 
-from core.lib.dataclass import Data, Repr
 from core.lib.utils import create_id
 from core.lib.logging import code_log_stream
 from meta import config
@@ -17,51 +18,63 @@ from meta import config
 log = logging.getLogger(__name__)
 
 
-ANSI_ESCAPE = re.compile(r'\x1B(?:[@-Z\\-_]|\[[0-?]*[ -/]*[@-~])')
-
-status = Data(
-	PENDING   = Repr("PENDING", 1),
-	RUNNING   = Repr("RUNNING", 2),
-	COMPLETED = Repr("COMPLETED", 3),
-	FAILED    = Repr("FAILED", 4),
-	CANCELLED = Repr("CANCELLED", 5),
-	TIMED_OUT = Repr("TIMED_OUT", 6)
-)
+ANSI_ESCAPE = re.compile(r'\\x1B(?:[@-Z\\-_]|\\[[0-?]*[ -/]*[@-~])')
 
 
-def extract(text: str) -> Data:
-	code_match = re.search(r"<code>\s*(.*?)\s*</code>", text, re.DOTALL)
-	note_match = re.search(r"<note>\s*(.*?)\s*</note>", text, re.DOTALL)
+class status(enum.Enum):
+	PENDING   = "PENDING"
+	RUNNING   = "RUNNING"
+	COMPLETED = "COMPLETED"
+	FAILED    = "FAILED"
+	CANCELLED = "CANCELLED"
+	TIMED_OUT = "TIMED_OUT"
+
+	def __str__(self) -> str:
+		return self.value
+
+
+@dataclass
+class ExecutionResult:
+	status: status = status.PENDING
+	logs: str = ""
+	result: Any = None
+	error: str | None = None
+
+
+@dataclass
+class ExtractedCode:
+	code: str
+	note: str
+
+
+def extract(text: str) -> ExtractedCode:
+	code_match = re.search(r"<code>\\s*(.*?)\\s*</code>", text, re.DOTALL)
+	note_match = re.search(r"<note>\\s*(.*?)\\s*</note>", text, re.DOTALL)
 
 	code = html.unescape(code_match.group(1).strip()) if code_match else ""
 	note = html.unescape(note_match.group(1).strip()) if note_match else ""
 
 	log.debug(f"Extracted Code:\n{code}\n\nExtracted Note:\n{note}")
 
-	return Data(code=code, note=note)
+	return ExtractedCode(code=code, note=note)
 
 
 class Code:
-	tasks = Data()
+	tasks: dict[str, 'Code'] = {}
 
 	def __init__(self, code_str: str):
 		self.code_str = code_str
 		self.execution_id = f"EI{str(create_id())}"
-		self.data = Data(
-			status = status.PENDING,
-			logs = "",
-			result = None,
-			error = None
-		)
+		self.data = ExecutionResult()
 		self._task: asyncio.Task | None = None
 		self._log_buf = io.StringIO()
 
-		Code.tasks.set(self.execution_id, self)
+		Code.tasks[self.execution_id] = self
 		log.debug(f"Code task initialized: {self.execution_id}")
 
 	@staticmethod
 	def get_task(execution_id: str) -> 'Code | None':
-		return getattr(Code.tasks, execution_id, None)
+		return Code.tasks.get(execution_id, None)
 
 	async def execute(self, timeout: float | None = None, **context_vars: Any) -> asyncio.Task:
 		if self._task and not self._task.done():
@@ -145,14 +158,14 @@ class Code:
 
 		return True, "Task stopped successfully."
 
-	async def wait(self) -> Data:
+	async def wait(self) -> ExecutionResult:
 		if self._task and not self._task.done():
 			log.debug(f"Waiting for task ID: {self.execution_id}")
 			await self._task
 		self._sync_data()
 		return self.data
 
-	def get_output(self) -> Data:
+	def get_output(self) -> ExecutionResult:
 		self._sync_data()
 		return self.data
 
@@ -162,12 +175,7 @@ class Code:
 
 	def _reset_state(self):
 		log.debug(f"Resetting state for ID: {self.execution_id}")
-		self.data = Data(
-			status = status.PENDING,
-			logs = "",
-			result = None,
-			error = None
-		)
+		self.data = ExecutionResult()
 		self._log_buf.seek(0)
 		self._log_buf.truncate(0)
 

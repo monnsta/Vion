@@ -6,11 +6,27 @@ import discord
 from discord.ext import commands
 
 from core.lib.file import text_file
-from core.lib.dataclass import Data, Repr
 from meta import config, sub, file
 
 
 log = logging.getLogger(__name__)
+
+
+class CommandInfo:
+	def __init__(self, id, root_id, name, aliases, mention, description, parameters):
+		self.id = id
+		self.root_id = root_id
+		self.name = name
+		self.aliases = aliases
+		self.mention = mention
+		self.description = description
+		self.parameters = parameters
+
+	def __str__(self) -> str:
+		return self.mention
+
+	def __repr__(self) -> str:
+		return self.mention
 
 
 def map_command_mentions(synced_commands: List[discord.app_commands.AppCommand], bot: commands.Bot):
@@ -35,7 +51,7 @@ def map_command_mentions(synced_commands: List[discord.app_commands.AppCommand],
 			if hasattr(command, "name_localizations") and command.name_localizations:
 				aliases.extend(command.name_localizations.values())
 
-			command_data = Data(
+			command_data = CommandInfo(
 				id=getattr(command, "id", root_id),
 				root_id=root_id,
 				name=name,
@@ -45,8 +61,7 @@ def map_command_mentions(synced_commands: List[discord.app_commands.AppCommand],
 				parameters=options
 			)
 
-			repr_obj = Repr(mention_name, command_data)
-			config.cmd.set(var_name, repr_obj)
+			config.cmd.set(var_name, command_data)
 
 	for cmd in synced_commands:
 		walk(cmd)
@@ -64,6 +79,7 @@ class GuildCog(commands.Cog):
 
 	async def interaction_check(self, interaction: discord.Interaction) -> bool:
 		return interaction.guild_id == self.guild_id
+
 
 class ServerCogManager:
 	def _get_module_name(self, guild_id: int) -> str:
