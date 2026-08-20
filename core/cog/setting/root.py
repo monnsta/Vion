@@ -32,12 +32,14 @@ class SettingRoot(commands.Cog):
 
 	@setting.command(
 		name='view',
-		description='View all your personal settings or the current server\'s'
+		description='View the current server\'s settings.'
 	)
-	@app.describe(
-		type='Whether to show your personal settings or server settings'
-	)
-	async def view(self, interaction: discord.Interaction, type: Literal['server', 'user']):
+	# @app.describe(
+	# 	type='Whether to show your personal settings or server settings'
+	# )
+	async def view(self, interaction: discord.Interaction):
+		type: Literal['server', 'user'] = 'server'
+
 		manager, target_id = await resolve_target(interaction, type)
 		if not manager:
 			return
@@ -54,8 +56,8 @@ class SettingRoot(commands.Cog):
 				f"```\n{em(inst if inst else 'None', chars='`')}\n```\n"
 				f"{f'{emoji.info} The backticks are escaped. Your real configuration does not contain them.' if '`' in inst else ''}"
 			)
-		else:
-			lines.append(f"# Settings for {interaction.user.display_name}")
+		# else:
+		# 	lines.append(f"# Settings for {interaction.user.display_name}")
 		lines.append(f"**API Keys:** *Hidden for privacy.* Use {config.cmd.get('setting.gemini_key.list')} to view them.")
 
 		await interaction.response.send_message(view=Generic(*lines), ephemeral=True)
