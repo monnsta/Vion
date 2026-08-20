@@ -82,10 +82,25 @@ class Root(commands.Cog):
 	)
 	@app.describe(
 		target='The scope of the stats you want to view initially.',
-		user='Optional user to check stats for.'
+		user='Optional user to check stats for.',
+		leaderboard_target='Select whether to view top users or top servers (if target is leaderboard).',
+		leaderboard_scope='Select whether to view global or local rankings (if targeting users).'
 	)
-	async def stats(self, interaction: discord.Interaction, target: Literal['global', 'server', 'user', 'leaderboard'] = 'global', user: discord.User | None = None):
-		view = AIStatsView(interaction, default_target=target, user_target=user)
+	async def stats(
+		self, 
+		interaction: discord.Interaction, 
+		target: Literal['global', 'server', 'user', 'leaderboard'] = 'global', 
+		user: discord.User | None = None,
+		leaderboard_target: Literal['servers', 'users'] = 'servers',
+		leaderboard_scope: Literal['global', 'local'] = 'global'
+	):
+		view = AIStatsView(
+			interaction, 
+			default_target=target, 
+			user_target=user, 
+			lb_target=leaderboard_target, 
+			lb_scope=leaderboard_scope
+		)
 		await view.start(interaction)
 
 

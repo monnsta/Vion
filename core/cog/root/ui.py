@@ -7,7 +7,7 @@ from discord import ui
 from core.wrp.trackers import activity
 from meta import config, emoji
 
-from core.cog.ui_template import TimeoutView, Fail, Success, Confirmation, global_interaction_check
+from core.cog.ui_template import TimeoutView, Fail, Success, Confirmation, global_interaction_check, Paginated
 from core.cog.root.utils import generate_timeline_graph
 
 
@@ -295,14 +295,16 @@ class ManageDataView(TimeoutView):
 			await self.manager.data.delete_permanent(self.target_id)
 
 
-class AIStatsView(TimeoutView):
-	def __init__(self, interaction: discord.Interaction, default_target: str, user_target: discord.User | discord.Member | None = None):
-		super().__init__()
+class AIStatsView(Paginated):
+	def __init__(self, interaction: discord.Interaction, default_target: str, user_target: discord.User | discord.Member | None = None, lb_target: str = 'servers', lb_scope: str = 'global'):
 		self.interaction = interaction
 		self.current_target = default_target
 		self.user_target = user_target
-		self.user = interaction.user
 		self.current_timeframe = "1"
+		self.lb_target = lb_target
+		self.lb_scope = lb_scope
+		self.file = None
+		self.non_lb_content = ""
 
 		self.target_select = ui.Select(
 			placeholder="Select scope to view stats...",
@@ -326,78 +328,127 @@ class AIStatsView(TimeoutView):
 		)
 		self.timeframe_select.callback = self.change_timeframe
 
+		self.lb_target_select = ui.Select(
+			placeholder="Select leaderboard type...",
+			options=[
+				discord.SelectOption(label="Servers", value="servers", description="Top communities"),
+				discord.SelectOption(label="Users", value="users", description="Most active users")
+			]
+		)
+		self.lb_target_select.callback = self.change_lb_target
+
+		self.lb_scope_select = ui.Select(
+			placeholder="Select user scope...",
+			options=[
+				discord.SelectOption(label="Global", value="global", description="Across all servers"),
+				discord.SelectOption(label="Local", value="local", description="Only in this server")
+			]
+		)
+		self.lb_scope_select.callback = self.change_lb_scope
+
 		self.refresh_btn = ui.Button(emoji=emoji.refresh, style=discord.ButtonStyle.secondary)
 		self.refresh_btn.callback = self.refresh_stats
 
-	async def interaction_check(self, interaction: discord.Interaction) -> bool:
-		return await global_interaction_check(interaction, self.user)
+		super().__init__(header="", items=[], user=interaction.user, accent_color=0x00E9FE, per_page=10, jump_threshold=8, timeout=180.0)
 
-	async def _generate_content(self) -> tuple[ui.Container, discord.File | None]:
-		file = None
-		if self.current_timeframe == "all":
-			timeframe_days = None
-		elif self.current_timeframe == "1":
-			timeframe_days = 1
+	async def start(self, interaction: discord.Interaction) -> None:
+		await self._fetch_and_update()
+		self.create_layout()
+		
+		if self.file:
+			await interaction.response.send_message(view=self, file=self.file)
 		else:
-			timeframe_days = int(self.current_timeframe)
+			await interaction.response.send_message(view=self)
+		self.message = await interaction.original_response()
 
-		bot = self.interaction.client
+	async def _fetch_and_update(self):
+		for opt in self.target_select.options:
+			opt.default = (opt.value == self.current_target)
+		for opt in self.timeframe_select.options:
+			opt.default = (opt.value == self.current_timeframe)
+		for opt in self.lb_target_select.options:
+			opt.default = (opt.value == self.lb_target)
+		for opt in self.lb_scope_select.options:
+			opt.default = (opt.value == self.lb_scope)
+
+		self.file = None
 
 		if self.current_target == 'leaderboard':
-			top_guilds = await activity.get_leaderboard('guild', 5)
-			top_users = await activity.get_leaderboard('user', 5)
+			if self.lb_target == 'servers':
+				top_guilds = await activity.get_leaderboard('guild', 100)
+				guild_lines = []
+				bot = self.interaction.client
+				for idx, (g_id, count) in enumerate(top_guilds, 1):
+					guild_obj = bot.get_guild(int(g_id))
+					name = guild_obj.name if guild_obj else f"Server {g_id}"
+					guild_lines.append(f"{idx}. **{name}**\n-# `{count:,}` interactions")
+				self.header = "## AI Leaderboard\nTop performing communities across the network."
+				self.raw_items = guild_lines if guild_lines else ["*No data yet*"]
+			else:
+				if self.lb_scope == 'local' and self.interaction.guild:
+					top_users = await activity.get_leaderboard('user', 2000)
+					user_lines = []
+					idx = 1
+					for u_id, count in top_users:
+						member = self.interaction.guild.get_member(int(u_id))
+						if member:
+							user_lines.append(f"{idx}. **{member.display_name}**\n-# `{count:,}` interactions")
+							idx += 1
+							if idx > 100: break
+					self.header = f"## AI Leaderboard\nMost active users in **{self.interaction.guild.name}**."
+					self.raw_items = user_lines if user_lines else ["*No data yet*"]
+				else:
+					top_users = await activity.get_leaderboard('user', 100)
+					user_lines = []
+					bot = self.interaction.client
+					for idx, (u_id, count) in enumerate(top_users, 1):
+						user_obj = bot.get_user(int(u_id))
+						name = user_obj.display_name if user_obj else f"User {u_id}"
+						user_lines.append(f"{idx}. **{name}**\n-# `{count:,}` interactions")
+					self.header = "## AI Leaderboard\nMost active users across the network."
+					self.raw_items = user_lines if user_lines else ["*No data yet*"]
 
-			guild_lines = []
-			for idx, (g_id, count) in enumerate(top_guilds, 1):
-				guild_obj = bot.get_guild(int(g_id))
-				name = guild_obj.name if guild_obj else f"Server {g_id}"
-				guild_lines.append(f"{idx}. **{name}**\n-# `{count:,}` interactions")
-
-			user_lines = []
-			for idx, (u_id, count) in enumerate(top_users, 1):
-				user_obj = bot.get_user(int(u_id))
-				name = user_obj.display_name if user_obj else f"User {u_id}"
-				user_lines.append(f"{idx}. **{name}**\n-# `{count:,}` interactions")
-
-			content = (
-				"## AI Leaderboard\n"
-				"Top performing communities and most active users across the network.\n\n"
-				"### Top Servers\n" + ("\n".join(guild_lines) if guild_lines else "*No data yet*") + "\n\n"
-				"### Top Users\n" + ("\n".join(user_lines) if user_lines else "*No data yet*")
-			)
+			self.pages = self._calculate_pages()
+			self.total_pages = len(self.pages)
+			self.current_page = 0
 		else:
+			if self.current_timeframe == "all":
+				timeframe_days = None
+			elif self.current_timeframe == "1":
+				timeframe_days = 1
+			else:
+				timeframe_days = int(self.current_timeframe)
+
 			if self.current_target == 'global':
 				stats = await activity.get_stats('global')
 				interactions = stats.get('interactions', 0)
 				timeline = stats.get('timeline', {})
-				content = (
+				self.non_lb_content = (
 					"## Global AI Statistics\n"
 					"Server-wide usage overview.\n\n"
 					"> **Total Interactions**\n"
 					f"> ## `{interactions:,}`"
 				)
 				buf = generate_timeline_graph(timeline, "Global Interactions Over Time", timeframe_days)
-				file = discord.File(buf, filename="chart.png")
+				self.file = discord.File(buf, filename="chart.png")
 
 			elif self.current_target == 'server':
 				if not self.interaction.guild:
-					container = ui.Container(ui.TextDisplay("### Server Stats\nCannot fetch server stats in DMs."), accent_color=0xFE0065)
-					container.add_item(ui.ActionRow(self.target_select))
-					container.add_item(ui.ActionRow(self.refresh_btn))
-					return container, None
-
+					self.non_lb_content = "### Server Stats\nCannot fetch server stats in DMs."
+					self.file = None
+					return
 				stats = await activity.get_stats('guild', self.interaction.guild.id)
 				interactions = stats.get('interactions', 0)
 				rank = stats.get('rank', 0)
 				timeline = stats.get('timeline', {})
-				content = (
+				self.non_lb_content = (
 					f"## Server Statistics: {self.interaction.guild.name}\n"
 					"Current server standing and activity metrics.\n\n"
 					"> **Total Interactions** · **Leaderboard Rank**\n"
 					f"> ## `{interactions:,}` `#{rank:,}`"
 				)
 				buf = generate_timeline_graph(timeline, "Server Interactions Over Time", timeframe_days)
-				file = discord.File(buf, filename="chart.png")
+				self.file = discord.File(buf, filename="chart.png")
 
 			else:
 				target = self.user_target or self.interaction.user
@@ -405,73 +456,68 @@ class AIStatsView(TimeoutView):
 				interactions = stats.get('interactions', 0)
 				rank = stats.get('rank', 0)
 				timeline = stats.get('timeline', {})
-				content = (
+				self.non_lb_content = (
 					f"## User Statistics: {target.display_name}\n"
 					"Individual activity metrics and global standing.\n\n"
 					f"> **Total Interactions** · **Leaderboard Rank**\n"
 					f"> ## `{interactions:,}` `#{rank:,}`"
 				)
 				buf = generate_timeline_graph(timeline, "User Interactions Over Time", timeframe_days)
-				file = discord.File(buf, filename="chart.png")
+				self.file = discord.File(buf, filename="chart.png")
 
-		for opt in self.target_select.options:
-			opt.default = (opt.value == self.current_target)
-
-		for opt in self.timeframe_select.options:
-			opt.default = (opt.value == self.current_timeframe)
-
-		container_elements: list[ui.TextDisplay | ui.MediaGallery] = [ui.TextDisplay(content)]
-
-		if file:
-			container_elements.append(
-				discord.ui.MediaGallery(
-					discord.MediaGalleryItem(media=file)
-				)
-			)
-
-		container = ui.Container(*container_elements, accent_color=0x00E9FE)
-		container.add_item(ui.ActionRow(self.target_select))
-		if self.current_target != 'leaderboard':
-			container.add_item(ui.ActionRow(self.timeframe_select))
-		container.add_item(ui.ActionRow(self.refresh_btn))
-
-		return container, file
-
-	async def start(self, interaction: discord.Interaction) -> None:
-		container, file = await self._generate_content()
+	def create_layout(self) -> None:
 		self.clear_items()
-		self.add_item(container)
-
-		if file:
-			await interaction.response.send_message(view=self, file=file)
+		if self.current_target == 'leaderboard':
+			super().create_layout()
+			
+			container = cast(ui.Container, self.children[0])
+			container.add_item(ui.ActionRow(self.target_select))
+			container.add_item(ui.ActionRow(self.lb_target_select))
+			
+			if self.lb_target == 'users':
+				container.add_item(ui.ActionRow(self.lb_scope_select))
 		else:
-			await interaction.response.send_message(view=self)
-		self.message = await interaction.original_response()
+			container_elements: list[ui.TextDisplay | ui.MediaGallery] = [ui.TextDisplay(self.non_lb_content)]
+			
+			if self.file:
+				container_elements.append(
+					ui.MediaGallery(discord.MediaGalleryItem(media=self.file))
+				)
+
+			container = ui.Container(*container_elements, accent_color=self.accent_color)
+			container.add_item(ui.ActionRow(self.target_select))
+			container.add_item(ui.ActionRow(self.timeframe_select))
+			container.add_item(ui.ActionRow(self.refresh_btn))
+			self.add_item(container)
 
 	async def change_target(self, interaction: discord.Interaction):
 		self.current_target = self.target_select.values[0]
-
-		container, file = await self._generate_content()
-		self.clear_items()
-		self.add_item(container)
-
-		attachments = [file] if file else []
+		await self._fetch_and_update()
+		self.create_layout()
+		attachments = [self.file] if self.file else []
 		await interaction.response.edit_message(view=self, attachments=attachments)
 
 	async def change_timeframe(self, interaction: discord.Interaction):
 		self.current_timeframe = self.timeframe_select.values[0]
-
-		container, file = await self._generate_content()
-		self.clear_items()
-		self.add_item(container)
-
-		attachments = [file] if file else []
+		await self._fetch_and_update()
+		self.create_layout()
+		attachments = [self.file] if self.file else []
 		await interaction.response.edit_message(view=self, attachments=attachments)
 
-	async def refresh_stats(self, interaction: discord.Interaction):
-		container, file = await self._generate_content()
-		self.clear_items()
-		self.add_item(container)
+	async def change_lb_target(self, interaction: discord.Interaction):
+		self.lb_target = self.lb_target_select.values[0]
+		await self._fetch_and_update()
+		self.create_layout()
+		await interaction.response.edit_message(view=self, attachments=[])
 
-		attachments = [file] if file else []
+	async def change_lb_scope(self, interaction: discord.Interaction):
+		self.lb_scope = self.lb_scope_select.values[0]
+		await self._fetch_and_update()
+		self.create_layout()
+		await interaction.response.edit_message(view=self, attachments=[])
+
+	async def refresh_stats(self, interaction: discord.Interaction):
+		await self._fetch_and_update()
+		self.create_layout()
+		attachments = [self.file] if self.file else []
 		await interaction.response.edit_message(view=self, attachments=attachments)
