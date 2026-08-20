@@ -1,20 +1,19 @@
 import asyncio
 import atexit
+import glob
 import logging
 import os
 import sys
-import time
 import termios
+import time
 import warnings
-import glob
 
 from core.lib.file import json_file
-from core.lib.logging import JsonFormatter, HtmlFormatter, TextFormatter, SessionFileHandler, RichHandlerv2
+from core.lib.logging import HtmlFormatter, JsonFormatter, RichHandlerv2, SessionFileHandler, TextFormatter
 from meta import base, config, load_config, setup_directory
 
 
 log = logging.getLogger(__name__)
-
 
 _fd = None
 _old_settings = None
@@ -32,6 +31,7 @@ def disable_echoctl():
 	except Exception:
 		_fd = None
 		_old_settings = None
+
 
 def setup_console_logging():
 	root_logger = logging.getLogger()
@@ -53,6 +53,7 @@ def setup_console_logging():
 	logging.getLogger("core.wrp.memory").setLevel(logging.INFO)
 	logging.getLogger("core.wrp.profile").setLevel(logging.INFO)
 	logging.getLogger("core.wrp.blacklist").setLevel(logging.INFO)
+
 
 def setup_file_logging():
 	if not config.logging.file:
@@ -100,7 +101,7 @@ def cleanup():
 	log.info("Shutting down...")
 
 
-if __name__ != "__main__":
+async def bootstrap():
 	warnings.filterwarnings("ignore", category=DeprecationWarning)
 	warnings.simplefilter("ignore", DeprecationWarning)
 	atexit.register(cleanup)
@@ -108,10 +109,14 @@ if __name__ != "__main__":
 
 	setup_console_logging()
 
-	asyncio.run(load_config())
-	asyncio.run(setup_directory())
+	await load_config()
+	await setup_directory()
 
 	setup_file_logging()
 
 	if json_file:
 		json_file.cache.start_gc()
+
+
+if __name__ != "__main__":
+	asyncio.run(bootstrap())

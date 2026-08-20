@@ -123,72 +123,89 @@ config: Config = Config()
 emoji: Emoji = Emoji()
 
 
+class ConfigReloadError(Exception):
+	"""Raised when reloading the configuration fails."""
+	pass
+
 async def load_config(reload: bool = False):
 	global config, emoji
 	log.info("Setting up config..." if not reload else "Reloading config...")
 
-	if not yaml_file:
-		log.critical("ial parser not found, please install the required dependencies")
+	def handle_error(msg: str, exc: Exception | None = None):
+		log.critical(msg, exc_info=exc if exc else True)
+		if reload:
+			raise ConfigReloadError(msg) from exc
 		sys.exit(10)
+
+	if not yaml_file:
+		handle_error("yaml parser not found, please install the required dependencies")
 
 	try:
 		_, data = await yaml_file.load(file.conf, update_cache=False, use_cache=False)
-	except Exception:
-		log.critical(f"Failed to load {file.conf}", exc_info=True)
-		sys.exit(10)
+	except ConfigReloadError:
+		raise
+	except Exception as e:
+		handle_error(f"Failed to load {file.conf}", exc=e)
+
+	new_config = Config()
+	new_emoji = Emoji()
 
 	try:
-		preserved_cmd = config.cmd.to_dict() if reload else None
+		preserved_cmd = config.cmd.to_dict(update_self=False) if reload else None
+		new_config.update(Data.load(data)) # type: ignore
+	except ConfigReloadError:
+		raise
+	except Exception as e:
+		handle_error("An error occurred while parsing config into Data object", exc=e)
 
-		if reload:
-			config.clear()
-			emoji.clear()
-
-		config.update(Data.load(data))
-	except Exception:
-		log.critical("An error occurred while parsing config into Data object", exc_info=True)
-		sys.exit(10)
-
-	allowed_prefixes = tuple(f"{m}." for m in config.sandbox.allowed_modules)
-	allowed_exact = set(config.sandbox.allowed_modules)
+	allowed_prefixes = tuple(f"{m}." for m in new_config.sandbox.allowed_modules)
+	allowed_exact = set(new_config.sandbox.allowed_modules)
 
 	def safe_import(name, globals=None, locals=None, fromlist=(), level=0):
 		if name in allowed_exact or name.startswith(allowed_prefixes):
 			return real_import(name, globals, locals, fromlist, level)
 		raise ImportError(f"Module '{name}' is not allowed in sandbox")
 
-	for parent in [config.settings, config.ai_data]:
+	for parent in [new_config.settings, new_config.ai_data]:
 		for attr in ['server', 'user']:
 			val = getattr(parent, attr)
 			setattr(parent, attr, AntiFreeze(val.to_dict()))
 
-	for obj in [config.devs, config.dev_servers]:
+	for obj in [new_config.devs, new_config.dev_servers]:
 		for i in range(len(obj)):
 			if len(obj[i]) == 3:
 				obj[i] = (obj[i][0], int(obj[i][1]), obj[i][2])
 			else:
 				obj[i] = (obj[i][0], int(obj[i][1]))
 
-	config.dev_server_ids = [int(dsid) for _, dsid, _ in config.dev_servers]
-	config.dev_ids = [int(did) for _, did in config.devs]
+	new_config.dev_server_ids = [int(dsid) for _, dsid, _ in new_config.dev_servers]
+	new_config.dev_ids = [int(did) for _, did in new_config.devs]
 
-	emoji.update(Data.load(config.emoji.to_dict(update_self=False)))
-	config.delete("emoji")
+	new_emoji.update(Data.load(new_config.emoji.to_dict(update_self=False)))
+	new_config.delete("emoji")
 
-	config.activity.range = tuple(config.activity.range)
-	config.timezone = pytz.timezone(config.timezone)
+	new_config.activity.range = tuple(new_config.activity.range)
+	new_config.timezone = pytz.timezone(new_config.timezone)
 
-	_, secrets_data = await yaml_file.load(file.env)
-	config.secrets = Data.load(secrets_data) # type: ignore
+	try:
+		_, secrets_data = await yaml_file.load(file.env)
+		new_config.secrets = Data.load(secrets_data) # type: ignore
+	except ConfigReloadError:
+		raise
+	except Exception as e:
+		handle_error(f"Failed to load secrets from {file.env}", exc=e)
 
-	config.sandbox.allowed_builtins = {name: getattr(builtins, name) for name in config.sandbox.allowed_builtins}
-	config.sandbox.allowed_builtins["__import__"] = safe_import
+	new_config.sandbox.allowed_builtins = {name: getattr(builtins, name) for name in new_config.sandbox.allowed_builtins}
+	new_config.sandbox.allowed_builtins["__import__"] = safe_import
 
-	config.system_instructions = F(config.system_instructions).format(config=config)
-	config.summary_instructions = F(config.summary_instructions).format(config=config)
-	config.prompt_template = F(cast(str, config.prompt_template))
+	new_config.system_instructions = F(new_config.system_instructions).format(config=new_config)
+	new_config.summary_instructions = F(new_config.summary_instructions).format(config=new_config)
+	new_config.prompt_template = F(cast(str, new_config.prompt_template))
 
-	config.cmd = Data.load(preserved_cmd) if preserved_cmd else Data()
+	new_config.cmd = Data.load(preserved_cmd) if preserved_cmd else Data() # type: ignore
+
+	config.update(new_config)
+	emoji.update(new_emoji)
 
 
 __all__ = ('load_config', 'emoji', 'config')

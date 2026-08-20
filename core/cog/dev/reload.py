@@ -5,9 +5,9 @@ import discord
 from discord import app_commands as app
 from discord.ext import commands
 
-from meta import config, emoji, load_config
+from meta import config, load_config
 
-from core.cog.ui_template import Fail, Success, Generic
+from core.cog.ui_template import Success, Generic
 from core.cog.utils import is_dev
 
 
@@ -26,29 +26,21 @@ class ReloadGroup(app.Group):
 	)
 	@is_dev(config.dev_ids)
 	async def config_cmd(self, interaction: discord.Interaction):
-		await interaction.response.defer()
-
-		original_config = config.to_dict()
-		original_emoji = emoji.to_dict()
+		await interaction.response.defer(ephemeral=True)
 
 		try:
 			await load_config(reload=True)
-			await interaction.response.send_message(view=Success("Successfully reloaded config"), ephemeral=True)
+			await interaction.followup.send(view=Success("Successfully reloaded config"), ephemeral=True)
 
 		except Exception:
-			config.clear()
-			emoji.clear()
-			config.load(original_config)
-			emoji.load(original_emoji)
-
 			error_traceback = traceback.format_exc()
 
-			await interaction.response.send_message(view=Fail(
+			await interaction.followup.send(view=Generic(
 				"Failed to Reload Config",
 				None,
 				"```py",
 				error_traceback,
-				"```"
+				"```", accent_color=0xFE0065
 			), ephemeral=True)
 
 
