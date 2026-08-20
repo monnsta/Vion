@@ -417,7 +417,7 @@ class AIEvents(commands.Cog):
 		async def delayed_response():
 			try:
 				await asyncio.sleep(3.0)
-				
+
 				while key in self.active_typing_states and (time.time() - self.active_typing_states[key] < 4.0):
 					log.debug(f"Delaying response, {message.author} is still typing another message...")
 					await asyncio.sleep(3.0)

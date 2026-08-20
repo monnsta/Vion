@@ -207,7 +207,7 @@ class BaseFileIO(ABC, Generic[T]):
 	def __init__(self, cache_ttl_seconds: int = 60, cache_maxsize: int = 1000) -> None:
 		self.cache = SlidingTTLCache[tuple[T, float]](ttl_seconds=cache_ttl_seconds, maxsize=cache_maxsize)
 		self._locks: dict[str, RefCountedLock] = {}
-		
+
 		self.load_defaults = LoadOptions()
 		self.save_defaults = SaveOptions()
 		self.edit_defaults = EditOptions()

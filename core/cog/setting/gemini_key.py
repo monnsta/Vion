@@ -51,7 +51,7 @@ class GeminiKeyGroup(app.Group):
 		existing_keys = data.get("api_keys", [])
 
 		already_exists = any(
-			(k["key"] if isinstance(k, dict) else k) == key 
+			(k["key"] if isinstance(k, dict) else k) == key
 			for k in existing_keys
 		)
 		if already_exists:
