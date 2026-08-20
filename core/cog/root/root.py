@@ -22,7 +22,7 @@ class Root(commands.Cog):
 	)
 	async def help_cmd(self, interaction: discord.Interaction):
 		view = HelpView(interaction.user)
-		await interaction.response.send_message(view=view, ephemeral=True)
+		await interaction.response.send_message(view=view)
 
 
 	@app.command(
@@ -35,7 +35,7 @@ class Root(commands.Cog):
 			None,
 			f"[Bot Invite]( <{config.bot.invite}> ) • [Support Server]( <{config.dev_servers[0].invite}> )",
 			f"[Terms]( <https://{config.domain}/terms> ) • [Privacy]( <https://{config.domain}/privacy> )"
-		), ephemeral=True)
+		))
 
 
 	@app.command(
@@ -87,18 +87,18 @@ class Root(commands.Cog):
 		leaderboard_scope='Select whether to view global or local rankings (if targeting users).'
 	)
 	async def stats(
-		self, 
-		interaction: discord.Interaction, 
-		target: Literal['global', 'server', 'user', 'leaderboard'] = 'global', 
+		self,
+		interaction: discord.Interaction,
+		target: Literal['global', 'server', 'user', 'leaderboard'] = 'global',
 		user: discord.User | None = None,
 		leaderboard_target: Literal['servers', 'users'] = 'servers',
 		leaderboard_scope: Literal['global', 'local'] = 'global'
 	):
 		view = AIStatsView(
-			interaction, 
-			default_target=target, 
-			user_target=user, 
-			lb_target=leaderboard_target, 
+			interaction,
+			default_target=target,
+			user_target=user,
+			lb_target=leaderboard_target,
 			lb_scope=leaderboard_scope
 		)
 		await view.start(interaction)

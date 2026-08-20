@@ -40,7 +40,7 @@ class InstructionGroup(app.Group):
 
 			await interaction.response.send_message(view=Success(
 				f"Successfully {'updated' if instructions else 'added'} the instructions."
-			), ephemeral=True)
+			))
 			return
 
 		view = TextForm(
@@ -51,7 +51,7 @@ class InstructionGroup(app.Group):
 			instructions,
 			interaction.user
 		)
-		await interaction.response.send_message(view=view, ephemeral=True)
+		await interaction.response.send_message(view=view)
 
 		input_val = await view.wait_for_input()
 
@@ -84,7 +84,9 @@ class InstructionGroup(app.Group):
 		data = await load_settings(manager, target_id, 'server')  # type: ignore
 
 		if data.get("instructions", "") == "":
-			await interaction.response.send_message(view=Generic("No need to. It's already empty."), ephemeral=True)
+			await interaction.response.send_message(view=Generic(
+				"No need to. It's already empty."
+			))
 			return
 
 		view = Confirmation(
@@ -93,7 +95,7 @@ class InstructionGroup(app.Group):
 			"Action Aborted",
 			interaction.user
 		)
-		await interaction.response.send_message(view=view, ephemeral=True)
+		await interaction.response.send_message(view=view)
 
 		confirmed = await view.wait_for_answer()
 
@@ -116,7 +118,13 @@ class InstructionGroup(app.Group):
 		instructions = data.get("instructions", "")
 
 		if not instructions:
-			await interaction.response.send_message(view=Generic("No instructions added..."), ephemeral=True)
+			await interaction.response.send_message(view=Generic(
+				"No instructions added..."
+			))
 			return
 
-		await interaction.response.send_message(view=Generic(instructions), ephemeral=True)
+		await interaction.response.send_message(view=Generic(
+			"## Instructions for the bot",
+			None,
+			instructions
+		))

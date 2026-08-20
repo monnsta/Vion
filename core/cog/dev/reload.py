@@ -30,7 +30,9 @@ class ReloadGroup(app.Group):
 
 		try:
 			await load_config(reload=True)
-			await interaction.followup.send(view=Success("Successfully reloaded config"), ephemeral=True)
+			await interaction.followup.send(view=Success(
+				"Successfully reloaded config"
+			))
 
 		except Exception:
 			error_traceback = traceback.format_exc()
@@ -41,7 +43,7 @@ class ReloadGroup(app.Group):
 				"```py",
 				error_traceback,
 				"```", accent_color=0xFE0065
-			), ephemeral=True)
+			))
 
 
 	@app.command(
@@ -53,6 +55,6 @@ class ReloadGroup(app.Group):
 		await interaction.response.send_message(view=Generic(
 			"## Restarting...",
 			"Bot will be unresponsive for a few seconds"
-		), ephemeral=True)
+		))
 
 		sys.exit(42)  # structural reload exit code

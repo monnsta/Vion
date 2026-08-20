@@ -13,7 +13,7 @@ async def resolve_target(interaction: discord.Interaction, scope: str) -> Tuple[
 		await interaction.response.send_message(view=Fail(
 			"Invalid Scope",
 			f"Scope must be either 'server' or 'user', not '{scope}'."
-		), ephemeral=True)
+		))
 		return None, None
 
 	if scope == 'server':
@@ -21,7 +21,7 @@ async def resolve_target(interaction: discord.Interaction, scope: str) -> Tuple[
 			await interaction.response.send_message(view=Fail(
 				"Invalid Scope",
 				"This command must be used in a server if the scope passed is 'server'."
-			), ephemeral=True)
+			))
 			return None, None
 		return server, interaction.guild.id
 

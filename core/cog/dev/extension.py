@@ -34,12 +34,12 @@ class ExtensionGroup(app.Group):
 	async def _single_handle(self, interaction: discord.Interaction, module, path: str):
 		is_success, msg = await module(self.bot, path)
 
-		if is_success: 
+		if is_success:
 			view = Success("Success", msg)
-		else: 
+		else:
 			view = Fail("Failed", msg)
 
-		await interaction.response.send_message(view=view, ephemeral=True)
+		await interaction.response.send_message(view=view)
 
 	async def _multi_handle(self, interaction: discord.Interaction, module):
 		await interaction.response.defer(ephemeral=True)
@@ -51,7 +51,7 @@ class ExtensionGroup(app.Group):
 			f"* {'\n* '.join(results_list)}"
 		)
 
-		await interaction.followup.send(view=view, ephemeral=True)
+		await interaction.followup.send(view=view)
 
 
 	@app.command(
@@ -138,4 +138,4 @@ class ExtensionGroup(app.Group):
 		await interaction.response.send_message(view=Generic(
 			"### Extension List:",
 			"\n".join(results) if results else "No extensions found."
-		), ephemeral=True)
+		))

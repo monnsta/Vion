@@ -47,22 +47,22 @@ class DevRoot(commands.Cog):
 	@is_dev(config.dev_ids)
 	async def send(self, interaction: discord.Interaction, *, message: str):
 		if not interaction.channel or isinstance(interaction.channel, (discord.ForumChannel, discord.CategoryChannel)):
-			await interaction.response.send_message(
-				view=Fail("Cannot send messages directly to this channel type."), 
-				ephemeral=True
-			)
+			await interaction.response.send_message(view=Fail(
+				"Cannot send messages directly to this channel type."
+			), ephemeral=True)
 			return
 
 		await interaction.response.defer(ephemeral=True)
 
 		try:
 			await interaction.channel.send(message)
-			await interaction.followup.send(view=Success("Message dispatched."), ephemeral=True)
+			await interaction.followup.send(view=Success(
+				"Message dispatched."
+			), ephemeral=True)
 		except discord.Forbidden:
-			await interaction.followup.send(
-				view=Fail("Missing permissions to send messages in this channel."), 
-				ephemeral=True
-			)
+			await interaction.followup.send(view=Fail(
+				"Missing permissions to send messages in this channel."
+			), ephemeral=True)
 
 
 	@dev.command(
@@ -202,7 +202,7 @@ class DevRoot(commands.Cog):
 			await interaction.followup.send(view=Success(
 				"Success",
 				f"Synced {len(synced)} global application commands."
-			), ephemeral=True)
+			))
 		elif spec == 'dev':
 			dev_guilds = [discord.Object(id=g_id) for g_id in config.dev_server_ids]
 			total = 0
@@ -217,7 +217,7 @@ class DevRoot(commands.Cog):
 			await interaction.followup.send(view=Success(
 				"Success",
 				f"Synced {total} application commands across dev servers."
-			), ephemeral=True)
+			))
 		elif spec == 'clear':
 			self.bot.tree.clear_commands(guild=interaction.guild)
 			await self.bot.tree.sync(guild=interaction.guild)
@@ -225,7 +225,7 @@ class DevRoot(commands.Cog):
 			await interaction.followup.send(view=Success(
 				"Success",
 				"Cleared and synced this guild's local tree commands."
-			), ephemeral=True)
+			))
 
 
 	@dev.command(
@@ -263,4 +263,4 @@ class DevRoot(commands.Cog):
 		await interaction.followup.send(view=Success(
 			"STM Successfully Cleared Everywhere",
 			*description
-		), ephemeral=True)
+		))

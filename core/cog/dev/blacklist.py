@@ -84,9 +84,12 @@ class BlacklistGroup(app.Group):
 				f"{label} has been added to the blacklist.",
 				f"**Reason:** {reason}",
 				f"**Duration:** {duration}"
-			), ephemeral=True)
+			))
 		else:
-			await interaction.response.send_message(view=Fail("Failed", msg), ephemeral=True)
+			await interaction.response.send_message(view=Fail(
+				"Failed",
+				msg
+			))
 
 
 	@app.command(
@@ -105,9 +108,15 @@ class BlacklistGroup(app.Group):
 
 		if success:
 			label, _ = await self._get_entity_info(type, tid)
-			await interaction.response.send_message(view=Success("Success", f"{label} has been removed from the blacklist."), ephemeral=True)
+			await interaction.response.send_message(view=Success(
+				"Success",
+				f"{label} has been removed from the blacklist."
+			))
 		else:
-			await interaction.response.send_message(view=Fail("Failed", msg), ephemeral=True)
+			await interaction.response.send_message(view=Fail(
+				"Failed",
+				msg
+			))
 
 
 	@app.command(
@@ -125,7 +134,7 @@ class BlacklistGroup(app.Group):
 			return await interaction.response.send_message(view=Fail(
 				"Error",
 				"You must specify a new reason, a new duration, or both to make edits."
-			), ephemeral=True)
+			))
 
 		tid = await self._validate_args(interaction, type, target_id)
 		if not tid: return
@@ -143,9 +152,11 @@ class BlacklistGroup(app.Group):
 			await interaction.response.send_message(view=Success(
 				"Success",
 				f"Updated blacklist entry for {label}."
-			), ephemeral=True)
+			))
 		else:
-			await interaction.response.send_message(view=Fail("Failed", msg), ephemeral=True)
+			await interaction.response.send_message(view=Fail(
+				"Failed", msg
+			))
 
 
 	@app.command(
@@ -162,7 +173,9 @@ class BlacklistGroup(app.Group):
 
 		success, data = await blacklist.get(tid, type)
 		if not success:
-			return await interaction.response.send_message(view=Fail(data), ephemeral=True)
+			return await interaction.response.send_message(view=Fail(
+				data
+			))
 
 		label, _ = await self._get_entity_info(type, tid)
 
@@ -173,7 +186,7 @@ class BlacklistGroup(app.Group):
 			f"* **Reason:** {data['reason']}",
 			f"* **Created:** {format_dt(data.get('created_at'))}",
 			f"* **Expires:** {format_dt(data.get('expires_at'))}"
-		), ephemeral=True)
+		))
 
 
 	@app.command(
@@ -187,7 +200,10 @@ class BlacklistGroup(app.Group):
 		entries = await blacklist.list_all(type)
 
 		if not entries:
-			return await interaction.response.send_message(view=Generic("### Global Blacklist", "The blacklist is currently empty."), ephemeral=True)
+			return await interaction.response.send_message(view=Generic(
+				"### Global Blacklist",
+				"The blacklist is currently empty."
+			))
 
 		results = []
 		for e in entries:

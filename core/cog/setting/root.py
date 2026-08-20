@@ -60,7 +60,9 @@ class SettingRoot(commands.Cog):
 		# 	lines.append(f"# Settings for {interaction.user.display_name}")
 		lines.append(f"**API Keys:** *Hidden for privacy.* Use {config.cmd.get('setting.gemini_key.list')} to view them.")
 
-		await interaction.response.send_message(view=Generic(*lines), ephemeral=True)
+		await interaction.response.send_message(view=Generic(
+			*lines
+		))
 
 
 	@setting.command(
@@ -90,7 +92,7 @@ class SettingRoot(commands.Cog):
 				"Action Aborted",
 				interaction.user
 			)
-			await interaction.response.send_message(view=conf_view, ephemeral=True)
+			await interaction.response.send_message(view=conf_view)
 
 			if not await conf_view.wait_for_answer():
 				return
@@ -102,13 +104,15 @@ class SettingRoot(commands.Cog):
 			await interaction.response.send_message(view=Fail(
 				"Invalid Scope",
 				"You must be in a guild to use this command."
-			), ephemeral=True)
+			))
 			return
 
 		if not success:
 			if conf_view:
 				await interaction.edit_original_response(view=UnexpectedError)
 			else:
-				await interaction.response.send_message(view=UnexpectedError, ephemeral=True)
+				await interaction.response.send_message(view=UnexpectedError)
 		elif not conf_view:
-			await interaction.response.send_message(view=Success(f"Freewill set to {target_value}"), ephemeral=True)
+			await interaction.response.send_message(view=Success(
+				f"Freewill set to {target_value}"
+			))
