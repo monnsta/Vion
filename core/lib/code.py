@@ -18,7 +18,7 @@ from meta import config
 log = logging.getLogger(__name__)
 
 
-ANSI_ESCAPE = re.compile(r'\\x1B(?:[@-Z\\-_]|\\[[0-?]*[ -/]*[@-~])')
+ANSI_ESCAPE = re.compile(r'\x1B(?:[@-Z\\-_]|\[[0-?]*[ -/]*[@-~])')
 
 
 class status(enum.Enum):
@@ -48,8 +48,8 @@ class ExtractedCode:
 
 
 def extract(text: str) -> ExtractedCode:
-	code_match = re.search(r"<code>\\s*(.*?)\\s*</code>", text, re.DOTALL)
-	note_match = re.search(r"<note>\\s*(.*?)\\s*</note>", text, re.DOTALL)
+	code_match = re.search(r"<code>\s*(.*?)\s*</code>", text, re.DOTALL)
+	note_match = re.search(r"<note>\s*(.*?)\s*</note>", text, re.DOTALL)
 
 	code = html.unescape(code_match.group(1).strip()) if code_match else ""
 	note = html.unescape(note_match.group(1).strip()) if note_match else ""
