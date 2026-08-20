@@ -30,3 +30,7 @@ classifiers = [
 	"Operating System :: OS Independent",
 	"Topic :: Communications :: Chat",
 ]
+
+[tool.pyright]
+venvPath = "."
+venv = ".venv"

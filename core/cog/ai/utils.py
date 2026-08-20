@@ -1,6 +1,7 @@
-from abc import ABC, abstractmethod
 import random
 import time
+from abc import ABC, abstractmethod
+
 import discord
 from discord.ext import commands
 
@@ -30,6 +31,7 @@ class BaseEventHandler(ABC):
 
 class MessageEventHandler(BaseEventHandler):
 	def evaluate(self, consciousness: "Consciousness", bot: commands.Bot, free_will: bool, **kwargs) -> bool:
+		_ = consciousness
 		message: discord.Message | None = kwargs.get("message")
 
 		if message is None:
@@ -70,6 +72,7 @@ class DynamicChanceEventHandler(BaseEventHandler):
 		self.cooldown_seconds = cooldown_seconds
 
 	def evaluate(self, consciousness: "Consciousness", bot: commands.Bot, free_will: bool, **kwargs) -> bool:
+		_ = (consciousness, bot)
 		chance = kwargs.get("chance", 0.0)
 		return self.get_random(free_will, chance)
 
@@ -80,6 +83,7 @@ class GenericChanceEventHandler(BaseEventHandler):
 		self.cooldown_seconds = cooldown_seconds
 
 	def evaluate(self, consciousness: "Consciousness", bot: commands.Bot, free_will: bool, **kwargs) -> bool:
+		_ = (consciousness, bot, kwargs)
 		if self.base_chance >= 1.0:
 			return True
 		return self.get_random(free_will, self.base_chance)
