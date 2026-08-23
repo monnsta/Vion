@@ -91,11 +91,10 @@ class STM(_EntityListStore):
 		try:
 			entry = await convert_message(message)
 
-			context_tag = ""
-			if hasattr(message, "guild") and message.guild:
-				context_tag = f"[Guild: {message.guild.name} | Channel: #{message.channel.name}]"
-			elif hasattr(message, "channel") and isinstance(message.channel, discord.DMChannel):
-				context_tag = "[Direct Message]"
+			if isinstance(entry, dict):
+				entry["author_id"] = message.author.id
+				if getattr(message, "reference", None) and message.reference.message_id:
+					entry["reply_to_id"] = message.reference.message_id
 
 			transcripts = []
 			if hasattr(message, "attachments") and message.attachments:
@@ -108,11 +107,6 @@ class STM(_EntityListStore):
 			if transcripts:
 				if isinstance(entry, dict):
 					entry["_voice_transcript"] = transcripts
-
-			if isinstance(entry, dict):
-				entry["_context"] = context_tag
-			elif isinstance(entry, str) and context_tag:
-				entry = f"{context_tag} {entry}"
 
 			success, data = await self._load(entity_id)
 			if not success:
@@ -237,9 +231,78 @@ class Response(_EntityListStore):
 			return False
 
 
+class ChannelSTM:
+	def __init__(self):
+		self.max_items = config.max_stm
+
+	def _get_store(self, channel: discord.abc.Messageable):
+		channel_id = getattr(channel, "id", 0)
+		guild = getattr(channel, "guild", None)
+		is_private = getattr(channel, "type", None) == discord.ChannelType.private or guild is None
+
+		if is_private:
+			recipient = getattr(channel, "recipient", None)
+			eid = recipient.id if recipient else 0
+			return _EntityListStore(f"channel_stm_{channel_id}", self.max_items, "user"), eid
+		else:
+			return _EntityListStore(f"channel_stm_{channel_id}", self.max_items, "guild"), guild.id # type: ignore
+
+	async def get(self, channel: discord.abc.Messageable):
+		store, eid = self._get_store(channel)
+		if not eid: return False, []
+		return await store.get(eid)
+
+	async def add(self, channel: discord.abc.Messageable, message: discord.Message) -> bool:
+		store, eid = self._get_store(channel)
+		channel_id = getattr(channel, "id", 0)
+
+		if not eid and getattr(channel, "type", None) == discord.ChannelType.private:
+			if hasattr(channel, "history"):
+				async for msg in channel.history(limit=10):
+					if msg.author.id != config.bot.id:
+						eid = msg.author.id
+						break
+			if eid:
+				store, eid = _EntityListStore(f"channel_stm_{channel_id}", self.max_items, "user"), eid
+
+		if not eid: return False
+
+		try:
+			entry = await convert_message(message)
+			if isinstance(entry, dict):
+				entry["author_id"] = message.author.id
+				if message.reference and message.reference.message_id:
+					entry["reply_to_id"] = message.reference.message_id
+
+			transcripts = []
+			if hasattr(message, "attachments") and message.attachments:
+				for attachment in message.attachments:
+					if getattr(attachment, "is_voice_message", lambda: False)():
+						success, text = await voice.transcribe(attachment.url)
+						if success and text:
+							transcripts.append(text)
+
+			if transcripts and isinstance(entry, dict):
+				entry["_voice_transcript"] = transcripts
+
+			success, data = await store._load(eid)
+			if not success: return False
+
+			items = store._get_list(data)
+			items.append(entry)
+			items = store._trim(items)
+			data[store.key] = items
+
+			await store._save(eid, data)
+			return True
+		except Exception as e:
+			log.error(f"Error adding channel STM: {e}")
+			return False
+
+
 class MemoryCluster:
 	@staticmethod
-	async def build(guild: discord.Guild | None, user: discord.User | discord.Member | None) -> dict:
+	async def build(guild: discord.Guild | None, user: discord.User | discord.Member | None, channel: discord.abc.Messageable | None = None) -> dict:
 		cluster = {
 			"linked_contexts": [],
 			"guild_audit": [],
@@ -248,7 +311,9 @@ class MemoryCluster:
 			"guild_stm": [],
 			"guild_ltm": [],
 			"user_stm": [],
-			"user_ltm": []
+			"user_ltm": [],
+			"channel_stm": [],
+			"active_users": []
 		}
 
 		_, cluster["global_stm"] = await global_stm.get(0)
@@ -262,6 +327,20 @@ class MemoryCluster:
 		if user:
 			_, cluster["user_stm"] = await user_stm.get(user.id)
 			_, cluster["user_ltm"] = await user_ltm.get(user.id)
+
+		if channel:
+			_, c_stm = await channel_stm.get(channel)
+			cluster["channel_stm"] = c_stm
+
+			active_ids = set()
+			for msg_data in c_stm:
+				if isinstance(msg_data, str):
+					try:
+						msg_data = json.loads(msg_data)
+					except: pass
+				if isinstance(msg_data, dict) and "author_id" in msg_data:
+					active_ids.add(msg_data["author_id"])
+			cluster["active_users"] = list(active_ids)
 
 		target_id = guild.id if guild else (user.id if user else None)
 
@@ -349,9 +428,12 @@ user_stm = STM(entity_type="user")
 user_ltm = LTM(entity_type="user")
 user_response = Response(entity_type="user")
 
+channel_stm = ChannelSTM()
+
 
 __all__ = (
 	'global_stm', 'global_ltm',
 	'guild_stm', 'guild_ltm', 'guild_audit', 'guild_response',
-	'user_stm', 'user_ltm', 'user_response', 'MemoryCluster', 'context_linker'
+	'user_stm', 'user_ltm', 'user_response', 'channel_stm',
+	'MemoryCluster', 'context_linker'
 )

@@ -213,7 +213,11 @@ COMMON_FILTERS = [
 ]
 
 convert_message = Convert(
-	filter_attrs=COMMON_FILTERS + ['call', 'role_subscription', 'value', 'nonce', 'guild', 'channel'],
+	filter_attrs=COMMON_FILTERS + [
+		'call', 'role_subscription', 'value', 'nonce', 'guild', 'channel',
+		'author', 'reference', 'mentions', 'role_mentions', 'reactions',
+		'stickers', 'flags', 'system_content', 'webhook_id', 'application', 'activity'
+	],
 	max_depth=3,
 	attr_depths={"components": 8, "embeds": 6, "message_snapshots": 6},
 	output_format="json"

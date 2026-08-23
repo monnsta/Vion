@@ -145,6 +145,8 @@ class AI:
 		custom_keys: List[str] = []
 
 		request_full_context = kwargs.pop('request_full_context', False)
+		message = kwargs.get('message')
+		channel = kwargs.get('channel') or (message.channel if message else None)
 
 		if guild_obj:
 			log.debug(f"Fetching config objects for Guild ID: {guild_obj.id}")
@@ -195,7 +197,7 @@ class AI:
 			pipeline = custom_modules + pipeline
 
 		log.debug("Building Memory Cluster...")
-		cluster = await MemoryCluster.build(guild_obj, member_obj)
+		cluster = await MemoryCluster.build(guild_obj, member_obj, channel)
 
 		inputs_summary = ""
 		if inputs:

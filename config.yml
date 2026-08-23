@@ -314,6 +314,9 @@ prompt_template: |
   {f"<guild_short_term_memory>\n{guild_stm}\n</guild_short_term_memory>" if guild_stm else ""}
   {f"<user_short_term_memory>\n{user_stm}\n</user_short_term_memory>" if user_stm else ""}
 
+  {f"<channel_short_term_memory>\n{channel_stm}\n</channel_short_term_memory>" if channel_stm else ""}
+  {f"<active_users_in_context>\n{active_users}\n</active_users_in_context>" if active_users else ""}
+
   {f"<linked_contexts>\n" + chr(10).join(f'<linked_{ctx["type"]} id="{ctx["id"]}">\n<stm>{ctx["stm"]}</stm>\n<ltm>{ctx["ltm"]}</ltm>\n</linked_{ctx["type"]}>' for ctx in linked_contexts) + "\n</linked_contexts>" if linked_contexts else ""}
 
   You are given {', '.join(params) if params else "no"} parameters, declare your main entry point as such:
