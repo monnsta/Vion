@@ -112,7 +112,7 @@ class Consciousness:
 		self.register_handler("on_member_join", GenericChanceEventHandler(base_chance=0.6))
 		self.register_handler("on_guild_join", GenericChanceEventHandler(base_chance=1.0))
 		self.register_handler("on_voice_state_update", GenericChanceEventHandler(base_chance=0.3))
-		self.register_handler("on_inactivity", GenericChanceEventHandler(base_chance=0.8, cooldown_seconds=3600))
+		self.register_handler("on_inactivity", GenericChanceEventHandler(base_chance=0.5, cooldown_seconds=3600))
 		self.register_handler("freewill", GenericChanceEventHandler(base_chance=0.3, cooldown_seconds=300))
 		self.register_handler("notification_freewill", DynamicChanceEventHandler(cooldown_seconds=300))
 
