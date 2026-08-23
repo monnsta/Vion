@@ -1,10 +1,12 @@
-import discord
 import asyncio
 import io
 import wave
 import yt_dlp
 import logging
 from typing import cast, Any, Tuple, Dict
+
+import discord
+import discord.opus
 from discord.ext import voice_recv
 
 from core.lib.llm import AssemblyAITranscriber, GeminiTTS, GeminiVoice
@@ -12,6 +14,16 @@ from meta import config
 
 
 log = logging.getLogger(__name__)
+
+original_opus_decode = discord.opus.Decoder.decode
+
+def patched_opus_decode(self, *args, **kwargs):
+	try:
+		return original_opus_decode(self, *args, **kwargs)
+	except discord.opus.OpusError:
+		return b''
+
+discord.opus.Decoder.decode = patched_opus_decode
 
 
 class YTDLPLogger:
