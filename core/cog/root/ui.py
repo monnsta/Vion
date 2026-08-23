@@ -153,50 +153,41 @@ class RestoreDataModal(ui.Modal, title="Restore Data Backup"):
 		await interaction.response.defer(ephemeral=True)
 
 		if self.manager.entity_type == "user" and self.target_id != interaction.user.id:
-			return await interaction.followup.send(
-				view=Fail("Restore Failed", "Unauthorized target profile."),
-				ephemeral=True
-			)
+			return await interaction.followup.send(view=Fail(
+				"Restore Failed", "Unauthorized target profile."
+			), ephemeral=True)
 
 		upload = cast(ui.FileUpload, self.uploaded_file.component)
 
 		if not upload.values:
 			return await interaction.followup.send(
-				view=Fail("Restore Failed", "No file was received."),
-				ephemeral=True
-			)
+				view=Fail(
+					"Restore Failed",
+					"No file was received."
+				), ephemeral=True)
 
 		attachment = upload.values[0]
 		filename = attachment.filename
 
 		if not filename.lower().endswith(".zip"):
-			return await interaction.followup.send(
-				view=Fail(
-					"Invalid File",
-					"Please upload a valid `.zip` backup file."
-				),
-				ephemeral=True
-			)
+			return await interaction.followup.send(view=Fail(
+				"Invalid File",
+				"Please upload a valid `.zip` backup file."
+			), ephemeral=True)
 
 		if attachment.size > config.max_restore_file_size:
-			return await interaction.followup.send(
-				view=Fail(
-					"Restore Failed",
-					"File size exceeds the configured limit."
-				),
-				ephemeral=True
-			)
+			return await interaction.followup.send(view=Fail(
+				"Restore Failed",
+				"File size exceeds the configured limit."
+			), ephemeral=True)
 
 		try:
 			zip_bytes = await attachment.read()
 		except discord.HTTPException:
-			return await interaction.followup.send(
-				view=Fail(
-					"Restore Failed",
-					"Failed to download the uploaded file."
-				),
-				ephemeral=True
-			)
+			return await interaction.followup.send(view=Fail(
+				"Restore Failed",
+				"Failed to download the uploaded file."
+			), ephemeral=True)
 
 		success, result = await self.manager.data.restore_zip(
 			self.target_id,
@@ -204,15 +195,15 @@ class RestoreDataModal(ui.Modal, title="Restore Data Backup"):
 		)
 
 		if success:
-			await interaction.followup.send(
-				view=Success("Restore Complete", result),
-				ephemeral=True
-			)
+			await interaction.followup.send(view=Success(
+				"Restore Complete",
+				result
+			), ephemeral=True)
 		else:
-			await interaction.followup.send(
-				view=Fail("Restore Failed", result),
-				ephemeral=True
-			)
+			await interaction.followup.send(view=Fail(
+				"Restore Failed",
+				result
+			), ephemeral=True)
 
 class ManageDataView(TimeoutView):
 	def __init__(self, interaction: discord.Interaction, manager, target_id: int, data_type: str):
