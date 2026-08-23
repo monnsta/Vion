@@ -114,7 +114,4 @@ Vion determines the steps needed to accomplish it.
 
 # License
 
-Copyright © 2026 monnsta
-
-This project is proprietary.
-Unauthorized copying, modification, or redistribution is prohibited.
+MIT
