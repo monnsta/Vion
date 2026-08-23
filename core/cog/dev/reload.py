@@ -26,7 +26,7 @@ class ReloadGroup(app.Group):
 	)
 	@is_dev(config.dev_ids)
 	async def config_cmd(self, interaction: discord.Interaction):
-		await interaction.response.defer(ephemeral=True)
+		await interaction.response.defer()
 
 		try:
 			await load_config(reload=True)

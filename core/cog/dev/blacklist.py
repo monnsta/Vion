@@ -222,5 +222,5 @@ class BlacklistGroup(app.Group):
 
 		header = f"## Blacklisted {type.capitalize() + 's' if type else ''}"
 		view = Paginated(header=header, items=results, user=interaction.user)
-		await interaction.response.send_message(view=view, ephemeral=True)
+		await interaction.response.send_message(view=view)
 		view.message = await interaction.original_response()

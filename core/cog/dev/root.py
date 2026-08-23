@@ -74,7 +74,7 @@ class DevRoot(commands.Cog):
 	)
 	@is_dev(config.dev_ids)
 	async def code(self, interaction: discord.Interaction, *, code: str):
-		await interaction.response.defer(ephemeral=False)
+		await interaction.response.defer()
 
 		initial_view = Paginated(
 			header="**Execution Initializing**",
@@ -194,7 +194,7 @@ class DevRoot(commands.Cog):
 	)
 	@is_dev(config.dev_ids)
 	async def update(self, interaction: discord.Interaction, spec: Literal['global', 'dev', 'clear']):
-		await interaction.response.defer(ephemeral=True)
+		await interaction.response.defer()
 		if spec == 'global':
 			synced = await self.bot.tree.sync()
 			map_command_mentions(synced, self.bot)
@@ -234,7 +234,7 @@ class DevRoot(commands.Cog):
 	)
 	@is_dev(config.dev_ids)
 	async def clearstm(self, interaction: discord.Interaction):
-		await interaction.response.defer(ephemeral=True)
+		await interaction.response.defer()
 
 		global_cleared = await global_stm.clear(0)
 

@@ -42,7 +42,7 @@ class ExtensionGroup(app.Group):
 		await interaction.response.send_message(view=view)
 
 	async def _multi_handle(self, interaction: discord.Interaction, module):
-		await interaction.response.defer(ephemeral=True)
+		await interaction.response.defer()
 		results = await module(self.bot)
 		results_list = [f"{emoji.checkmark if success else emoji.crossmark} {msg}" for _, (success, msg) in results.items()]
 
