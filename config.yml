@@ -255,6 +255,7 @@ max_previous_response: 10
 max_audit: 40
 event_cooldown: 5
 
+
 # AI SETTINGS
 gemini_models: [gemini-3.5-flash]
 free_will_frequency: 0.4
@@ -263,7 +264,7 @@ top_p: 1.0
 top_k: 45
 
 
-# DEFAULT SETTINGS
+# DEFAULT DATA STRUCTURE
 # DO NOT EDIT, the code heavily relies on this structure
 settings:
   # These should stay as json in config
