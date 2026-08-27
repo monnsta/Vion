@@ -181,10 +181,7 @@ class AI:
 
 			_, u_sets = await user.settings.load(member_obj.id)
 
-			if request_full_context:
-				u_obj = u_full_obj
-			else:
-				u_obj = f"User Name: {member_obj.name}, ID: {member_obj.id}\n(Full context omitted. Use self_call with request_full_context=True to retrieve.)"
+			u_obj = u_full_obj
 
 			if u_keys := u_sets.get("api_keys"):
 				log.debug(f"Extracting user-provided API keys for Member ID: {member_obj.id}")
