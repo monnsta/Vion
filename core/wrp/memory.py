@@ -7,7 +7,7 @@ from typing import Any
 
 import discord
 
-from core.lib.converter import convert_message
+from core.lib.converter import convert_message, convert_user
 from core.lib.file import json_file
 from core.wrp.voice import voice
 from meta import config, file
@@ -340,7 +340,31 @@ class MemoryCluster:
 					except: pass
 				if isinstance(msg_data, dict) and "author_id" in msg_data:
 					active_ids.add(msg_data["author_id"])
-			cluster["active_users"] = list(active_ids)
+
+			active_users_list = []
+			for u_id in active_ids:
+				member = None
+				if guild:
+					member = guild.get_member(u_id)
+					if not member:
+						try:
+							member = await guild.fetch_member(u_id)
+						except Exception:
+							pass
+				if not member:
+					member = config.bot.get_user(u_id)
+					if not member:
+						try:
+							member = await config.bot.fetch_user(u_id)
+						except Exception:
+							pass
+				if member:
+					try:
+						u_dict = await convert_user(member)
+						active_users_list.append(u_dict)
+					except Exception:
+						pass
+			cluster["active_users"] = active_users_list
 
 		target_id = guild.id if guild else (user.id if user else None)
 
