@@ -28,6 +28,12 @@ class Bot(commands.Bot):
 			intents=intents,
 			help_command=None
 		)
+
+		self.name = config.bot.name
+		self.id = config.bot.id
+		self.invite = config.bot.invite
+		config.set('bot', self)
+
 		log.info("Bot initialized")
 
 	async def setup_hook(self):

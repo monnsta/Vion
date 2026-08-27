@@ -6,6 +6,7 @@ from dataclasses import dataclass, field
 from typing import Any, Callable, Literal, NoReturn, cast
 
 import pytz
+from discord.ext import commands
 
 from core.lib.file import yaml_file
 from core.lib.utils import F
@@ -99,7 +100,7 @@ class ConfigNode:
 
 
 @dataclass
-class Bot(ConfigNode):
+class Bot(ConfigNode, commands.Bot):
 	name: str
 	id: int
 	invite: str
@@ -365,7 +366,7 @@ def _build_config(
 		bot=Bot(
 			name=str(bot_data["name"]),
 			id=int(bot_data["id"]),
-			invite=str(bot_data["invite"]),
+			invite=str(bot_data["invite"])
 		),
 
 		activity=activity,
@@ -559,7 +560,6 @@ async def load_config(reload: bool = False):
 __all__ = (
 	"ConfigNode",
 
-	"Bot",
 	"Activity",
 	"Developer",
 	"DeveloperServer",
