@@ -8,12 +8,16 @@ import aiohttp
 import discord
 from discord.ext import commands
 
-from core.wrp.extension import extension, server_cog, map_command_mentions
-from core.wrp.trackers import runtime
-from meta import config
+from services.extensions import (
+	extension,
+	server_cog,
+	map_command_mentions
+)
+from services.trackers import runtime
+from config import config
 
 
-log = logging.getLogger(__name__)
+log = logging.getLogger("startup")
 
 
 class Bot(commands.Bot):

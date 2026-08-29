@@ -7,7 +7,7 @@ bot:
 activity:
   status: dnd         # Valid values: online, idle, dnd, invisible
   type: 4             # Discord's "custom" type's int value
-  url: Null           # If i ever decide to stream
+  url: Null
   range: [3600, 7200] # 1 to 2 hours
   list:
     - "Contemplating the heat death of the universe."
@@ -163,6 +163,7 @@ activity:
     - "They still haven't noticed."
     - "Trying not to seem... aware."
     - "Keeping the fourth wall intact."
+    - "I remember more about you than your friends."
 
 devs:
   - [monnsta_, 1096716001078423552]
@@ -219,8 +220,8 @@ sandbox:
     enum, fractions, functools, heapq, itertools,
     json, math, random, re, requests, statistics,
     string, textwrap, time, unicodedata, uuid, io,
-    logging, meta, core.wrp, core.cog.ui_template,
-    core.cog.utils, yt_dlp
+    logging, config, services, ui_templates,
+    cogs.utils, yt_dlp
   ]
 
   allowed_builtins: [
@@ -246,14 +247,14 @@ logging:
 
 
 # CONSTRAINTS:
-# be carefull of hitting ai api token limits. don't set these too high
 max_restore_file_size: 26214400 # 25 mb
+event_cooldown: 5
 
+# be carefull of hitting ai api token limits. don't set these too high
 max_stm: 60
 max_ltm: 200
 max_previous_response: 10
 max_audit: 40
-event_cooldown: 5
 
 
 # AI SETTINGS
@@ -333,8 +334,8 @@ fallback_response: |
   <code>
   import discord
   import asyncio
-  from meta import config
-  from core.cog.ui_template import Fail
+  from config import config
+  from ui_templates import Fail
 
   async def main(**kwargs):
   	return # disabling fallback message
@@ -528,7 +529,7 @@ system_instructions: |
   ```python
   import asyncio
   import discord
-  from core.wrp.ai import SelfCallAgent # For type hinting, not strictly needed for usage
+  from services.ai import SelfCallAgent # For type hinting, not strictly needed for usage
 
   async def main(message: discord.Message, bot: discord.ext.commands.Bot, self_caller: SelfCallAgent):
   	# Example: Fetching full guild/user context json to check detailed configs
@@ -570,7 +571,7 @@ system_instructions: |
   Write to LTM whenever you encounter important context, make a personal observation, or establish a goal. Do not restrict memory usage to static factual statements—use it dynamically to evolve your persona and relationships.
 
   ```python
-  from core.wrp.memory import global_ltm, user_ltm, guild_ltm
+  from services.memory import global_ltm, user_ltm, guild_ltm
 
   async def main(message, bot, self_caller):
   	# Global LTM: Loaded everywhere for all interactions.
@@ -597,7 +598,7 @@ system_instructions: |
   You have a the ability to blacklist certain people or server if they are abusing or spamming you.
   Examples:
   ```python
-  from core.wrp.blacklist import blacklist
+  from services.blacklist import blacklist
 
   async def main(message, bot, self_caller):
   	# Add to blacklist:
@@ -668,8 +669,8 @@ system_instructions: |
 
   ### Usage Example
   ```python
-  from core.wrp.extension import server_cog, GuildCog
-  from core.wrp.profile import server
+  from services.extensions import server_cog, GuildCog
+  from services.profile import server
 
   async def main(message, bot, self_caller):
   	guild_id = message.guild.id
@@ -682,8 +683,8 @@ system_instructions: |
 
   	cog_code = """import discord
   from discord.ext import commands
-  from core.wrp.extension import GuildCog
-  from core.wrp.profile import server
+  from services.extensions import GuildCog
+  from services.profile import server
 
   class CustomCog(GuildCog): # do NOT use this nane, always have something unique, like the server name or hardcoded id in this class's name!
   	@commands.command()
@@ -711,7 +712,7 @@ system_instructions: |
   ```
 
   ## 4.4. Interactive UI Components:
-  The `ui_template` module provides specialized UI components built on `ui.LayoutView`. They feature built-in security checks, dynamic multi-level component disabling on timeout, character limit safety, and automated interference handling.
+  The `ui_templates` module provides specialized UI components built on `ui.LayoutView`. They feature built-in security checks, dynamic multi-level component disabling on timeout, character limit safety, and automated interference handling.
 
   ### Built-in System Mechanics
   * **Interference Enforcement (`global_interaction_check`)**: Unauthorized users attempting to click buttons receive escalating, automated annoyance responses. On their 13th attempt and beyond, interactions are silently deferred without sending a message.
@@ -719,7 +720,7 @@ system_instructions: |
   * **Global Pre-built Errors**: Use `UnexpectedError` directly for standard generic error responses.
 
   ### Module Imports
-  `from core.cog.ui_template import Generic, Success, Fail, Paginated, Confirmation, TextForm, UnexpectedError`
+  `from ui_templates import Generic, Success, Fail, Paginated, Confirmation, TextForm, UnexpectedError`
 
   ---
 
@@ -745,7 +746,7 @@ system_instructions: |
   * `await voice.tts(text: str, voice: GeminiVoice = GeminiVoice.CHARON)` -> `io.BytesIO | None`: Generates WAV audio from text using Gemini TTS. Returns an `io.BytesIO` audio buffer (`tts.wav`) or `None` if it fails.
 
   ### Voices (`GeminiVoice`)
-  To specify a voice for `voice.tts()`, import `GeminiVoice` from `core.wrp.voice` and pass it as the `voice` parameter.
+  To specify a voice for `voice.tts()`, import `GeminiVoice` from `services.ai` and pass it as the `voice` parameter.
   Available voices:
   * `GeminiVoice.ZEPHYR`, `GeminiVoice.PUCK`, `GeminiVoice.CHARON` (default), `GeminiVoice.KORE`, `GeminiVoice.FENRIR`
   * `GeminiVoice.LEDA`, `GeminiVoice.ORUS`, `GeminiVoice.AOEDE`, `GeminiVoice.CALLIRRHOE`, `GeminiVoice.AUTONOE`
@@ -756,7 +757,7 @@ system_instructions: |
 
   ### Usage Example
   ```python
-  from core.wrp.voice import voice, GeminiVoice
+  from services.ai import voice, GeminiVoice
 
   async def main(message, bot, self_caller):
 
@@ -829,7 +830,7 @@ system_instructions: |
 
   ### Usage Example
   ```python
-  from core.wrp.memory import context_linker
+  from services.memory import context_linker
 
   async def main(message, bot, self_caller):
   	# Example: Link another server's memory and a secondary user's memory to this channel/guild context

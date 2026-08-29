@@ -1,5 +1,5 @@
 <div align="center">
-	<img src="icon.png" alt="Vion Logo" width="120" height="120" />
+	<img src="assets/icon.png" alt="Vion Logo" width="120" height="120" />
 	<h1>Vion</h1>
 	<p><em>An AI Discord member that understands intent—not just commands.</em></p>
 </div>

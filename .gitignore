@@ -1,7 +1,3 @@
 __pycache__/
 .venv/
-data/
-logs/
-temp/
-meta/asset/
 .env

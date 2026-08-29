@@ -8,12 +8,23 @@ import termios
 import time
 import warnings
 
-from core.lib.file import json_file
-from core.lib.logging import HtmlFormatter, JsonFormatter, RichHandlerv2, SessionFileHandler, TextFormatter
-from meta import base, config, load_config, setup_directory
+from infrastructure.file import json_file
+from infrastructure.logging import (
+	HtmlFormatter,
+	JsonFormatter,
+	RichHandlerv2,
+	SessionFileHandler,
+	TextFormatter
+)
+from config import (
+	config,
+	storage,
+	load_config,
+	setup_directory
+)
 
 
-log = logging.getLogger(__name__)
+log = logging.getLogger("startup")
 
 _fd = None
 _old_settings = None
@@ -50,16 +61,17 @@ def setup_console_logging():
 
 	logging.getLogger("discord").setLevel(logging.INFO)
 	logging.getLogger("asyncio").setLevel(logging.WARNING)
-	logging.getLogger("core.wrp.memory").setLevel(logging.INFO)
-	logging.getLogger("core.wrp.profile").setLevel(logging.INFO)
-	logging.getLogger("core.wrp.blacklist").setLevel(logging.INFO)
+
+	logging.getLogger("memory").setLevel(logging.INFO)
+	logging.getLogger("profile").setLevel(logging.INFO)
+	logging.getLogger("blacklist").setLevel(logging.INFO)
 
 
 def setup_file_logging():
 	if not config.logging.file:
 		return
 
-	log_dir = base.logs
+	log_dir = storage.dirs.logs
 	os.makedirs(log_dir, exist_ok=True)
 
 	now = time.time()
