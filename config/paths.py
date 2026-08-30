@@ -1,4 +1,5 @@
 import logging
+import os
 import sys
 from pathlib import Path
 
@@ -62,14 +63,22 @@ def build_storage_registry(root_path: Path) -> Storage:
 		dirs=dirs,
 
 		env=root_path / ".env",
-		config=root_path / "config.yml",
+		config=root_path / "init.py",
 		shared=shared,
 		guilds=guilds,
 		users=users,
 	)
 
 
-ROOT = Path(__file__).resolve().parent.parent
+def resolve_root() -> Path:
+	env_path = os.getenv("VION_ROOT_DIR")
+	if env_path:
+		return Path(env_path).expanduser().resolve()
+
+	return Path(__file__).resolve().parent.parent
+
+
+ROOT = resolve_root()
 
 storage = build_storage_registry(ROOT)
 

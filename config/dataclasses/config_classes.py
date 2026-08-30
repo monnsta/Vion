@@ -42,26 +42,21 @@ class ConfigNode:
 
 			elif isinstance(current, dict):
 				if part not in current:
-					raise KeyError(
-						f"Configuration path does not exist: {'.'.join(parts)}"
-					)
+					current[part] = {}
 				current = current[part]
 
 			else:
-				raise TypeError(
-					f"Cannot traverse configuration through {part!r}"
-				)
+				new_node = ConfigNode()
+				setattr(current, part, new_node)
+				current = new_node
 
 		last = parts[-1]
 
-		if isinstance(current, ConfigNode):
-			setattr(current, last, value)
-
-		elif isinstance(current, dict):
+		if isinstance(current, dict):
 			current[last] = value
 
 		else:
-			raise TypeError(f"Cannot set configuration path: {path}")
+			setattr(current, last, value)
 
 	def delete(self, path: str) -> None:
 		parts = path.split(".")
@@ -89,6 +84,31 @@ class ConfigNode:
 
 		elif isinstance(current, dict):
 			current.pop(last, None)
+
+	def update(self, other: Any) -> None:
+		if isinstance(other, ConfigNode):
+			for key, val in other.__dict__.items():
+				current_val = getattr(self, key, None)
+				if isinstance(current_val, ConfigNode) and isinstance(val, ConfigNode):
+					current_val.update(val)
+				elif isinstance(current_val, dict) and isinstance(val, dict):
+					self._update_dict(current_val, val)
+				else:
+					setattr(self, key, val)
+		elif isinstance(other, dict) and isinstance(self, dict):
+			self._update_dict(self, other)
+
+	def _update_dict(self, target: dict[str, Any], source: dict[str, Any]) -> None:
+		for key, val in source.items():
+			if key in target:
+				if isinstance(target[key], ConfigNode) and isinstance(val, ConfigNode):
+					target[key].update(val)
+				elif isinstance(target[key], dict) and isinstance(val, dict):
+					self._update_dict(target[key], val)
+				else:
+					target[key] = val
+			else:
+				target[key] = val
 
 
 @dataclass
