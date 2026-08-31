@@ -61,10 +61,6 @@ async def load_config(reload: bool = False):
 	if config_dir not in sys.path:
 		sys.path.insert(0, config_dir)
 
-	preserved_cmd: ConfigNode | None = None
-	if reload and config is not None and hasattr(config, "cmd"):
-		preserved_cmd = copy.deepcopy(config.cmd)
-
 	try:
 		spec = importlib.util.spec_from_file_location("user_config", storage.config)
 		if not spec or not spec.loader:
@@ -77,9 +73,6 @@ async def load_config(reload: bool = False):
 		raise
 	except Exception as e:
 		handle_error(f"Failed to load user config from {storage.config}", exc=e)
-
-	if preserved_cmd and hasattr(config, "cmd"):
-		config.cmd = preserved_cmd
 
 	if hasattr(config, "sandbox") and getattr(config.sandbox, "allowed_modules", None):
 		allowed_modules = tuple(config.sandbox.allowed_modules)
