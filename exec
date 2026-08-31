@@ -13,7 +13,6 @@ MAX_CRASHES=2
 CRASH_WINDOW=60
 SKIP_GIT="${SKIP_GIT:-false}"
 
-export ANDROID_API_LEVEL=34
 export PYO3_USE_ABI3_FORWARD_COMPATIBILITY=1
 export CARGO_BUILD_JOBS=$(nproc 2>/dev/null || echo 4)
 
@@ -22,6 +21,10 @@ APP_DIR=$(cd -- "$(dirname -- "${BASH_SOURCE[0]}")" &>/dev/null && pwd)
 BOT_PATH="$APP_DIR/$BOT_FILE"
 REQ_PATH="$APP_DIR/$REQUIREMENTS"
 CRASH_TS=()
+
+if [[ "$(uname -o 2>/dev/null)" == "Android" ]] || [[ -n "${PREFIX:-}" && "$PREFIX" == *"/com.termux/"* ]]; then
+	export ANDROID_API_LEVEL=34
+fi
 
 if [[ "${BASH_SOURCE[0]}" != "${0}" ]]; then
 	IS_SOURCED=true
@@ -336,15 +339,15 @@ _bot_cli_help() {
 	echo -e "${MAG}${BOLD}▶ BOT EXECUTOR MANAGER${RES}"
 	echo -e "${DIM}----------------------------------------${RES}"
 	echo -e "${BOLD}Usage:${RES} $0 [OPTIONS]\n"
-	echo -e "  ${CYN}-u, --update${RES}      Force check and pull git updates"
-	echo -e "  ${CYN}-s, --supervise${RES}   Enable auto-restart and crash monitoring loop"
-	echo -e "  ${CYN}-i, --install${RES}     Check and install dependencies before running"
-	echo -e "  ${CYN}-c, --check${RES}       Verify environment (Python, Pip, Script existence)"
-	echo -e "  ${CYN}-x, --clean${RES}       Clean __pycache__ and compiled python files"
-	echo -e "  ${CYN}-g, --skip-git${RES}    Skip git pulls and repository checks"
-	echo -e "  ${CYN}-r, --restart N${RES}   Set restart wait time in seconds"
+	echo -e "  ${CYN}-u, --update${RES}        Force check and pull git updates"
+	echo -e "  ${CYN}-s, --supervise${RES}     Enable auto-restart and crash monitoring loop"
+	echo -e "  ${CYN}-i, --install${RES}       Check and install dependencies before running"
+	echo -e "  ${CYN}-c, --check${RES}         Verify environment (Python, Pip, Script existence)"
+	echo -e "  ${CYN}-x, --clean${RES}         Clean __pycache__ and compiled python files"
+	echo -e "  ${CYN}-g, --skip-git${RES}      Skip git pulls and repository checks"
+	echo -e "  ${CYN}-r, --restart N${RES}     Set restart wait time in seconds"
 	echo -e "  ${CYN}-m, --max-crashes N${RES} Set max crashes allowed in window"
-	echo -e "  ${CYN}-h, --help${RES}        Show this help message"
+	echo -e "  ${CYN}-h, --help${RES}          Show this help message"
 }
 
 # --- 4. Main Execution Wrapper (Only if not sourced) ---
