@@ -74,8 +74,8 @@ class HelpView(TimeoutView):
 
 	def get_category_content(self, category: str) -> str:
 		match category:
-			case "overview": return d(f"""\
-				# Meet {config.bot.name}\n"
+			case "overview": return d(f"""
+				# Meet {config.bot.name}
 				{config.bot.name} is an AI member that lives inside your Discord server, remembers your community, understands natural language, and can perform complex tasks by reasoning about what you actually want.
 				Instead of learning dozens of commands, you simply ask.
 				* "Delete only the spam messages from Alice across every channel, but leave anything that isn't spam."
@@ -94,7 +94,7 @@ class HelpView(TimeoutView):
 				Moderation actions are executed only when requested by authorized administrators.
 			""")
 
-			case "gemini": return d(f"""\
+			case "gemini": return d(f"""
 				# Gemini API Key Configuration
 				The bot supports personal API keys, enabling unlimited, private AI models.
 
@@ -111,7 +111,7 @@ class HelpView(TimeoutView):
 				* {config.cmd.get('setting.gemini_key.list')} — View your obfuscated credentials.
 			""")
 
-			case "instructions": return d(f"""\
+			case "instructions": return d(f"""
 				# Custom AI Behavior Guidelines
 				You can shape the bot's communication patterns, rules, restrictions, and behaviors directly.
 				This is a legacy feature and not really used anymore, you as the server owner can tailer the bot's behavior by requesting it directly.
@@ -126,7 +126,7 @@ class HelpView(TimeoutView):
 				The engine is built to evaluate guidelines alongside system contextual files.
 			""")
 
-			case "games": return d(f"""\
+			case "games": return d(f"""
 				# Interactive Mini-Games
 				Challenge other server members or play against an adaptive AI algorithm.
 
@@ -141,7 +141,7 @@ class HelpView(TimeoutView):
 				* Launch via {config.cmd.get('fun.tictactoe')}. Select from classic 3x3 grids or a complex 6x7 board. Challenge other members, or test your skills against our custom minimax bot (just select vion as opponent or any other bot).
 			""")
 
-			case "data": return d(f"""\
+			case "data": return d(f"""
 				# Data Security & Statistics
 				You have full control over all personal data stored by the bot.
 

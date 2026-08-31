@@ -8,6 +8,7 @@ from .service import (
 	ChannelSTM
 )
 
+
 context_linker = ContextLinker()
 
 global_ltm = LTM(entity_type="global")
@@ -34,6 +35,7 @@ memory_cluster = MemoryCluster(
 	channel_stm=channel_stm,
 	context_linker=context_linker
 )
+
 
 __all__ = (
 	'global_stm', 'global_ltm',

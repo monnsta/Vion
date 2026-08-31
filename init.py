@@ -374,26 +374,26 @@ config.fallback_response = d("""
 	from ui_templates import Fail
 
 	async def main(**kwargs):
-	return # disabling fallback message
-	message = kwargs.get("message")
-	bot = kwargs.get("bot")
+		return # disabling fallback message
+		message = kwargs.get("message")
+		bot = kwargs.get("bot")
 
-	if message and bot:
-		is_mentioned = bot.user in message.mentions
+		if message and bot:
+			is_mentioned = bot.user in message.mentions
 
-		is_reply = False
-		if message.reference and hasattr(message.reference, "resolved"):
-			is_reply = getattr(message.reference.resolved, "author", None) == bot.user
+			is_reply = False
+			if message.reference and hasattr(message.reference, "resolved"):
+				is_reply = getattr(message.reference.resolved, "author", None) == bot.user
 
-		if is_mentioned or is_reply:
-			async with message.channel.typing():
-				msg = await message.channel.send(view=Fail(
-					"Free Resource Exhausted.",
-					f"To prevent this, please add your own gemini api key through {config.cmd.setting.gemini_key.add}"
-				))
-				await asyncio.sleep(5)
-				await msg.delete()
-	pass
+			if is_mentioned or is_reply:
+				async with message.channel.typing():
+					msg = await message.channel.send(view=Fail(
+						"Free Resource Exhausted.",
+						f"To prevent this, please add your own gemini api key through {config.cmd.setting.gemini_key.add}"
+					))
+					await asyncio.sleep(5)
+					await msg.delete()
+		pass
 	</code>
 """)
 

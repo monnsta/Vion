@@ -219,7 +219,7 @@ class BlacklistGroup(app.Group):
 			e_type = e['type'].capitalize()
 			label, icon = await self._get_entity_info(e['type'], e['id'])
 
-			block = d(f"""\
+			block = d(f"""
 				**{e_type}:** {label}
 				* **Moderator:** <@{e['mod_id']}>
 				* **Reason:** {e['reason']}
