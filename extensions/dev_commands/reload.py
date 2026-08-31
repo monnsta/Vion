@@ -6,8 +6,9 @@ from discord import app_commands as app
 from discord.ext import commands
 
 from services.utils import is_dev
-from ui_templates import Success, Generic
+from ui_templates import Success, Generic, Paginated
 from config import config, load_config
+from services.extensions import map_command_mentions
 
 
 class ReloadGroup(app.Group):
@@ -29,6 +30,10 @@ class ReloadGroup(app.Group):
 
 		try:
 			await load_config(reload=True)
+
+			synced_commands = await self.bot.tree.fetch_commands()
+			map_command_mentions(synced_commands, self.bot)
+
 			await interaction.followup.send(view=Success(
 				"Successfully reloaded config"
 			))
@@ -36,12 +41,15 @@ class ReloadGroup(app.Group):
 		except Exception:
 			error_traceback = traceback.format_exc()
 
-			await interaction.followup.send(view=Generic(
-				"Failed to Reload Config",
-				None,
-				"```py",
-				error_traceback,
-				"```", accent_color=0xFE0065
+			chunks = [error_traceback[i:i+1800] for i in range(0, len(error_traceback), 1800)]
+			items: list[str | list[str]] = [f"```py\n{chunk}\n```" for chunk in chunks]
+
+			await interaction.followup.send(view=Paginated(
+				header="Failed to Reload Config",
+				items=items,
+				user=interaction.user,
+				accent_color=0xFE0065,
+				per_page=1
 			))
 
 
