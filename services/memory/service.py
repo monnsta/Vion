@@ -7,8 +7,6 @@ from typing import Any, Optional
 import discord
 
 from infrastructure.converter import convert_message, convert_user
-from services.ai.voice import VoiceUtils
-from services.ai.summarizer import Summarizer
 from config import config
 
 from .base import EntityListStore
@@ -46,7 +44,8 @@ class STM(EntityListStore):
 			if hasattr(message, "attachments") and message.attachments:
 				for attachment in message.attachments:
 					if getattr(attachment, "is_voice_message", lambda: False)():
-						success, text = await VoiceUtils.transcribe(attachment.url)
+						from services.ai import voice # importing here to avoid circular dependency
+						success, text = await voice.transcribe(attachment.url)
 						if success and text:
 							transcripts.append(text)
 
@@ -87,7 +86,7 @@ class STM(EntityListStore):
 			log.info(f"STM entries for {self.entity_type} {entity_id} are completely unique. Triggering summarizer.")
 
 			stm_text_block = "\n".join(normalized_current)
-			summarizer = Summarizer()
+			from services.ai import summarizer # importing here to avoid circular dependency
 			summary_result = await summarizer.summarize(stm_text_block)
 
 			target_ltm = None
@@ -219,7 +218,8 @@ class ChannelSTM:
 			if hasattr(message, "attachments") and message.attachments:
 				for attachment in message.attachments:
 					if getattr(attachment, "is_voice_message", lambda: False)():
-						success, text = await VoiceUtils.transcribe(attachment.url)
+						from services.ai import voice # importing here to avoid circular dependency
+						success, text = await voice.transcribe(attachment.url)
 						if success and text:
 							transcripts.append(text)
 
