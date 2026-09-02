@@ -1,3 +1,9 @@
+"""
+Gemini Text-to-Speech synthesis and voice options definitions.
+
+Provides voice enumeration parameters and PCM to WAV audio container conversion helpers.
+"""
+
 import io
 import logging
 import time
@@ -14,6 +20,10 @@ log = logging.getLogger("llm")
 
 
 class GeminiVoice(str, Enum):
+	"""
+	Supported pre-built voice options for Gemini audio output modality.
+	"""
+
 	ZEPHYR = "Zephyr"
 	PUCK = "Puck"
 	CHARON = "Charon"
@@ -45,12 +55,30 @@ class GeminiVoice(str, Enum):
 	SADALTAGER = "Sadaltager"
 	SULAFAT = "Sulafat"
 
+
 class GeminiTTS:
+	"""
+	Asynchronous text-to-speech engine using Gemini API inline audio generation.
+
+	Attributes:
+		api_key: Gemini authorization key string.
+		client: Configured genai.Client instance.
+		model_name: Generation model target string.
+		cooldown_until: Timestamp float marking active delay window.
+	"""
+
 	def __init__(
 		self,
 		api_key: str,
 		model_name: str = "gemini-2.5-flash-preview-tts"
-	):
+	) -> None:
+		"""
+		Initialize GeminiTTS instance parameters.
+
+		Args:
+			api_key: Target API key string.
+			model_name: Underlying text-to-speech generation model.
+		"""
 		log.debug(f"Initializing GeminiTTS with model: {model_name}")
 
 		self.api_key = api_key
@@ -60,6 +88,7 @@ class GeminiTTS:
 
 	@property
 	def is_cooling_down(self) -> bool:
+		"""Check if client rate-limit active cooldown period has elapsed."""
 		cooling = time.time() < self.cooldown_until
 
 		if cooling:
@@ -68,6 +97,12 @@ class GeminiTTS:
 		return cooling
 
 	def set_cooldown(self, seconds: float) -> None:
+		"""
+		Set execution rate limit cooldown delay window.
+
+		Args:
+			seconds: Active delay interval in seconds.
+		"""
 		self.cooldown_until = time.time() + seconds
 
 		log.debug(f"TTS cooldown set for {seconds}s. Active until: {self.cooldown_until}")
@@ -79,6 +114,18 @@ class GeminiTTS:
 		sample_rate: int = 24000,
 		sample_width: int = 2,
 	) -> bytes:
+		"""
+		Wrap uncompressed LPCM audio byte payload inside a standard WAV header structure.
+
+		Args:
+			pcm: Raw output LPCM audio bytes.
+			channels: Audio channel configuration count.
+			sample_rate: Sample frequency rate in Hz.
+			sample_width: Sample size resolution in bytes per sample.
+
+		Returns:
+			Complete encoded WAV format audio byte payload.
+		"""
 		buffer = io.BytesIO()
 
 		with wave.open(buffer, "wb") as wav:
@@ -91,6 +138,15 @@ class GeminiTTS:
 
 	@staticmethod
 	def _normalize_voice(voice: GeminiVoice | str) -> GeminiVoice | None:
+		"""
+		Resolve string inputs or enum objects into valid GeminiVoice values.
+
+		Args:
+			voice: GeminiVoice enum choice or string candidate.
+
+		Returns:
+			Normalized GeminiVoice enum value if valid, or None.
+		"""
 		if isinstance(voice, GeminiVoice):
 			return voice
 
@@ -110,6 +166,16 @@ class GeminiTTS:
 		text: str,
 		voice: GeminiVoice | str = GeminiVoice.CHARON
 	) -> Tuple[bool, bytes]:
+		"""
+		Synthesize input text prompt into speech audio data.
+
+		Args:
+			text: Text contents string to synthesize.
+			voice: Target Gemini voice option (Enum or string name).
+
+		Returns:
+			Tuple containing (success_boolean, output_wav_audio_bytes).
+		"""
 		if not text or not text.strip():
 			log.warning("GeminiTTS.call() received empty text.")
 			return False, b""

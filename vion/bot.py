@@ -1,3 +1,10 @@
+"""
+Core Discord client initialization and runtime execution module.
+
+Defines client extension loading hooks, lifecycle state tracking,
+slash command mention mapping, and runtime setup exceptions.
+"""
+
 import bootstrap as _
 
 import asyncio
@@ -21,7 +28,14 @@ log = logging.getLogger("startup")
 
 
 class Bot(commands.Bot):
-	def __init__(self):
+	"""
+	Customized Discord Client instance with dynamic command mapping and extension lifecycle management.
+	"""
+
+	def __init__(self) -> None:
+		"""
+		Initialize Discord client instance with configured intent flags.
+		"""
 		intents = discord.Intents.default()
 		intents.members = True
 		intents.presences = True
@@ -40,7 +54,12 @@ class Bot(commands.Bot):
 
 		log.info("Bot initialized")
 
-	async def setup_hook(self):
+	async def setup_hook(self) -> None:
+		"""
+		Asynchronous setup hook invoked prior to gateway websocket connection.
+
+		Loads cogs, registers extensions, tracks startup state, and caches command references.
+		"""
 		log.info("Starting Setup...")
 
 		await extension.load_all(self)
@@ -61,18 +80,30 @@ class Bot(commands.Bot):
 		except discord.HTTPException:
 			log.error("Failed to fetch commands during startup", exc_info=True)
 
-	async def on_disconnect(self):
+	async def on_disconnect(self) -> None:
+		"""
+		Event handler triggered when client disconnects from the Discord gateway.
+		"""
 		await runtime.mark_event('disconnect')
 
-	async def on_resumed(self):
+	async def on_resumed(self) -> None:
+		"""
+		Event handler triggered when client connection resumes after disconnection.
+		"""
 		await runtime.mark_event('resume')
 
-	async def close(self):
+	async def close(self) -> None:
+		"""
+		Gracefully shut down gateway connections and record shutdown runtime metrics.
+		"""
 		await runtime.mark_event('shutdown')
 		await super().close()
 
 
-def run():
+def run() -> None:
+	"""
+	Instantiate the bot client and initiate login sequence using configured secrets.
+	"""
 	bot = Bot()
 
 	try:

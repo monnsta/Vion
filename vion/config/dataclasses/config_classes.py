@@ -1,3 +1,7 @@
+"""
+Data models for core configuration parameters, bot structures, and nested nodes.
+"""
+
 from dataclasses import dataclass, field
 from typing import Any, Callable, Literal
 
@@ -11,7 +15,21 @@ class ConfigReloadError(Exception):
 
 
 class ConfigNode:
+	"""
+	Hierarchical configuration node supporting dot-notation attribute and dict access.
+	"""
+
 	def get(self, path: str, default: Any = None) -> Any:
+		"""
+		Safely traverse nested nodes or dictionaries to retrieve value at target path.
+
+		Args:
+			path: Dot-delimited string path (e.g., 'bot.name').
+			default: Fallback value if path resolution fails.
+
+		Returns:
+			Resolved target value or default fallback.
+		"""
 		current: Any = self
 
 		for part in path.split("."):
@@ -31,6 +49,13 @@ class ConfigNode:
 		return current
 
 	def set(self, path: str, value: Any) -> None:
+		"""
+		Dynamically set target value at specified dot-delimited path, building intermediate nodes.
+
+		Args:
+			path: Dot-delimited key path string.
+			value: Value payload to store.
+		"""
 		parts = path.split(".")
 		current: Any = self
 
@@ -59,6 +84,12 @@ class ConfigNode:
 			setattr(current, last, value)
 
 	def delete(self, path: str) -> None:
+		"""
+		Remove target attribute or dictionary item located at dot-delimited path.
+
+		Args:
+			path: Dot-delimited key path string.
+		"""
 		parts = path.split(".")
 		current: Any = self
 
@@ -86,6 +117,12 @@ class ConfigNode:
 			current.pop(last, None)
 
 	def update(self, other: Any) -> None:
+		"""
+		Recursively merge values from another ConfigNode or dictionary instance.
+
+		Args:
+			other: ConfigNode or dictionary instance containing overrides.
+		"""
 		if isinstance(other, ConfigNode):
 			for key, val in other.__dict__.items():
 				current_val = getattr(self, key, None)
@@ -99,6 +136,13 @@ class ConfigNode:
 			self._update_dict(self, other)
 
 	def _update_dict(self, target: dict[str, Any], source: dict[str, Any]) -> None:
+		"""
+		Helper method to recursively merge dictionaries containing ConfigNodes.
+
+		Args:
+			target: Destination dictionary to mutate.
+			source: Source dictionary containing updates.
+		"""
 		for key, val in source.items():
 			if key in target:
 				if isinstance(target[key], ConfigNode) and isinstance(val, ConfigNode):
@@ -113,6 +157,7 @@ class ConfigNode:
 
 @dataclass
 class Bot(ConfigNode, commands.Bot):
+	"""Bot metadata container inheriting from ConfigNode and commands.Bot."""
 	name: str
 	id: int
 	invite: str
@@ -120,6 +165,7 @@ class Bot(ConfigNode, commands.Bot):
 
 @dataclass
 class Activity(ConfigNode):
+	"""Rich presence and activity status settings."""
 	status: Literal["online", "idle", "dnd", "invisible"]
 	type: int
 	url: str | None
@@ -129,12 +175,14 @@ class Activity(ConfigNode):
 
 @dataclass
 class Developer(ConfigNode):
+	"""Developer user profile data."""
 	name: str
 	id: int
 
 
 @dataclass
 class DeveloperServer(ConfigNode):
+	"""Developer guild metadata and invite links."""
 	name: str
 	id: int
 	invite: str
@@ -142,12 +190,14 @@ class DeveloperServer(ConfigNode):
 
 @dataclass
 class Sandbox(ConfigNode):
+	"""Execution sandbox restrictions for modules and builtins."""
 	allowed_modules: list[str]
 	allowed_builtins: list[str] | dict[str, Callable[..., Any]]
 
 
 @dataclass
 class Logging(ConfigNode):
+	"""Global logging target format and file cleanup settings."""
 	file: bool
 	type: Literal["text", "html", "json"]
 	cleanup_days: int
@@ -155,12 +205,14 @@ class Logging(ConfigNode):
 
 @dataclass
 class Settings(ConfigNode):
+	"""Default guild and user setting key-value maps."""
 	server: dict[str, Any]
 	user: dict[str, Any]
 
 
 @dataclass
 class AIData(ConfigNode):
+	"""Global, server, and user level memory/context settings."""
 	glob: dict[str, Any]
 	server: dict[str, Any]
 	user: dict[str, Any]
@@ -168,6 +220,7 @@ class AIData(ConfigNode):
 
 @dataclass
 class Secrets(ConfigNode):
+	"""Secret tokens and key definitions."""
 	discord: str
 	assemblyai: str
 	hmac: str
@@ -176,6 +229,7 @@ class Secrets(ConfigNode):
 
 @dataclass
 class Emoji(ConfigNode):
+	"""Configured UI emoji string symbols."""
 	checkmark: str
 	crossmark: str
 	warn: str
@@ -212,6 +266,7 @@ class Emoji(ConfigNode):
 
 @dataclass
 class Config(ConfigNode):
+	"""Root application configuration schema definition."""
 	bot: Bot
 	activity: Activity
 	devs: list[Developer]

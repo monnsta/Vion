@@ -1,3 +1,10 @@
+"""
+Configuration package exports.
+
+Exposes configuration loaders, global instances, path initialization,
+and storage structures.
+"""
+
 from .config_loader import load_config, emoji, config
 from .paths import setup_directory, storage
 

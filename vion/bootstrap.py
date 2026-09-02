@@ -1,3 +1,10 @@
+"""
+Runtime environment bootstrapper.
+
+Handles terminal setup (terminal control sequences, echo control), console and file
+logging handler registration, path initialization, config loading, and background tasks.
+"""
+
 import asyncio
 import atexit
 import glob
@@ -30,7 +37,10 @@ _fd = None
 _old_settings = None
 
 
-def disable_echoctl():
+def disable_echoctl() -> None:
+	"""
+	Disable ECHOCTL in terminal settings to prevent printing control characters like ^C.
+	"""
 	global _fd, _old_settings
 	try:
 		_fd = sys.stdin.fileno()
@@ -44,7 +54,10 @@ def disable_echoctl():
 		_old_settings = None
 
 
-def setup_console_logging():
+def setup_console_logging() -> None:
+	"""
+	Configure stdout console logging handler using Rich text rendering.
+	"""
 	root_logger = logging.getLogger()
 	root_logger.setLevel(logging.DEBUG)
 	root_logger.handlers.clear()
@@ -67,7 +80,10 @@ def setup_console_logging():
 	logging.getLogger("blacklist").setLevel(logging.INFO)
 
 
-def setup_file_logging():
+def setup_file_logging() -> None:
+	"""
+	Initialize file-based session log handler and perform retention cleanup on old logs.
+	"""
 	if not config.logging.file:
 		return
 
@@ -105,7 +121,10 @@ def setup_file_logging():
 	root_logger.addHandler(file_handler)
 
 
-def cleanup():
+def cleanup() -> None:
+	"""
+	Restore original terminal settings and terminate internal garbage collection routines.
+	"""
 	if json_file:
 		json_file.cache.stop_gc()
 	if _fd is not None and _old_settings is not None:
@@ -113,7 +132,10 @@ def cleanup():
 	log.info("Shutting down...")
 
 
-async def bootstrap():
+async def bootstrap() -> None:
+	"""
+	Execute async application startup sequence including configuration and filesystem validation.
+	"""
 	warnings.filterwarnings("ignore", category=DeprecationWarning)
 	warnings.simplefilter("ignore", DeprecationWarning)
 	atexit.register(cleanup)

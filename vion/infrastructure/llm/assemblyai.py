@@ -1,3 +1,9 @@
+"""
+AssemblyAI transcription client service wrapper.
+
+Handles file/stream processing, audio upload, and asynchronous status polling.
+"""
+
 import asyncio
 import io
 import logging
@@ -11,7 +17,24 @@ log = logging.getLogger("llm")
 
 
 class AssemblyAITranscriber:
-	def __init__(self, api_key: str, **config_kwargs: Any):
+	"""
+	Asynchronous client for AssemblyAI speech-to-text API.
+
+	Attributes:
+		api_key: AssemblyAI authorization key string.
+		base_url: Base endpoint URL string for the AssemblyAI API.
+		headers: HTTP request headers configured with authorization key.
+		config: Additional task payload configuration dictionary.
+	"""
+
+	def __init__(self, api_key: str, **config_kwargs: Any) -> None:
+		"""
+		Initialize the AssemblyAITranscriber instance.
+
+		Args:
+			api_key: Authentication API key.
+			**config_kwargs: Extra payload parameters forwarded to transcription API.
+		"""
 		log.debug("Initializing AssemblyAITranscriber")
 		self.api_key = api_key
 		self.base_url = "https://api.assemblyai.com/v2"
@@ -19,6 +42,18 @@ class AssemblyAITranscriber:
 		self.config = config_kwargs
 
 	async def _upload_data(self, data: bytes) -> str:
+		"""
+		Upload raw audio byte stream to AssemblyAI staging storage.
+
+		Args:
+			data: Raw audio binary bytes payload.
+
+		Returns:
+			Target remote upload URL string.
+
+		Raises:
+			httpx.HTTPStatusError: If remote upload request fails.
+		"""
 		log.debug(f"Uploading raw data of size {len(data)} bytes to AssemblyAI")
 		async with httpx.AsyncClient(timeout=None) as client:
 			response = await client.post(
@@ -27,11 +62,23 @@ class AssemblyAITranscriber:
 				content=data
 			)
 			response.raise_for_status()
-			upload_url = response.json().get("upload_url")
+			upload_url = str(response.json().get("upload_url"))
 			log.debug("Data uploaded successfully, received upload URL")
 			return upload_url
 
 	async def _process_input(self, item: Any) -> str:
+		"""
+		Parse and resolve raw input payload into a remote processable URL string.
+
+		Args:
+			item: URL string, local file path, file stream, or raw bytes.
+
+		Returns:
+			AssemblyAI readable remote resource URL string.
+
+		Raises:
+			ValueError: If input format or data type is unsupported.
+		"""
 		log.debug(f"Processing input item of type: {type(item)} for AssemblyAI")
 		if isinstance(item, str):
 			if item.startswith(("http://", "https://")):
@@ -58,6 +105,15 @@ class AssemblyAITranscriber:
 		raise ValueError(f"Unsupported input type for AssemblyAI transcription: {type(item)}")
 
 	async def call(self, item: Any) -> Tuple[bool, str]:
+		"""
+		Submit an audio object for processing and poll until completion.
+
+		Args:
+			item: Source audio object (URL string, Path, Stream, or bytes).
+
+		Returns:
+			Tuple containing (success_boolean, transcribed_text_or_error_message).
+		"""
 		log.debug("Starting AssemblyAI transcription process")
 		try:
 			audio_url = await self._process_input(item)

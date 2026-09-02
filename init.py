@@ -1,8 +1,8 @@
 import pytz
 
-from infrastructure.utils import d, F
-from config import config, emoji
-from config.dataclasses import (
+from vion.infrastructure.utils import d, F
+from vion.config import config, emoji
+from vion.config.dataclasses import (
 	Developer,
 	DeveloperServer,
 	Emoji

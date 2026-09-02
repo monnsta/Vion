@@ -1,3 +1,10 @@
+"""
+Core file I/O abstract bases and concurrency utilities.
+
+Provides an in-memory sliding TTL/LRU cache, reference-counted locking, and
+base file operations with atomic writes, compression, and verification.
+"""
+
 import asyncio
 import builtins
 import gzip
@@ -19,15 +26,39 @@ T = TypeVar("T")
 
 @dataclass
 class LoadOptions:
-	"""Default options for the load method."""
+	"""
+	Configuration options for file loading operations.
+
+	Attributes:
+		use_cache: Whether to inspect the in-memory cache before reading from disk.
+		trust_cache: Whether to bypass disk modification time (mtime) checks when retrieving cached items.
+		read_only: Return cached object directly without deep cloning if True.
+		update_cache: Store disk read results back into the cache if True.
+	"""
 	use_cache: bool = True
 	trust_cache: bool = False
 	read_only: bool = False
 	update_cache: bool = True
 
+
 @dataclass
 class SaveOptions:
-	"""Default options for the save method."""
+	"""
+	Configuration options for file saving operations.
+
+	Attributes:
+		update_cache: Save updated payload to in-memory cache if True.
+		atomic: Write to a temporary file before replacing target file if True.
+		verify: Read written bytes back to verify integrity if True.
+		compress: Compress file payload using gzip if True.
+		compress_level: Compression level used when gzip compression is enabled.
+		mode: Optional file permission bitmask (e.g. 0o600).
+		background: Dispatch save execution as a background asyncio task if True.
+		skip_if_unchanged: Skip disk write if payload matches current cached data.
+		fsync: Perform physical disk flush via os.fsync if True.
+		trust_cache: Skip mtime check when comparing against cache.
+		skip_clone: Skip payload deep cloning when storing to cache.
+	"""
 	update_cache: bool = True
 	atomic: bool = True
 	verify: bool = False
@@ -40,9 +71,24 @@ class SaveOptions:
 	trust_cache: bool = False
 	skip_clone: bool = False
 
+
 @dataclass
 class EditOptions:
-	"""Default options for the edit method."""
+	"""
+	Configuration options for read-modify-write transactional context manager.
+
+	Attributes:
+		use_cache: Inspect cache before reading initial payload from disk.
+		trust_cache: Bypass mtime verification on cached entry if True.
+		auto_save: Save modifications automatically upon exiting context if True.
+		atomic: Use atomic file replacement when saving edits.
+		verify: Verify disk contents after writing edited data.
+		compress: Compress written data with gzip.
+		compress_level: Gzip compression level.
+		mode: Optional file permission bitmask.
+		skip_if_unchanged: Skip disk write if modified object equals initial state.
+		fsync: Perform physical disk flush via os.fsync.
+	"""
 	use_cache: bool = True
 	trust_cache: bool = False
 	auto_save: bool = True
@@ -57,18 +103,20 @@ class EditOptions:
 
 class SlidingTTLCache(Generic[T]):
 	"""
-	An in-memory cache using a Sliding Window TTL (Time To Live) and LRU eviction.
+	In-memory sliding TTL cache with maxsize capacity eviction.
 
-	Optimized for asyncio by utilizing synchronous dictionary operations which are
-	atomic within the context of the single-threaded event loop. Includes an
-	optional background garbage collection task to prevent memory bloat.
+	Attributes:
+		_ttl: Time to live in seconds.
+		_maxsize: Maximum allowed cached keys.
 	"""
+
 	def __init__(self, ttl_seconds: int = 60, maxsize: int = 1000) -> None:
 		"""
-		Initialize the cache.
+		Initialize SlidingTTLCache instance.
 
-		:param ttl_seconds: Seconds of inactivity before an item is considered expired.
-		:param maxsize: Maximum number of items to keep in memory.
+		Args:
+			ttl_seconds: Inactivity period in seconds before entry expiration.
+			maxsize: Maximum number of stored items.
 		"""
 		self._ttl = ttl_seconds
 		self._maxsize = maxsize
@@ -78,7 +126,15 @@ class SlidingTTLCache(Generic[T]):
 		self._gc_stop_event: threading.Event | None = None
 
 	def get(self, key: str) -> T | None:
-		"""Retrieve an item and refresh its expiration timer."""
+		"""
+		Retrieve an item and refresh its TTL window.
+
+		Args:
+			key: Unique target key.
+
+		Returns:
+			Cached payload if found and unexpired, otherwise None.
+		"""
 		entry = self._cache.pop(key, None)
 		if not entry:
 			return None
@@ -92,7 +148,13 @@ class SlidingTTLCache(Generic[T]):
 		return entry[0]
 
 	def set(self, key: str, data: T) -> None:
-		"""Add an item to cache, enforcing maxsize and TTL."""
+		"""
+		Insert or replace an item in the cache, enforcing maxsize bounds.
+
+		Args:
+			key: Unique target key.
+			data: Payload object to cache.
+		"""
 		self._cache.pop(key, None)
 
 		if len(self._cache) >= self._maxsize:
@@ -104,15 +166,16 @@ class SlidingTTLCache(Generic[T]):
 		self._cache[key] = [data, time.monotonic() + self._ttl]
 
 	def invalidate(self, key: str) -> None:
-		"""Manually remove a specific key from the cache."""
+		"""
+		Remove a key manually from the cache.
+
+		Args:
+			key: Target key string to invalidate.
+		"""
 		self._cache.pop(key, None)
 
 	def _cleanup(self) -> None:
-		"""
-		Internal method to prune all expired keys at once.
-		Iterates through all items to find expired ones, as expiration times are not
-		guaranteed to be in insertion order due to 'get' refreshing TTL.
-		"""
+		"""Prune all expired keys from internal store."""
 		now = time.monotonic()
 		keys_to_remove = [k for k, v in self._cache.items() if now >= v[1]]
 		for k in keys_to_remove:
@@ -120,8 +183,11 @@ class SlidingTTLCache(Generic[T]):
 
 	def _gc_loop_sync(self, interval: float, stop_event: threading.Event) -> None:
 		"""
-		The actual loop that sleeps and triggers cleanup in a separate system thread.
-		Uses `time.sleep` and a `threading.Event` for control.
+		Background garbage collection thread execution loop.
+
+		Args:
+			interval: Sleep interval in seconds between cleanup checks.
+			stop_event: Threading stop flag instance.
 		"""
 		log.debug(f"SlidingTTLCache _gc_loop_sync started in thread {threading.current_thread().name}")
 		try:
@@ -137,7 +203,10 @@ class SlidingTTLCache(Generic[T]):
 
 	def start_gc(self, interval_seconds: int | None = None) -> None:
 		"""
-		Starts a background *system thread* to periodically clear expired items.
+		Start a background daemon thread for active expired key eviction.
+
+		Args:
+			interval_seconds: Optional execution interval override in seconds.
 		"""
 		interval = interval_seconds or (self._ttl / 2.0)
 
@@ -157,7 +226,7 @@ class SlidingTTLCache(Generic[T]):
 		log.info("SlidingTTLCache background GC thread started.")
 
 	def stop_gc(self) -> None:
-		"""Cancels the running background garbage collection thread."""
+		"""Stop and join active background garbage collection thread."""
 		if self._gc_thread is not None and self._gc_thread.is_alive():
 			log.debug("Signaling SlidingTTLCache background GC thread to stop...")
 			if self._gc_stop_event:
@@ -173,19 +242,41 @@ class SlidingTTLCache(Generic[T]):
 
 
 class RefCountedLock:
-	"""A wrapper for asyncio.Lock that tracks active users to allow safe deletion from memory."""
+	"""
+	Wrapper around asyncio.Lock tracking active acquirers for memory cleanup.
+
+	Attributes:
+		lock: Internal asyncio lock object instance.
+		count: Active consumer count indicator.
+	"""
+
 	__slots__ = ('lock', 'count')
+
 	def __init__(self) -> None:
+		"""Initialize RefCountedLock instance."""
 		self.lock = asyncio.Lock()
 		self.count = 0
 
 
 class BaseFileIO(ABC, Generic[T]):
 	"""
-	Abstract Base Class for high-performance, thread-safe File I/O with caching.
-	Supports atomic writes and concurrent-safe modifications via context managers.
+	Abstract base class for asynchronous file I/O with caching and locks.
+
+	Attributes:
+		cache: Sliding TTL memory cache instance.
+		load_defaults: Default LoadOptions values.
+		save_defaults: Default SaveOptions values.
+		edit_defaults: Default EditOptions values.
 	"""
+
 	def __init__(self, cache_ttl_seconds: int = 60, cache_maxsize: int = 1000) -> None:
+		"""
+		Initialize BaseFileIO with configured caching bounds.
+
+		Args:
+			cache_ttl_seconds: Cache item expiration TTL in seconds.
+			cache_maxsize: Maximum cached records bound.
+		"""
 		self.cache = SlidingTTLCache[tuple[T, float]](ttl_seconds=cache_ttl_seconds, maxsize=cache_maxsize)
 		self._locks: dict[str, RefCountedLock] = {}
 
@@ -193,9 +284,16 @@ class BaseFileIO(ABC, Generic[T]):
 		self.save_defaults = SaveOptions()
 		self.edit_defaults = EditOptions()
 
-
-	# Internals
 	def _acquire_lock(self, path: str) -> RefCountedLock:
+		"""
+		Get or instantiate a reference-counted lock for a path.
+
+		Args:
+			path: Normalized file path string.
+
+		Returns:
+			RefCountedLock object for lock acquisition.
+		"""
 		if path not in self._locks:
 			self._locks[path] = RefCountedLock()
 		lock_obj = self._locks[path]
@@ -203,11 +301,28 @@ class BaseFileIO(ABC, Generic[T]):
 		return lock_obj
 
 	def _release_lock(self, path: str, lock_obj: RefCountedLock) -> None:
+		"""
+		Decrement lock reference count and prune from dict if unreferenced.
+
+		Args:
+			path: Normalized file path string.
+			lock_obj: RefCountedLock reference.
+		"""
 		lock_obj.count -= 1
 		if lock_obj.count <= 0:
 			self._locks.pop(path, None)
 
 	async def _get_valid_cache(self, path: str, trust_cache: bool = False) -> tuple[T, float] | None:
+		"""
+		Verify cache entry freshness against disk mtime.
+
+		Args:
+			path: Target file path string.
+			trust_cache: Skip disk mtime check if True.
+
+		Returns:
+			Tuple of (cached_data, mtime) if valid, otherwise None.
+		"""
 		cached_entry = self.cache.get(path)
 		if cached_entry is None:
 			return None
@@ -225,6 +340,15 @@ class BaseFileIO(ABC, Generic[T]):
 		return None
 
 	def _sync_read(self, path: str) -> tuple[T, float]:
+		"""
+		Synchronous blocking disk read with gzip auto-decompression.
+
+		Args:
+			path: Target file path string.
+
+		Returns:
+			Tuple of (deserialized_data, disk_mtime).
+		"""
 		with open(path, "rb") as f:
 			mtime = os.fstat(f.fileno()).st_mtime
 			content = f.read()
@@ -232,7 +356,36 @@ class BaseFileIO(ABC, Generic[T]):
 			content = gzip.decompress(content)
 		return self.deserialize(content), mtime
 
-	def _sync_write(self, path: str, data: bytes, atomic: bool, mode: int | None, verify: bool, compress: bool, compress_level: int, fsync: bool) -> float:
+	def _sync_write(
+		self,
+		path: str,
+		data: bytes,
+		atomic: bool,
+		mode: int | None,
+		verify: bool,
+		compress: bool,
+		compress_level: int,
+		fsync: bool
+	) -> float:
+		"""
+		Synchronous disk write implementation supporting atomic replacement and fsync.
+
+		Args:
+			path: Output target file path string.
+			data: Serialized byte payload.
+			atomic: Write to temp file first if True.
+			mode: Optional file permissions bitmask.
+			verify: Read back written payload for equality check if True.
+			compress: Compress bytes with gzip if True.
+			compress_level: Gzip compression level.
+			fsync: Flush OS file descriptor buffers to disk if True.
+
+		Returns:
+			Final file modification timestamp float.
+
+		Raises:
+			IOError: Verification failure if verify=True and written bytes mismatch.
+		"""
 		if compress:
 			data = gzip.compress(data, compresslevel=compress_level)
 
@@ -271,7 +424,41 @@ class BaseFileIO(ABC, Generic[T]):
 
 		return os.path.getmtime(final_path)
 
-	async def _save_internal(self, path: str, data: T, update_cache: bool, atomic: bool, verify: bool, compress: bool, compress_level: int, mode: int | None, skip_if_unchanged: bool, fsync: bool, trust_cache: bool, skip_clone: bool) -> bool:
+	async def _save_internal(
+		self,
+		path: str,
+		data: T,
+		update_cache: bool,
+		atomic: bool,
+		verify: bool,
+		compress: bool,
+		compress_level: int,
+		mode: int | None,
+		skip_if_unchanged: bool,
+		fsync: bool,
+		trust_cache: bool,
+		skip_clone: bool
+	) -> bool:
+		"""
+		Internal async lock-managed file save routine.
+
+		Args:
+			path: Absolute path string.
+			data: Object payload to serialize.
+			update_cache: Save result to cache if True.
+			atomic: Perform atomic file move if True.
+			verify: Run write verification if True.
+			compress: Compress written output with gzip if True.
+			compress_level: Gzip compression ratio level.
+			mode: Permission bits.
+			skip_if_unchanged: Avoid write if payload equals cache.
+			fsync: Flush output streams to disk.
+			trust_cache: Bypass mtime checks.
+			skip_clone: Avoid deep copy of cache entry if True.
+
+		Returns:
+			True if execution completed without errors, False otherwise.
+		"""
 		lock_obj = self._acquire_lock(path)
 		try:
 			async with lock_obj.lock:
@@ -294,31 +481,51 @@ class BaseFileIO(ABC, Generic[T]):
 		finally:
 			self._release_lock(path, lock_obj)
 
-
-	# implementation
 	@abstractmethod
 	def serialize(self, data: T) -> bytes:
-		"""Convert data to bytes for disk storage."""
+		"""
+		Convert python object into bytes.
+
+		Args:
+			data: Source object instance.
+
+		Returns:
+			Serialized output bytes.
+		"""
 		...
 
 	@abstractmethod
 	def deserialize(self, content: bytes) -> T:
-		"""Convert bytes from disk back into Python objects."""
+		"""
+		Parse raw byte payload into object instance.
+
+		Args:
+			content: Raw input bytes.
+
+		Returns:
+			Deserialized Python object.
+		"""
 		...
 
 	@abstractmethod
 	def clone(self, data: T) -> T:
-		"""Return a deep copy of the data to prevent accidental mutation of cache."""
+		"""
+		Deep copy payload object instance.
+
+		Args:
+			data: Source object instance.
+
+		Returns:
+			Independent deep copy of input data.
+		"""
 		...
 
 	@property
 	@abstractmethod
 	def default_empty(self) -> T:
-		"""The default value to return if a file is missing or corrupted."""
+		"""The fallback default payload returned when a target file is unreadable."""
 		...
 
-
-	# Public Methods
 	async def load(
 		self,
 		path: str | Path,
@@ -329,15 +536,17 @@ class BaseFileIO(ABC, Generic[T]):
 		update_cache: bool | None = None
 	) -> tuple[bool, T]:
 		"""
-		Load data from cache or disk.
+		Read payload from cache or disk storage safely.
 
-		:param path: The file path to read.
-		:param use_cache: If False, ignores existing cache and reads from disk.
-		:param trust_cache: If True, skips disk mtime check and trusts in-memory cache directly.
-		:param read_only: If True, returns the cached object directly (no cloning).
-		                  FASTER, but you MUST NOT modify the returned object.
-		:param update_cache: If True, disk-read results will be stored in cache.
-		:return: Tuple of (Success Boolean, Data)
+		Args:
+			path: File path reference.
+			use_cache: Read from cache if available.
+			trust_cache: Skip mtime check during cache lookup.
+			read_only: Return cache reference directly without deep cloning.
+			update_cache: Store disk load result in cache.
+
+		Returns:
+			Tuple of (success_boolean, loaded_data_payload).
 		"""
 		_use_cache = use_cache if use_cache is not None else self.load_defaults.use_cache
 		_trust_cache = trust_cache if trust_cache is not None else self.load_defaults.trust_cache
@@ -390,22 +599,25 @@ class BaseFileIO(ABC, Generic[T]):
 		skip_clone: bool | None = None
 	) -> bool:
 		"""
-		Save data to disk and update cache.
+		Save object data payload to disk storage.
 
-		:param path: The file path to write to.
-		:param data: The Python object to save.
-		:param update_cache: If True, the data is added to the sliding cache.
-		:param atomic: If True, uses a temporary file and os.replace to prevent corruption.
-		:param verify: If True, reads the file back to guarantee integrity before returning.
-		:param compress: If True, compresses the file with gzip.
-		:param compress_level: Compression level used when gzip compression is enabled.
-		:param mode: Optional file permissions (e.g., 0o600).
-		:param background: If True, executes the save as a fire-and-forget asyncio task.
-		:param skip_if_unchanged: If True, ignores the save if the data equals the cache.
-		:param fsync: If False, skips physical disk flush for higher performance.
-		:param trust_cache: If True, skips disk mtime check during cache validation.
-		:param skip_clone: If True, skips cloning data before storing in cache.
-		:return: True if successful (or successfully dispatched to background), False otherwise.
+		Args:
+			path: Output target file path.
+			data: Object data payload to save.
+			update_cache: Update cache with payload after saving.
+			atomic: Write via temporary file replacement.
+			verify: Verify written file against payload.
+			compress: Compress written file with gzip.
+			compress_level: Gzip compression level.
+			mode: Optional file permissions bitmask.
+			background: Execute save operation in background task.
+			skip_if_unchanged: Skip write if data equals cached state.
+			fsync: Flush OS file stream buffers to physical media.
+			trust_cache: Skip mtime verification during cache validation.
+			skip_clone: Skip payload deep cloning when caching.
+
+		Returns:
+			True if save succeeded or dispatched to background task, False on failure.
 		"""
 		_update_cache = update_cache if update_cache is not None else self.save_defaults.update_cache
 		_atomic = atomic if atomic is not None else self.save_defaults.atomic
@@ -454,9 +666,23 @@ class BaseFileIO(ABC, Generic[T]):
 		fsync: bool | None = None
 	) -> AsyncIterator[T]:
 		"""
-		Context manager to read, modify, and automatically save data.
-		The per-file lock is held for the duration of the 'with' block to ensure
-		atomicity and prevent race conditions during the read-modify-write cycle.
+		Async context manager for atomic read-modify-write transactional editing.
+
+		Args:
+			path: File path string or Path instance.
+			use_cache: Read initial state from cache if available.
+			trust_cache: Bypass mtime validation.
+			auto_save: Automatically persist context state changes on exit.
+			atomic: Write context results using atomic file move.
+			verify: Run post-write verification checks.
+			compress: Compress written output using gzip.
+			compress_level: Gzip compression level.
+			mode: Optional file permissions bitmask.
+			skip_if_unchanged: Omit disk write if payload context was un-mutated.
+			fsync: Flush OS file descriptor buffers.
+
+		Yields:
+			Mutable payload instance yielding from read operation.
 		"""
 		_use_cache = use_cache if use_cache is not None else self.edit_defaults.use_cache
 		_trust_cache = trust_cache if trust_cache is not None else self.edit_defaults.trust_cache
@@ -508,7 +734,18 @@ class BaseFileIO(ABC, Generic[T]):
 
 
 class CreatePath:
+	"""
+	Asynchronous directory and empty file creation utility helper.
+	"""
+
 	async def process_path(self, path: str | Path, is_dir: bool = False) -> None:
+		"""
+		Create directory tree and touch target file asynchronously.
+
+		Args:
+			path: File or directory path string or Path object.
+			is_dir: Treat path purely as a directory target if True.
+		"""
 		path_obj = Path(path)
 		dir_to_create = path_obj if is_dir else path_obj.parent
 
@@ -524,6 +761,12 @@ class CreatePath:
 			log.error(f"An unexpected error occurred while processing {path}", exc_info=True)
 
 	async def __call__(self, *paths: tuple[str | Path, bool] | str | Path) -> None:
+		"""
+		Process multiple file/directory target creations concurrently.
+
+		Args:
+			*paths: Variadic path inputs or (path, is_dir_boolean) tuples.
+		"""
 		log.debug(f"Starting path processing for {len(paths)} paths.")
 		tasks = []
 		for path in paths:

@@ -1,3 +1,7 @@
+"""
+Core text generation and dynamic execution engine module.
+"""
+
 import logging
 import io
 from typing import Any, Dict, List
@@ -23,6 +27,8 @@ log = logging.getLogger("ai")
 
 
 class SelfCallAgent:
+	"""Helper agent enabling recursive LLM invocations with additional file or context payloads."""
+
 	def __init__(
 		self,
 		parent_ai: 'AI',
@@ -31,6 +37,16 @@ class SelfCallAgent:
 		message: discord.Message | None,
 		bot_client: commands.Bot
 	):
+		"""
+		Initialize the self-call agent wrapper.
+
+		Args:
+			parent_ai: Primary AI instance.
+			guild_obj: Originating Discord Guild instance.
+			member_obj: Originating Discord User/Member instance.
+			message: Originating Discord Message instance.
+			bot_client: Discord Bot instance.
+		"""
 		self.parent_ai = parent_ai
 		self.guild_obj = guild_obj
 		self.member_obj = member_obj
@@ -48,6 +64,11 @@ class SelfCallAgent:
 		File inputs can be Discord Attachments, local file paths (str), raw bytes,
 		or file-like objects (BytesIO, IOBase).
 		If request_full_context is True, full guild and user profile JSONs will be included.
+
+		Args:
+			text: Additional text or revised prompt instructions.
+			*files: Variadic file attachments or paths to process alongside the call.
+			request_full_context: Whether to inject complete guild and user profile objects.
 		"""
 		log.info(f"AI self-call initiated by {self.member_obj.id if self.member_obj else 'unknown'}")
 
@@ -95,7 +116,10 @@ class SelfCallAgent:
 
 
 class AI:
+	"""Main AI engine managing generation pipelines, model caching, dynamic code execution, and context loading."""
+
 	def __init__(self) -> None:
+		"""Initialize base Gemini LLM modules and setup internal custom module caching."""
 		log.info("Initializing AI engine with base modules.")
 		self.base_modules = [
 			GenerateContent(
@@ -112,6 +136,15 @@ class AI:
 		self.bot: commands.Bot | None = None
 
 	def _get_custom_modules(self, custom_keys: List[str]) -> List[GenerateContent]:
+		"""
+		Retrieve cached LLM instances or build new ones using user/guild provided API keys.
+
+		Args:
+			custom_keys: List of custom API key strings.
+
+		Returns:
+			List of GenerateContent LLM module instances.
+		"""
 		cache_signature = ",".join(sorted(custom_keys))
 		if cache_signature in self.custom_modules_cache:
 			log.debug("Cache hit for custom modules.")
@@ -140,6 +173,20 @@ class AI:
 		inputs: List[Any] | None = None,
 		**kwargs: Any
 	) -> bool:
+		"""
+		Build system context, invoke model generation, and execute extracted code blocks.
+
+		Args:
+			event: Discord event name triggering this action.
+			guild_obj: Target guild context, if applicable.
+			member_obj: Target member context, if applicable.
+			extra: Supplemental prompt context or instructions.
+			inputs: Auxiliary file inputs (urls, byte buffers, paths).
+			**kwargs: Contextual values passed into template rendering and code execution.
+
+		Returns:
+			True if response generation was successful, False otherwise.
+		"""
 		log.info(f"Processing action for event: '{event}' (Guild: {guild_obj.id if guild_obj else 'None'}, Member: {member_obj.id if member_obj else 'None'})")
 
 		g_obj, u_obj = None, None
@@ -240,7 +287,6 @@ class AI:
 			kwargs['self_caller'] = SelfCallAgent(self, guild_obj, member_obj, kwargs.get('message'), self.bot)
 		else:
 			log.error("AI instance has no bot client reference, self_caller will not be fully functional.")
-
 
 		for idx, model in enumerate(active_pipeline):
 			log.debug(f"Attempting model generation call (Index: {idx})")

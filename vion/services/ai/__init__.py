@@ -1,3 +1,10 @@
+"""
+AI Engine Module Package.
+
+Provides high-level interfaces and instances for text generation, text summarization,
+voice management / TTS / transcription, and event-driven consciousness evaluation.
+"""
+
 from .text import AI
 from .summarizer import Summarizer
 from .voice import VoiceUtils, GeminiVoice

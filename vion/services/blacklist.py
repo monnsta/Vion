@@ -1,3 +1,10 @@
+"""
+Blacklist management module.
+
+Provides command error handling and persistent tracking for blacklisted server
+and user entities with optional expiration durations.
+"""
+
 import logging
 from datetime import datetime, timedelta
 from typing import Any, Dict, List, Tuple
@@ -12,18 +19,52 @@ log = logging.getLogger("blacklist")
 
 
 class BlacklistedError(commands.CommandError):
+	"""
+	Exception raised when a user or server is blocked from executing commands due to an active blacklist entry.
+
+	Attributes:
+		reason: Explanation of why the entity was blacklisted.
+		expires_at: Optional ISO timestamp string indicating when the ban expires.
+	"""
+
 	def __init__(self, reason: str, expires_at: str | None = None):
+		"""
+		Initialize BlacklistedError.
+
+		Args:
+			reason: Blacklist justification message.
+			expires_at: Optional ISO format expiration timestamp string.
+		"""
 		self.reason = reason
 		self.expires_at = expires_at
 		super().__init__(f"User is blacklisted. Reason: {reason}")
 
 
 class Blacklist:
+	"""
+	Manages reading, updating, expiring, and listing blacklisted entities.
+	"""
+
 	@staticmethod
 	def _now() -> datetime:
+		"""
+		Get the current datetime in the configured system timezone.
+
+		Returns:
+			Timezone-aware datetime instance.
+		"""
 		return datetime.now(config.timezone)
 
 	def _parse_duration(self, duration: str) -> str | None:
+		"""
+		Parse a relative duration string into an ISO format expiration date.
+
+		Args:
+			duration: Relative duration string (e.g. '7d', '12h', '30m', or '0' for permanent).
+
+		Returns:
+			ISO timestamp string of expiration time, or None if permanent or invalid.
+		"""
 		if duration == "0":
 			return None
 
@@ -49,6 +90,12 @@ class Blacklist:
 			return None
 
 	async def _get_data(self) -> Tuple[bool, Dict[str, Dict[str, Any]]]:
+		"""
+		Load blacklist database and purge expired entries.
+
+		Returns:
+			Tuple of (success_flag, data_dict).
+		"""
 		success, data = await json_file.load(storage.shared.blacklist)
 
 		if "server" not in data: data["server"] = {}
@@ -76,8 +123,20 @@ class Blacklist:
 
 		return True, data
 
-
 	async def add(self, entity_id: int, entity_type: str, mod_id: int, reason: str, duration: str | None = None) -> Tuple[bool, str]:
+		"""
+		Add an entity to the blacklist database.
+
+		Args:
+			entity_id: Target entity snowflake ID.
+			entity_type: Entity scope ('server' or 'user').
+			mod_id: Snowflake ID of moderator applying the blacklist.
+			reason: Justification for blacklisting.
+			duration: Optional relative duration string.
+
+		Returns:
+			Tuple of (success_flag, status_message).
+		"""
 		if entity_type not in ("server", "user"):
 			log.warning(f"Attempted to blacklist invalid entity type: {entity_type}")
 			return False, "Invalid entity type"
@@ -105,6 +164,16 @@ class Blacklist:
 		return True, "Blacklisted successfully."
 
 	async def remove(self, entity_id: int, entity_type: str) -> Tuple[bool, str]:
+		"""
+		Remove an entity from the blacklist database.
+
+		Args:
+			entity_id: Target entity snowflake ID.
+			entity_type: Entity scope ('server' or 'user').
+
+		Returns:
+			Tuple of (success_flag, status_message).
+		"""
 		if entity_type not in ("server", "user"):
 			return False, "Invalid entity type"
 
@@ -124,6 +193,16 @@ class Blacklist:
 		return False, f"{entity_type.capitalize()} was not blacklisted."
 
 	async def get(self, entity_id: int, entity_type: str) -> Tuple[bool, Any]:
+		"""
+		Retrieve blacklist entry details for an entity.
+
+		Args:
+			entity_id: Target entity snowflake ID.
+			entity_type: Entity scope ('server' or 'user').
+
+		Returns:
+			Tuple of (success_flag, entry_dict_or_error_string).
+		"""
 		log.debug(f"Fetching blacklist info for {entity_type} {entity_id}")
 
 		if entity_type not in ("server", "user"):
@@ -140,6 +219,19 @@ class Blacklist:
 		return False, f"{entity_type.capitalize()} with id '{eid}' was not found."
 
 	async def edit(self, entity_id: int, entity_type: str, mod_id: int, reason: str | None = None, duration: str | None = None) -> Tuple[bool, str]:
+		"""
+		Update reason or duration for an existing blacklist entry.
+
+		Args:
+			entity_id: Target entity snowflake ID.
+			entity_type: Entity scope ('server' or 'user').
+			mod_id: Snowflake ID of moderator updating entry.
+			reason: Optional updated reason text.
+			duration: Optional updated relative duration string.
+
+		Returns:
+			Tuple of (success_flag, status_message).
+		"""
 		if entity_type not in ("server", "user"):
 			return False, "Invalid entity type"
 
@@ -189,6 +281,15 @@ class Blacklist:
 		return True, "Blacklist entry updated successfully."
 
 	async def list_all(self, entity_type: str | None = None) -> List[Dict[str, Any]]:
+		"""
+		List all active blacklist entries.
+
+		Args:
+			entity_type: Optional filter scope ('server' or 'user').
+
+		Returns:
+			List of dictionaries containing entry metadata alongside 'id' and 'type'.
+		"""
 		log.debug(f"Listing all blacklisted entities (filter: {entity_type})")
 		success, data = await self._get_data()
 
@@ -205,6 +306,16 @@ class Blacklist:
 		return results
 
 	async def is_blacklisted(self, entity_id: int, entity_type: str) -> bool:
+		"""
+		Check if an entity is currently blacklisted.
+
+		Args:
+			entity_id: Target entity snowflake ID.
+			entity_type: Entity scope ('server' or 'user').
+
+		Returns:
+			True if blacklisted, False otherwise.
+		"""
 		if entity_type not in ("server", "user"):
 			return False
 

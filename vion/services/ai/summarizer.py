@@ -1,3 +1,7 @@
+"""
+Text summarization module using LLM pipelines.
+"""
+
 import logging
 
 from infrastructure.llm import GenerateContent
@@ -8,7 +12,10 @@ log = logging.getLogger("ai")
 
 
 class Summarizer:
+	"""Handles text summarization requests across configured LLM fallback models."""
+
 	def __init__(self) -> None:
+		"""Initialize summarization models using keys and parameters from configuration."""
 		log.info("Initializing Summarizer engine.")
 		self.modules = [
 			GenerateContent(
@@ -22,6 +29,15 @@ class Summarizer:
 		]
 
 	async def summarize(self, text: str) -> str | None:
+		"""
+		Summarize the provided string using available LLM models.
+
+		Args:
+			text: String content to be summarized.
+
+		Returns:
+			Summarized text string if successful, None if empty or all models failed.
+		"""
 		if not text.strip():
 			return None
 

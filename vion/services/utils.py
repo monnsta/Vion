@@ -1,3 +1,7 @@
+"""
+Utility functions and decorators for interaction scope resolution and permission checking.
+"""
+
 from typing import Any, Tuple, Iterable
 
 import discord
@@ -9,6 +13,16 @@ from ui_templates import Fail
 
 
 async def resolve_target(interaction: discord.Interaction, scope: str) -> Tuple[Any, int | None]:
+	"""
+	Resolve the profile manager and snowflake ID based on interaction scope.
+
+	Args:
+		interaction: Discord interaction context.
+		scope: Target scope type ('server' or 'user').
+
+	Returns:
+		Tuple of (profile_manager_instance, entity_id), or (None, None) if scope validation fails.
+	"""
 	if scope == 'server':
 		if not interaction.guild:
 			await interaction.response.send_message(view=Fail(
@@ -22,11 +36,31 @@ async def resolve_target(interaction: discord.Interaction, scope: str) -> Tuple[
 
 
 def is_dev(devs: Iterable[int]):
+	"""
+	App command check decorator restricting execution to developer user IDs.
+
+	Args:
+		devs: Iterable of developer user snowflake IDs.
+
+	Returns:
+		Discord app command check decorator.
+	"""
 	async def predicate(interaction: discord.Interaction) -> bool:
 		return any(dev_id == interaction.user.id for dev_id in devs)
 	return app.check(predicate)
 
+
 def is_admin(devs: Iterable[int], compare: tuple[str, str] | None = None):
+	"""
+	App command check decorator evaluating admin permissions, ownership, or override criteria.
+
+	Args:
+		devs: Iterable of developer user snowflake IDs.
+		compare: Optional tuple of (namespace_attr_name, expected_value) to bypass checks.
+
+	Returns:
+		Discord app command check decorator.
+	"""
 	async def predicate(interaction: discord.Interaction) -> bool:
 		if compare:
 			val = getattr(interaction.namespace, compare[0], None)

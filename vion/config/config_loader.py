@@ -1,3 +1,10 @@
+"""
+Configuration loader engine.
+
+Handles loading, validating, and dynamic reloading of user configuration files,
+sandbox import restrictions, and environment secrets.
+"""
+
 import builtins
 import logging
 import sys
@@ -42,7 +49,19 @@ config.secrets = Secrets.__new__(Secrets)
 config.cmd = ConfigNode()
 
 
-async def load_config(reload: bool = False):
+async def load_config(reload: bool = False) -> None:
+	"""
+	Load or reload the application configuration from disk.
+
+	Executes the user configuration file, configures the sandbox import hook,
+	populates emoji maps, formats system templates, and loads secret keys.
+
+	Args:
+		reload: If True, raises ConfigReloadError on failure instead of exiting.
+
+	Raises:
+		ConfigReloadError: If configuration reload fails and reload is True.
+	"""
 	global config, emoji
 
 	log.info("Setting up config..." if not reload else "Reloading config...")
@@ -84,7 +103,7 @@ async def load_config(reload: bool = False):
 			locals: dict[str, Any] | None = None,
 			fromlist: tuple[str, ...] = (),
 			level: int = 0,
-		):
+		) -> Any:
 			if name in allowed_exact or name.startswith(allowed_prefixes):
 				return real_import(name, globals, locals, fromlist, level)
 			raise ImportError(f"Module '{name}' is not allowed in sandbox")

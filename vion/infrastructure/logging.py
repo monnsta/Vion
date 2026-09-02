@@ -1,3 +1,10 @@
+"""
+Logging infrastructure module.
+
+Provides specialized log handlers, custom formatters (JSON, HTML, Rich),
+and context-managed log stream buffers.
+"""
+
 import contextvars
 import html
 import io
@@ -15,8 +22,19 @@ from rich.text import Text
 
 code_log_stream: contextvars.ContextVar[io.StringIO | None] = contextvars.ContextVar('code_log_stream', default=None)
 
+
 class CodeLogHandler(logging.Handler):
-	def emit(self, record):
+	"""
+	Log handler that directs log records into a context-managed string stream buffer.
+	"""
+
+	def emit(self, record: logging.LogRecord) -> None:
+		"""
+		Format and write log record to active context log stream buffer.
+
+		Args:
+			record: LogRecord object to emit.
+		"""
 		stream = code_log_stream.get()
 		if stream is not None:
 			try:
@@ -27,7 +45,20 @@ class CodeLogHandler(logging.Handler):
 
 
 class JsonFormatter(logging.Formatter):
-	def format(self, record):
+	"""
+	Formatter that outputs structured JSON string representations of LogRecords.
+	"""
+
+	def format(self, record: logging.LogRecord) -> str:
+		"""
+		Format log record as a serialized JSON string.
+
+		Args:
+			record: LogRecord object to process.
+
+		Returns:
+			JSON-formatted string representation of the log entry.
+		"""
 		log_data = {
 			"timestamp": self.formatTime(record, self.datefmt),
 			"level": record.levelname,
@@ -51,12 +82,30 @@ class JsonFormatter(logging.Formatter):
 
 		return json.dumps(log_data)
 
+
 class HtmlFormatter(logging.Formatter):
-	def __init__(self):
+	"""
+	Formatter that constructs styled HTML log entry elements with syntax-highlighted tracebacks.
+
+	Attributes:
+		console: Rich Console instance configured for rendering HTML elements.
+	"""
+
+	def __init__(self) -> None:
+		"""Initialize the HtmlFormatter and its underlying Rich console buffer."""
 		super().__init__()
 		self.console = Console(file=io.StringIO(), record=True, force_terminal=True, width=150, color_system="truecolor")
 
-	def format(self, record):
+	def format(self, record: logging.LogRecord) -> str:
+		"""
+		Format log record as an interactive HTML snippet with metadata popups.
+
+		Args:
+			record: LogRecord object to convert.
+
+		Returns:
+			HTML formatted string snippet representing the log event.
+		"""
 		time_str = self.formatTime(record, "%H:%M:%S")
 		level = record.levelname
 		level_letter = level[0] if level else "?"
@@ -111,13 +160,29 @@ class HtmlFormatter(logging.Formatter):
 
 		return html_out
 
+
 class TextFormatter(logging.Formatter):
-	def __init__(self):
+	"""
+	Standardized plain text formatter using a bracketed timestamp and metadata layout.
+	"""
+
+	def __init__(self) -> None:
+		"""Initialize standard text formatting template and timestamp layout."""
 		super().__init__("[%(asctime)s] [%(levelname)s] [%(name)s] %(message)s", "%Y-%m-%d %H:%M:%S")
 
 
 class SessionFileHandler(FileHandler):
-	def _open(self):
+	"""
+	FileHandler subclass that injects structural HTML headers into newly created log files.
+	"""
+
+	def _open(self) -> io.TextIOWrapper:
+		"""
+		Open target file stream and write document header if destination file is empty HTML.
+
+		Returns:
+			Opened text stream handle.
+		"""
 		stream = super()._open()
 		if stream.tell() == 0 and self.baseFilename.endswith(".html"):
 			header = (
@@ -154,8 +219,19 @@ class SessionFileHandler(FileHandler):
 			stream.flush()
 		return stream
 
+
 class RichHandlerv2(RichHandler):
-	def emit(self, record):
+	"""
+	Customized RichHandler that sanitizes redundant Discord reconnect traces and displays single-letter level indicators.
+	"""
+
+	def emit(self, record: logging.LogRecord) -> None:
+		"""
+		Intercept log emissions to clear unwanted stack traces prior to output rendering.
+
+		Args:
+			record: Target LogRecord object.
+		"""
 		if (
 			record.name.startswith("discord")
 			and "Attempting a reconnect in" in record.getMessage()
@@ -166,6 +242,15 @@ class RichHandlerv2(RichHandler):
 		super().emit(record)
 
 	def get_level_text(self, record: logging.LogRecord) -> Text:
+		"""
+		Format log level label into a single stylized letter representation.
+
+		Args:
+			record: Target LogRecord object.
+
+		Returns:
+			Styled Rich Text object representing the level string.
+		"""
 		level_map = {
 			"DEBUG": "D",
 			"INFO": "I",

@@ -1,3 +1,10 @@
+"""
+Base profile management functionality.
+
+Provides generic data, settings, AI information, and archive handling classes
+backed by persistent storage, HMAC signatures, and file system operations.
+"""
+
 import asyncio
 import datetime
 import io
@@ -21,10 +28,29 @@ TRoute = TypeVar("TRoute", Guild, User)
 
 
 class CogData:
+	"""
+	Handles reading and writing custom cog persistent data for an entity profile.
+	"""
+
 	def __init__(self, parent: "BaseProfileManager[Guild]"):
+		"""
+		Initialize CogData manager.
+
+		Args:
+			parent: Parent BaseProfileManager instance.
+		"""
 		self.parent = parent
 
 	async def load(self, entity_id: int) -> tuple[bool, dict[str, Any]]:
+		"""
+		Load custom cog data for a specific entity.
+
+		Args:
+			entity_id: Target entity snowflake ID.
+
+		Returns:
+			Tuple of (success_flag, data_dict).
+		"""
 		log.debug(f"Loading cog data for {self.parent.entity_type} {entity_id}")
 		if not hasattr(self.parent.file_routes, "data"):
 			return False, {}
@@ -37,6 +63,16 @@ class CogData:
 		return success, data
 
 	async def save(self, entity_id: int, data: dict[str, Any]) -> bool:
+		"""
+		Save custom cog data for a specific entity.
+
+		Args:
+			entity_id: Target entity snowflake ID.
+			data: Dictionary object containing cog state data to persist.
+
+		Returns:
+			True if saved successfully, False otherwise.
+		"""
 		log.debug(f"Saving cog data for {self.parent.entity_type} {entity_id}")
 		if not hasattr(self.parent.file_routes, "data"):
 			return False
@@ -46,16 +82,45 @@ class CogData:
 
 
 class Data:
+	"""
+	Manages life-cycle operations for entity data directories, including deletion,
+	restoration, permanent purging, and HMAC-verified ZIP exports/imports.
+	"""
+
 	def __init__(self, parent: "BaseProfileManager"):
+		"""
+		Initialize Data manager.
+
+		Args:
+			parent: Parent BaseProfileManager instance.
+		"""
 		self.parent = parent
 
 	async def exists(self, entity_id: int) -> bool:
+		"""
+		Check if an active profile directory exists for an entity.
+
+		Args:
+			entity_id: Target entity snowflake ID.
+
+		Returns:
+			True if profile directory exists, False otherwise.
+		"""
 		eid = str(entity_id)
 		path = Path(self.parent.active_dir) / eid
 
 		return await asyncio.to_thread(path.exists)
 
 	async def delete(self, entity_id: int) -> bool:
+		"""
+		Move active entity profile directory to trash and record timestamp.
+
+		Args:
+			entity_id: Target entity snowflake ID.
+
+		Returns:
+			True if moved successfully, False otherwise.
+		"""
 		eid = str(entity_id)
 		source = Path(self.parent.active_dir) / eid
 		dest = Path(storage.dirs.trash) / eid
@@ -81,6 +146,15 @@ class Data:
 			return False
 
 	async def restore(self, entity_id: int) -> bool:
+		"""
+		Restore binned entity profile back to active directory with automatic rollback on error.
+
+		Args:
+			entity_id: Target entity snowflake ID.
+
+		Returns:
+			True if restored successfully, False otherwise.
+		"""
 		eid = str(entity_id)
 		binned = Path(storage.dirs.trash) / eid
 		active = Path(self.parent.active_dir) / eid
@@ -117,6 +191,16 @@ class Data:
 			return False
 
 	async def restore_zip(self, entity_id: int, zip_bytes: bytes) -> tuple[bool, str]:
+		"""
+		Verify HMAC signature and unpack backup ZIP payload into active directory.
+
+		Args:
+			entity_id: Target entity snowflake ID.
+			zip_bytes: Raw binary content of uploaded ZIP file.
+
+		Returns:
+			Tuple of (success_flag, user_facing_message).
+		"""
 		eid = str(entity_id)
 		dest_dir = (Path(self.parent.active_dir) / eid).resolve()
 
@@ -172,6 +256,15 @@ class Data:
 		return await asyncio.to_thread(process_restore)
 
 	async def delete_permanent(self, entity_id: int) -> tuple[bool, str]:
+		"""
+		Permanently remove entity profile directory from active or trash storage.
+
+		Args:
+			entity_id: Target entity snowflake ID.
+
+		Returns:
+			Tuple of (success_flag, status_message).
+		"""
 		eid = str(entity_id)
 		source = Path(self.parent.active_dir) / eid
 		binned = Path(storage.dirs.trash) / eid
@@ -194,6 +287,15 @@ class Data:
 			return False, "There was an error deleting your data, please report this"
 
 	async def get_zip(self, entity_id: int) -> tuple[bool, io.BytesIO | str]:
+		"""
+		Generate an in-memory ZIP export of entity directory with an HMAC signature.
+
+		Args:
+			entity_id: Target entity snowflake ID.
+
+		Returns:
+			Tuple of (success_flag, BytesIO_buffer_or_error_string).
+		"""
 		eid = str(entity_id)
 		source_dir = Path(self.parent.active_dir) / eid
 
@@ -251,32 +353,89 @@ class Data:
 
 
 class Settings:
+	"""
+	Manages reading and writing entity settings configurations.
+	"""
+
 	def __init__(self, parent: "BaseProfileManager"):
+		"""
+		Initialize Settings manager.
+
+		Args:
+			parent: Parent BaseProfileManager instance.
+		"""
 		self.parent = parent
 
 	async def load(self, entity_id: int) -> tuple[bool, dict[str, Any]]:
+		"""
+		Load configuration settings for an entity.
+
+		Args:
+			entity_id: Target entity snowflake ID.
+
+		Returns:
+			Tuple of (success_flag, settings_dict).
+		"""
 		log.debug(f"Loading settings for {self.parent.entity_type} {entity_id}")
 		path = self.parent.file_routes.settings(str(entity_id))
 		success, data = await json_file.load(path)
 		return success, data
 
 	async def save(self, entity_id: int, data: dict[str, Any]) -> bool:
+		"""
+		Save configuration settings for an entity.
+
+		Args:
+			entity_id: Target entity snowflake ID.
+			data: Settings dictionary to save.
+
+		Returns:
+			True if saved successfully, False otherwise.
+		"""
 		log.debug(f"Saving settings for {self.parent.entity_type} {entity_id}")
 		path = self.parent.file_routes.settings(str(entity_id))
 		return await json_file.save(path, data)
 
 
 class Info:
+	"""
+	Manages reading and updating cached AI metadata for entities.
+	"""
+
 	def __init__(self, parent: "BaseProfileManager"):
+		"""
+		Initialize Info manager.
+
+		Args:
+			parent: Parent BaseProfileManager instance.
+		"""
 		self.parent = parent
 
 	async def load(self, entity_id: int) -> tuple[bool, dict[str, Any]]:
+		"""
+		Load cached AI information for an entity.
+
+		Args:
+			entity_id: Target entity snowflake ID.
+
+		Returns:
+			Tuple of (success_flag, info_dict).
+		"""
 		log.debug(f"Loading AI info for {self.parent.entity_type} {entity_id}")
 		path = self.parent.file_routes.ai_data(str(entity_id))
 		success, data = await json_file.load(path)
 		return (success, data.get(self.parent.entity_type, {})) if success else (False, {})
 
 	async def save(self, entity) -> bool:
+		"""
+		Convert entity metadata and write to AI cached data storage.
+
+		Args:
+			entity: Discord Guild or User/Member object.
+
+		Returns:
+			True if saved successfully, False otherwise.
+		"""
 		log.debug(f"Updating cached info for {self.parent.entity_type} {entity.id}")
 		path = self.parent.file_routes.ai_data(str(entity.id))
 		success, data = await json_file.load(path)
@@ -291,7 +450,31 @@ class Info:
 
 
 class BaseProfileManager(Generic[TRoute]):
+	"""
+	Base class for entity profile managers coordinating data, settings, and metadata sub-managers.
+
+	Attributes:
+		entity_type: Entity scope string ('guild' or 'user').
+		active_dir: Base directory Path for active profiles.
+		file_routes: Configured file routing object.
+		default_settings: Default settings dictionary template.
+		default_ai_data: Default AI data dictionary template.
+		data: Data manager instance for storage operations.
+		settings: Settings manager instance.
+		info: Info manager instance for AI metadata.
+	"""
+
 	def __init__(self, entity_type: str, active_dir: Path, file_routes: TRoute, default_settings: dict, default_ai_data: dict):
+		"""
+		Initialize BaseProfileManager instance.
+
+		Args:
+			entity_type: Scope string ('guild' or 'user').
+			active_dir: Path to active entity files.
+			file_routes: Route provider for relative file locations.
+			default_settings: Default settings payload template.
+			default_ai_data: Default AI data payload template.
+		"""
 		self.entity_type = entity_type
 		self.active_dir = active_dir
 		self.file_routes = file_routes
@@ -303,9 +486,29 @@ class BaseProfileManager(Generic[TRoute]):
 		self.info = Info(self)
 
 	async def is_setup(self, entity_id: int) -> bool:
+		"""
+		Check if an entity profile has already been initialized.
+
+		Args:
+			entity_id: Target entity snowflake ID.
+
+		Returns:
+			True if profile exists, False otherwise.
+		"""
 		return await self.data.exists(entity_id)
 
 	async def _setup(self, entity_id: int, entity_name: str, extra_paths: list[Path | tuple[Path, bool]] = []) -> bool:
+		"""
+		Internal setup helper to initialize directory structures and default files.
+
+		Args:
+			entity_id: Target entity snowflake ID.
+			entity_name: Human-readable entity name for logging.
+			extra_paths: Optional list of additional paths/files to create.
+
+		Returns:
+			True if setup completed successfully, False otherwise.
+		"""
 		eid = str(entity_id)
 		log.info(f"Setting up new {self.entity_type} profile: {entity_name} ({eid})")
 		try:

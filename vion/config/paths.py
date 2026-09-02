@@ -1,3 +1,10 @@
+"""
+Path resolution and storage initialization manager.
+
+Handles environment-based root resolution, storage object instantiation,
+file verification, and target directory creation.
+"""
+
 import logging
 import os
 import sys
@@ -20,6 +27,14 @@ ROOT: Path | None = None
 
 
 def resolve_root() -> Path:
+	"""
+	Resolve absolute root project directory path.
+
+	Checks VION_ROOT_DIR environment variable first, falling back to parent folder.
+
+	Returns:
+		Resolved absolute Path instance.
+	"""
 	env_path = os.getenv("VION_ROOT_DIR")
 	if env_path:
 		return Path(env_path).expanduser().resolve()
@@ -29,6 +44,15 @@ def resolve_root() -> Path:
 
 
 def init_storage(root_path: Path) -> Storage:
+	"""
+	Initialize directory structures and populate global storage container.
+
+	Args:
+		root_path: Absolute path to root project folder.
+
+	Returns:
+		Populated Storage object reference.
+	"""
 	global storage
 
 	data_dir = root_path / "data"
@@ -84,6 +108,11 @@ def init_storage(root_path: Path) -> Storage:
 
 
 async def validate_paths() -> None:
+	"""
+	Verify existence of critical configuration and environment files.
+
+	Exits process with status code 10 if essential files are missing.
+	"""
 	critical_files = (
 		storage.env,
 		storage.config,
@@ -98,6 +127,9 @@ async def validate_paths() -> None:
 
 
 async def setup_directory() -> None:
+	"""
+	Initialize filesystem paths, validate requirements, and create missing folders.
+	"""
 	global ROOT
 
 	ROOT = resolve_root()

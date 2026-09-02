@@ -1,3 +1,9 @@
+"""
+Core object serialization and conversion module.
+
+Provides recursive dictionary, list, and object transformation into JSON-safe dictionaries or YAML.
+"""
+
 import asyncio
 import datetime
 import warnings
@@ -21,6 +27,23 @@ except ImportError:
 
 
 class Convert:
+	"""
+	Configurable recursive serializer for complex Python and Discord objects.
+
+	Attributes:
+		filter_attrs: Set of attribute names to ignore during serialization.
+		max_depth: Maximum default recursion depth allowed.
+		attr_depths: Dictionary mapping specific attribute names to customized depth limits.
+		type_depths: Dictionary mapping object types to customized depth limits.
+		max_list_len: Maximum number of elements to process per sequence.
+		ignore_none: Whether to omit None values from serialized output.
+		ignore_empty: Whether to omit empty containers and empty strings.
+		ignore_false: Whether to omit False boolean values.
+		deduplicate: Whether to substitute repeated Discord ID instances with reference markers.
+		flatten: Whether to flatten nested dictionary key structures with underscores.
+		output_format: Output format choice ('dict' or 'yaml').
+	"""
+
 	def __init__(
 		self,
 		filter_attrs: list | None = None,
@@ -35,6 +58,22 @@ class Convert:
 		flatten: bool = False,
 		output_format: str = "dict"
 	):
+		"""
+		Initialize Convert serializer instance with target rules and filters.
+
+		Args:
+			filter_attrs: Optional list of attribute names to skip.
+			max_depth: General recursion depth limit. Defaults to 5.
+			attr_depths: Optional depth overrides keyed by attribute name.
+			type_depths: Optional depth overrides keyed by object type.
+			max_list_len: Maximum list/iterable items to serialize. Defaults to 25.
+			ignore_none: Strip None values if True. Defaults to True.
+			ignore_empty: Strip empty dictionaries, lists, and strings if True. Defaults to True.
+			ignore_false: Strip False values if True. Defaults to True.
+			deduplicate: Replace duplicate entity IDs with reference object if True. Defaults to True.
+			flatten: Flatten nested dictionary output if True. Defaults to False.
+			output_format: String format type ('dict' or 'yaml'). Defaults to "dict".
+		"""
 		self.filter_attrs = set(filter_attrs or [])
 		self.max_depth = max_depth
 		self.attr_depths = attr_depths or {}
@@ -48,6 +87,17 @@ class Convert:
 		self.output_format = output_format
 
 	def _flatten_dict(self, d: dict, parent_key: str = '', sep: str = '_') -> dict:
+		"""
+		Recursively flatten a nested dictionary hierarchy.
+
+		Args:
+			d: Input dictionary.
+			parent_key: Accumulated parent key prefix.
+			sep: Key join separator character. Defaults to '_'.
+
+		Returns:
+			Flattened single-level dictionary.
+		"""
 		def _yield_flat(curr_dict, curr_key):
 			for k, v in curr_dict.items():
 				new_key = f"{curr_key}{sep}{k}" if curr_key else str(k)
@@ -59,6 +109,16 @@ class Convert:
 		return dict(_yield_flat(d, parent_key))
 
 	async def __call__(self, obj, **kwargs):
+		"""
+		Asynchronously execute object serialization in a background thread.
+
+		Args:
+			obj: Target object or payload to serialize.
+			**kwargs: Temporary configuration overrides for this execution run.
+
+		Returns:
+			Serialized dictionary structure or formatted YAML string.
+		"""
 		config = {
 			"filter_attrs": kwargs.get("filter_attrs", self.filter_attrs),
 			"max_depth": kwargs.get("max_depth", self.max_depth),

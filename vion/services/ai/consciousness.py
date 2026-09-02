@@ -1,3 +1,10 @@
+"""
+Consciousness evaluation module.
+
+Provides event handlers and probability managers to simulate autonomous bot actions
+and free-will mechanics based on Discord event triggers and internal cooldowns.
+"""
+
 import random
 import time
 from abc import ABC, abstractmethod
@@ -9,6 +16,8 @@ from config import config
 
 
 class BaseEventHandler(ABC):
+	"""Abstract base class for consciousness event handlers."""
+
 	cooldown_seconds: float = 60.0
 	base_chance: float = 0.0
 
@@ -20,9 +29,31 @@ class BaseEventHandler(ABC):
 		free_will: bool,
 		**kwargs
 	) -> bool:
+		"""
+		Evaluate whether the specified event should trigger an action.
+
+		Args:
+			consciousness: Main Consciousness manager instance.
+			bot: Active Discord bot instance.
+			free_will: Flag indicating whether unprompted actions are enabled.
+			**kwargs: Additional contextual event data.
+
+		Returns:
+			True if the action should be triggered, False otherwise.
+		"""
 		pass
 
 	def get_random(self, free_will: bool, chance_modifier: float) -> bool:
+		"""
+		Calculate a random probability check against free-will settings.
+
+		Args:
+			free_will: Flag indicating whether free-will mechanics are active.
+			chance_modifier: Scaling factor applied to configured free-will frequency.
+
+		Returns:
+			True if the random float falls within the calculated threshold.
+		"""
 		if not free_will:
 			return False
 		chance = config.free_will_frequency * chance_modifier
@@ -30,7 +61,21 @@ class BaseEventHandler(ABC):
 
 
 class MessageEventHandler(BaseEventHandler):
+	"""Evaluates incoming Discord message events to determine if the bot should respond."""
+
 	def evaluate(self, consciousness: "Consciousness", bot: commands.Bot, free_will: bool, **kwargs) -> bool:
+		"""
+		Check if a received message warrants a response based on DMs, replies, mentions, or free-will.
+
+		Args:
+			consciousness: Main Consciousness manager instance.
+			bot: Active Discord bot instance.
+			free_will: Flag indicating whether free-will triggers apply.
+			**kwargs: Expected to contain 'message' as a discord.Message.
+
+		Returns:
+			True if the bot should react to/process the message.
+		"""
 		_ = consciousness
 		message: discord.Message | None = kwargs.get("message")
 
@@ -68,21 +113,62 @@ class MessageEventHandler(BaseEventHandler):
 
 
 class DynamicChanceEventHandler(BaseEventHandler):
+	"""Evaluates events where trigger chance is passed dynamically in keyword arguments."""
+
 	def __init__(self, cooldown_seconds: float = 60.0):
+		"""
+		Initialize the dynamic chance handler.
+
+		Args:
+			cooldown_seconds: Execution cooldown period in seconds.
+		"""
 		self.cooldown_seconds = cooldown_seconds
 
 	def evaluate(self, consciousness: "Consciousness", bot: commands.Bot, free_will: bool, **kwargs) -> bool:
+		"""
+		Evaluate using a dynamic 'chance' parameter provided in kwargs.
+
+		Args:
+			consciousness: Main Consciousness manager instance.
+			bot: Active Discord bot instance.
+			free_will: Flag indicating if free-will is active.
+			**kwargs: Should contain 'chance' float value.
+
+		Returns:
+			True if triggered.
+		"""
 		_ = (consciousness, bot)
 		chance = kwargs.get("chance", 0.0)
 		return self.get_random(free_will, chance)
 
 
 class GenericChanceEventHandler(BaseEventHandler):
+	"""Evaluates events against a static base probability threshold."""
+
 	def __init__(self, base_chance: float, cooldown_seconds: float = 60.0):
+		"""
+		Initialize generic chance handler.
+
+		Args:
+			base_chance: Static base probability threshold.
+			cooldown_seconds: Execution cooldown period in seconds.
+		"""
 		self.base_chance = base_chance
 		self.cooldown_seconds = cooldown_seconds
 
 	def evaluate(self, consciousness: "Consciousness", bot: commands.Bot, free_will: bool, **kwargs) -> bool:
+		"""
+		Evaluate using static base probability.
+
+		Args:
+			consciousness: Main Consciousness manager instance.
+			bot: Active Discord bot instance.
+			free_will: Flag indicating if free-will is active.
+			**kwargs: Additional parameters.
+
+		Returns:
+			True if triggered.
+		"""
 		_ = (consciousness, bot, kwargs)
 		if self.base_chance >= 1.0:
 			return True
@@ -90,7 +176,10 @@ class GenericChanceEventHandler(BaseEventHandler):
 
 
 class Consciousness:
+	"""Central manager for event evaluation, registering handlers, and managing cooldown state."""
+
 	def __init__(self):
+		"""Initialize cooldown maps and register default Discord event handlers."""
 		self.event_cooldowns = {}
 		self.message_trigger_cooldowns = {}
 		self._cleanup_interval = 300
@@ -100,9 +189,17 @@ class Consciousness:
 		self._register_default_handlers()
 
 	def register_handler(self, event_type: str, handler: BaseEventHandler):
+		"""
+		Register an event handler for a given event name.
+
+		Args:
+			event_type: Name of the event trigger.
+			handler: Handler instance deriving from BaseEventHandler.
+		"""
 		self.handlers[event_type] = handler
 
 	def _register_default_handlers(self):
+		"""Register default set of event handlers and default probability thresholds."""
 		self.register_handler("on_message", MessageEventHandler())
 		self.register_handler("on_message_delete", GenericChanceEventHandler(base_chance=0.2))
 		self.register_handler("on_message_edit", GenericChanceEventHandler(base_chance=0.2))
@@ -117,6 +214,12 @@ class Consciousness:
 		self.register_handler("notification_freewill", DynamicChanceEventHandler(cooldown_seconds=300))
 
 	def _cleanup_cooldowns(self, now: float):
+		"""
+		Remove expired cooldown records from memory.
+
+		Args:
+			now: Current UNIX epoch timestamp.
+		"""
 		keys_to_remove = [k for k, v in self.message_trigger_cooldowns.items() if now - v > config.event_cooldown * 2]
 		for k in keys_to_remove:
 			del self.message_trigger_cooldowns[k]
@@ -134,6 +237,18 @@ class Consciousness:
 		free_will: bool = False,
 		**kwargs
 	) -> bool:
+		"""
+		Evaluate whether an event should execute based on active handlers and cooldowns.
+
+		Args:
+			bot: Active Discord bot client.
+			event_type: Identifier of the event being processed.
+			free_will: Flag indicating whether unprompted behavior is allowed.
+			**kwargs: Context arguments (e.g., message, guild, context_id).
+
+		Returns:
+			True if execution is permitted, False otherwise.
+		"""
 		now = time.time()
 		if now - self._last_cleanup > self._cleanup_interval:
 			self._cleanup_cooldowns(now)

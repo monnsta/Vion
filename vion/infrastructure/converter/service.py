@@ -1,3 +1,10 @@
+"""
+Predefined converter instances for common Discord domain objects.
+
+Defines standardized filter sets and instance configurations for converting
+messages, guilds, users, and client bot instances.
+"""
+
 from .base import Convert
 
 

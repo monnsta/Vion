@@ -1,3 +1,10 @@
+"""
+Memory services implementation.
+
+Defines classes managing short-term memory (STM), long-term memory (LTM), audit logs,
+channel-scoped memories, context links, and unified cluster aggregations.
+"""
+
 import json
 import time
 import hashlib
@@ -16,22 +23,45 @@ log = logging.getLogger("memory")
 
 
 class STM(EntityListStore):
+	"""
+	Short-Term Memory store supporting automated summarization into LTM.
+	"""
+
 	def __init__(
 		self,
 		entity_type: str = "guild",
 		guild_ltm: Optional["LTM"] = None,
 		user_ltm: Optional["LTM"] = None
 	):
+		"""
+		Initialize short-term memory store instance.
+
+		Args:
+			entity_type: Entity scope identifier ('global', 'guild', or 'user').
+			guild_ltm: Optional target guild LTM instance for automated summaries.
+			user_ltm: Optional target user LTM instance for automated summaries.
+		"""
 		super().__init__("stm", config.max_stm, entity_type)
 		self.guild_ltm = guild_ltm
 		self.user_ltm = user_ltm
 
 	def _normalize_entry(self, entry: Any) -> str:
+		"""Normalize entry data structure into string representation for comparison."""
 		if isinstance(entry, dict):
 			return json.dumps(entry, sort_keys=True)
 		return str(entry)
 
 	async def add(self, entity_id: int, message) -> bool:
+		"""
+		Parse and append message entry to entity's short-term memory.
+
+		Args:
+			entity_id: Target entity snowflake ID.
+			message: Discord message object to convert and insert.
+
+		Returns:
+			True if added successfully, False otherwise.
+		"""
 		try:
 			entry = await convert_message(message)
 
@@ -73,6 +103,14 @@ class STM(EntityListStore):
 			return False
 
 	async def _check_and_summarize(self, entity_id: int, current_items: list[Any], data: dict) -> None:
+		"""
+		Check if memory window is filled with unsummarized context and trigger LTM summarize task.
+
+		Args:
+			entity_id: Target entity snowflake ID.
+			current_items: Current active memory entries list.
+			data: Raw entity state payload.
+		"""
 		if not current_items or len(current_items) < self.max_items:
 			return
 
@@ -104,10 +142,28 @@ class STM(EntityListStore):
 
 
 class LTM(EntityListStore):
+	"""Long-Term Memory store retaining summaries and key contextual observations."""
+
 	def __init__(self, entity_type="guild"):
+		"""
+		Initialize long-term memory store instance.
+
+		Args:
+			entity_type: Entity scope identifier ('global', 'guild', or 'user').
+		"""
 		super().__init__("ltm", config.max_ltm, entity_type)
 
 	async def add(self, entity_id: int, note: str) -> bool:
+		"""
+		Append textual observation or summary note to long-term memory.
+
+		Args:
+			entity_id: Target entity snowflake ID.
+			note: Context note string to append.
+
+		Returns:
+			True if added successfully, False otherwise.
+		"""
 		try:
 			success, data = await self._load(entity_id)
 			if not success:
@@ -126,10 +182,28 @@ class LTM(EntityListStore):
 
 
 class Audit(EntityListStore):
+	"""Audit store holding event logs associated with entity context."""
+
 	def __init__(self, entity_type="guild"):
+		"""
+		Initialize audit log store instance.
+
+		Args:
+			entity_type: Entity scope identifier.
+		"""
 		super().__init__("audit_log", config.max_audit, entity_type)
 
 	async def add(self, entity_id: int, event) -> bool:
+		"""
+		Append audit event payload to entity's audit log list.
+
+		Args:
+			entity_id: Target entity snowflake ID.
+			event: Audit event data object.
+
+		Returns:
+			True if recorded successfully, False otherwise.
+		"""
 		try:
 			success, data = await self._load(entity_id)
 			if not success:
@@ -148,10 +222,28 @@ class Audit(EntityListStore):
 
 
 class Response(EntityListStore):
+	"""Store tracking assistant's generated output history per entity scope."""
+
 	def __init__(self, entity_type="guild"):
+		"""
+		Initialize assistant response tracker store instance.
+
+		Args:
+			entity_type: Entity scope identifier.
+		"""
 		super().__init__("previous_response", config.max_previous_response, entity_type)
 
 	async def add(self, entity_id: int, response_text: str) -> bool:
+		"""
+		Record response string generated for entity context.
+
+		Args:
+			entity_id: Target entity snowflake ID.
+			response_text: Output text content generated.
+
+		Returns:
+			True if recorded successfully, False otherwise.
+		"""
 		try:
 			success, data = await self._load(entity_id)
 			if not success:
@@ -170,10 +262,22 @@ class Response(EntityListStore):
 
 
 class ChannelSTM:
+	"""Channel-bound short-term memory providing channel-isolated conversation contexts."""
+
 	def __init__(self):
+		"""Initialize ChannelSTM store configured with max items setting."""
 		self.max_items = config.max_stm
 
 	def _get_store(self, channel: discord.abc.Messageable):
+		"""
+		Determine parent EntityListStore type and entity ID based on channel type.
+
+		Args:
+			channel: Active Discord messageable channel instance.
+
+		Returns:
+			Tuple of (EntityListStore_instance, target_entity_id).
+		"""
 		channel_id = getattr(channel, "id", 0)
 		guild = getattr(channel, "guild", None)
 		is_private = getattr(channel, "type", None) == discord.ChannelType.private or guild is None
@@ -186,12 +290,31 @@ class ChannelSTM:
 			return EntityListStore(f"channel_stm_{channel_id}", self.max_items, "guild"), guild.id  # type: ignore
 
 	async def get(self, channel: discord.abc.Messageable):
+		"""
+		Fetch channel short-term memory list for given channel object.
+
+		Args:
+			channel: Target Discord channel.
+
+		Returns:
+			Tuple of (success_flag, entries_list).
+		"""
 		store, eid = self._get_store(channel)
 		if not eid:
 			return False, []
 		return await store.get(eid)
 
 	async def add(self, channel: discord.abc.Messageable, message: discord.Message) -> bool:
+		"""
+		Convert and record a message into channel-specific short term memory.
+
+		Args:
+			channel: Originating Discord channel instance.
+			message: Discord message object.
+
+		Returns:
+			True if recorded successfully, False otherwise.
+		"""
 		store, eid = self._get_store(channel)
 		channel_id = getattr(channel, "id", 0)
 
@@ -243,6 +366,8 @@ class ChannelSTM:
 
 
 class MemoryCluster:
+	"""Composite memory gatherer compiling global, guild, user, channel, and linked contexts."""
+
 	def __init__(
 		self,
 		global_stm: STM,
@@ -255,6 +380,20 @@ class MemoryCluster:
 		channel_stm: ChannelSTM,
 		context_linker: "ContextLinker"
 	):
+		"""
+		Initialize memory cluster aggregating service pointers.
+
+		Args:
+			global_stm: Global short-term memory store.
+			global_ltm: Global long-term memory store.
+			guild_stm: Guild short-term memory store.
+			guild_ltm: Guild long-term memory store.
+			guild_audit: Guild audit log store.
+			user_stm: User short-term memory store.
+			user_ltm: User long-term memory store.
+			channel_stm: Channel-specific short-term memory.
+			context_linker: Active ContextLinker lookup instance.
+		"""
 		self.global_stm = global_stm
 		self.global_ltm = global_ltm
 		self.guild_stm = guild_stm
@@ -271,6 +410,17 @@ class MemoryCluster:
 		user: discord.User | discord.Member | None,
 		channel: discord.abc.Messageable | None = None
 	) -> dict:
+		"""
+		Build consolidated memory cluster dictionary for target query execution scope.
+
+		Args:
+			guild: Optional active Discord guild object.
+			user: Optional target Discord user or member object.
+			channel: Optional active channel instance.
+
+		Returns:
+			Aggregated dictionary containing global, guild, user, channel, and active linked contexts.
+		"""
 		cluster = {
 			"linked_contexts": [],
 			"guild_audit": [],
@@ -368,10 +518,22 @@ class MemoryCluster:
 
 
 class ContextLinker:
+	"""Time-to-live context mapping service linking multi-entity memories dynamically."""
+
 	def __init__(self):
+		"""Initialize context link map."""
 		self._links = {}
 
 	def add_link(self, target_id: int, source_type: str, source_id: int, ttl: int = 3600):
+		"""
+		Create active link between target entity and secondary source context with TTL.
+
+		Args:
+			target_id: Destination entity snowflake ID.
+			source_type: Linked source entity scope ('user' or 'guild').
+			source_id: Linked source entity snowflake ID.
+			ttl: Time-to-live duration in seconds. Defaults to 3600 (1 hour).
+		"""
 		if target_id not in self._links:
 			self._links[target_id] = {}
 
@@ -383,6 +545,15 @@ class ContextLinker:
 		}
 
 	def get_links(self, target_id: int) -> list:
+		"""
+		Retrieve active, unexpired linked contexts for given target entity ID.
+
+		Args:
+			target_id: Destination entity snowflake ID.
+
+		Returns:
+			List of dictionary items describing linked active sources.
+		"""
 		if target_id not in self._links:
 			return []
 
@@ -401,6 +572,14 @@ class ContextLinker:
 		return active_links
 
 	def remove_link(self, target_id: int, source_type: str, source_id: int):
+		"""
+		Explicitly revoke contextual connection between target and source entity.
+
+		Args:
+			target_id: Destination entity snowflake ID.
+			source_type: Linked source entity scope.
+			source_id: Linked source entity snowflake ID.
+		"""
 		key = f"{source_type}_{source_id}"
 		if target_id in self._links and key in self._links[target_id]:
 			del self._links[target_id][key]

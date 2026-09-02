@@ -1,3 +1,10 @@
+"""
+Memory management package initialization.
+
+Instantiates and exports short-term memory (STM), long-term memory (LTM), audit log,
+response tracker, channel STM, context linker, and memory cluster service singletons.
+"""
+
 from .service import (
 	ContextLinker,
 	MemoryCluster,

@@ -1,3 +1,9 @@
+"""
+Google Gemini content generation and API validation suite.
+
+Provides API key validity verification and asynchronous context-aware prompt processing.
+"""
+
 import asyncio
 import io
 import logging
@@ -17,6 +23,15 @@ log = logging.getLogger("llm")
 
 
 async def validate_key(api_key: str) -> bool | None:
+	"""
+	Asynchronously test Google Gemini API key authorization validity.
+
+	Args:
+		api_key: The target Google Gemini API key string.
+
+	Returns:
+		True if key is valid, False if rejected, or None if validation is inconclusive.
+	"""
 	try:
 		client = genai.Client(api_key=api_key)
 		await client.aio.models.list()
@@ -37,6 +52,17 @@ async def validate_key(api_key: str) -> bool | None:
 
 
 class GenerateContent:
+	"""
+	Content generation handler managing Gemini API client requests and file attachments.
+
+	Attributes:
+		api_key: Gemini API authorization key string.
+		client: Configured google.genai Client instance.
+		model_name: Target generation model identifier string.
+		cooldown_until: Timestamp float representing remaining cooldown duration.
+		config: Generation parameter settings configuration wrapper.
+	"""
+
 	def __init__(
 		self,
 		api_key: str,
@@ -45,7 +71,18 @@ class GenerateContent:
 		temperature: float = 0.6,
 		top_p: float = 1.0,
 		top_k: int = 45
-	):
+	) -> None:
+		"""
+		Initialize GenerateContent client options.
+
+		Args:
+			api_key: Target Google Gemini API key string.
+			model_name: Model string identifier.
+			system_instruction: Optional system instruction prompt text.
+			temperature: Controls target output randomness sampling.
+			top_p: Nucleus sampling cutoff threshold.
+			top_k: Top-k token selection pool bound.
+		"""
 		log.debug(f"Initializing GenerateContent with model: {model_name}, temp: {temperature}, top_p: {top_p}, top_k: {top_k}")
 		self.api_key = api_key
 		self.client = genai.Client(api_key=api_key)
@@ -62,23 +99,43 @@ class GenerateContent:
 
 	@property
 	def is_cooling_down(self) -> bool:
+		"""Check if client rate-limit active cooldown period has elapsed."""
 		cooling = time.time() < self.cooldown_until
 		if cooling:
 			log.debug(f"Cooldown check: Active. Remaining: {self.cooldown_until - time.time():.1f}s")
 		return cooling
 
-	def set_cooldown(self, seconds: float):
+	def set_cooldown(self, seconds: float) -> None:
+		"""
+		Set a temporary execution rate cooldown delay.
+
+		Args:
+			seconds: Duration length in seconds.
+		"""
 		self.cooldown_until = time.time() + seconds
 		log.debug(f"Cooldown set for {seconds} seconds. Active until: {self.cooldown_until}")
 
 	async def _upload_and_wait(self, path: str, mime_type: str | None = None) -> Any:
+		"""
+		Upload file resource to Gemini File API and poll processing status.
+
+		Args:
+			path: Target local file path string.
+			mime_type: Optional explicit media MIME type string.
+
+		Returns:
+			Processable Gemini file resource object reference.
+
+		Raises:
+			RuntimeError: If remote file processing status fails or stalls.
+		"""
 		log.debug(f"Uploading file: {path} with MIME type: {mime_type}")
 
 		upload_kwargs: dict[str, Any] = {"file": path}
 		if mime_type:
 			upload_kwargs["config"] = {"mime_type": mime_type}
 
-		file_obj = await self.client.aio.files.upload(**upload_kwargs) # type: ignore
+		file_obj = await self.client.aio.files.upload(**upload_kwargs)  # type: ignore
 
 		log.debug(f"File uploaded successfully, name: {file_obj.name}, initial state: {file_obj.state}")
 
@@ -100,6 +157,15 @@ class GenerateContent:
 		return file_obj
 
 	async def _handle_remote_file(self, url: str) -> Any:
+		"""
+		Download external media URL payload to local temporary store for upload.
+
+		Args:
+			url: Remote HTTP resource address string.
+
+		Returns:
+			Uploaded Gemini file reference object instance.
+		"""
 		log.debug(f"Downloading remote file from URL: {url}")
 		async with httpx.AsyncClient(follow_redirects=True) as client:
 			response = await client.get(url)
@@ -123,6 +189,15 @@ class GenerateContent:
 				log.debug(f"Cleaned up temporary file: {tmp_path}")
 
 	async def _process_input(self, item: Any) -> Any:
+		"""
+		Transform raw multi-modal inputs into Gemini Part objects or uploaded file targets.
+
+		Args:
+			item: URL string, file path, BytesIO stream, or raw byte sequence.
+
+		Returns:
+			Transformed payload representation ready for model context inclusion.
+		"""
 		log.debug(f"Processing input item of type: {type(item)}")
 		if isinstance(item, str):
 			if item.startswith(("http://", "https://")):
@@ -159,6 +234,16 @@ class GenerateContent:
 		return item
 
 	async def call(self, prompt: str, inputs: List[Any] | None = None) -> Tuple[bool, str]:
+		"""
+		Submit prompt text and attached context inputs to Gemini model endpoint.
+
+		Args:
+			prompt: The user text prompt string.
+			inputs: Optional list of media inputs (URLs, paths, file streams, bytes).
+
+		Returns:
+			Tuple containing (success_boolean, output_text_response_or_error_msg).
+		"""
 		log.debug(f"call() invoked with prompt length: {len(prompt)} chars, inputs count: {len(inputs) if inputs else 0}")
 		if self.is_cooling_down:
 			remaining = self.cooldown_until - time.time()
