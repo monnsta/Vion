@@ -19,6 +19,8 @@ from rich.logging import RichHandler
 from rich.syntax import Syntax
 from rich.text import Text
 
+from infrastructure.utils import d
+
 
 code_log_stream: contextvars.ContextVar[io.StringIO | None] = contextvars.ContextVar('code_log_stream', default=None)
 
@@ -57,7 +59,7 @@ class JsonFormatter(logging.Formatter):
 			record: LogRecord object to process.
 
 		Returns:
-			JSON-formatted string representation of the log entry.
+			JSON-formatted string representation of the log event.
 		"""
 		log_data = {
 			"timestamp": self.formatTime(record, self.datefmt),
@@ -120,15 +122,15 @@ class HtmlFormatter(logging.Formatter):
 		}
 		color = colors.get(level, "#f8f8f2")
 
-		html_out = (
-			'<div class="log-entry" onclick="this.classList.toggle(\'active\')">\n'
-			'	<div class="log-time-level">\n'
-			f'		<span class="log-time">{time_str}</span>\n'
-			f'		<span class="log-level" style="color: {color};">{level_letter}</span>\n'
-			'	</div>\n'
-			'	<div class="log-content">\n'
-			f'		<div class="log-msg">{msg}</div>\n'
-		)
+		html_out = d(f"""
+			<div class="log-entry" onclick="this.classList.toggle(\'active\')">
+				<div class="log-time-level">
+					<span class="log-time">{time_str}</span>
+					<span class="log-level" style="color: {color};">{level_letter}</span>
+				</div>
+				<div class="log-content">
+					<div class="log-msg">{msg}</div>
+		""")
 
 		if record.exc_info:
 			tb_str = "".join(traceback.format_exception(*record.exc_info))
@@ -145,18 +147,18 @@ class HtmlFormatter(logging.Formatter):
 
 			if start != -1:
 				snippet = rich_html[start:end]
-				html_out += f'		<div class="log-traceback" onclick="event.stopPropagation()">\n{snippet}\n		</div>\n'
+				html_out += f"""		<div class="log-traceback" onclick="event.stopPropagation()">\n{snippet}\n		</div>\n"""
 
-		html_out += '	</div>\n'
+		html_out += "	</div>\n"
 
-		html_out += (
-			'	<div class="log-popup" onclick="event.stopPropagation()">\n'
-			f'		<div><span class="meta-label">PID:</span> {record.process}</div>\n'
-			f'		<div><span class="meta-label">Thread:</span> {record.threadName}</div>\n'
-			f'		<div><span class="meta-label">Location:</span> {record.name}:{record.lineno}</div>\n'
-			'	</div>\n'
-			'</div>\n'
-		)
+		html_out += d(f"""
+				<div class="log-popup" onclick="event.stopPropagation()">
+					<div><span class="meta-label">PID:</span> {record.process}</div>
+					<div><span class="meta-label">Thread:</span> {record.threadName}</div>
+					<div><span class="meta-label">Location:</span> {record.name}:{record.lineno}</div>
+				</div>
+			</div>
+		""")
 
 		return html_out
 
@@ -176,6 +178,10 @@ class SessionFileHandler(FileHandler):
 	FileHandler subclass that injects structural HTML headers into newly created log files.
 	"""
 
+	def __init__(self, filename: str, mode: str = "w", encoding: str | None = "utf-8", delay: bool = False) -> None:
+		"""Initialize SessionFileHandler forcing write mode to truncate log sessions."""
+		super().__init__(filename, mode=mode, encoding=encoding, delay=delay)
+
 	def _open(self) -> io.TextIOWrapper:
 		"""
 		Open target file stream and write document header if destination file is empty HTML.
@@ -185,36 +191,36 @@ class SessionFileHandler(FileHandler):
 		"""
 		stream = super()._open()
 		if stream.tell() == 0 and self.baseFilename.endswith(".html"):
-			header = (
-				'<!DOCTYPE html>\n<html>\n<head>\n'
-				'	<meta charset="utf-8">\n'
-				'	<meta name="viewport" content="width=device-width, initial-scale=1.0">\n'
-				'	<title>Logs</title>\n'
-				'	<style>\n'
-				'		@import url("https://fonts.googleapis.com/css2?family=JetBrains+Mono&display=swap");\n'
-				'		body { \n'
-				'			background-color: #000000; color: #f8f8f2; margin: 0; padding: 10px; \n'
-				'			font-family: "JetBrains Mono", Consolas, "Courier New", monospace; \n'
-				'			font-variant-numeric: tabular-nums; font-size: 11px; \n'
-				'			-webkit-text-size-adjust: 100% !important; text-size-adjust: 100% !important; \n'
-				'		}\n'
-				'		.log-entry { display: flex; flex-direction: row; gap: 12px; padding: 6px 8px; border-bottom: 1px solid #1a1a1a; cursor: pointer; position: relative; transition: background 0.2s; }\n'
-				'		.log-entry:hover { background-color: #0a0a0a; }\n'
-				'		.log-entry.active { background-color: #0a0a0a; z-index: 20; }\n'
-				'		.log-time-level { display: flex; gap: 8px; flex-shrink: 0; font-size: 9.5px; padding-top: 1px; opacity: 0.85; }\n'
-				'		.log-time { color: #8be9fd; }\n'
-				'		.log-level { font-weight: bold; }\n'
-				'		.log-content { display: flex; flex-direction: column; flex-grow: 1; min-width: 0; }\n'
-				'		.log-msg { color: #f8f8f2; white-space: pre-wrap; overflow-wrap: anywhere; word-break: break-word; line-height: 1.4; }\n'
-				'		.log-popup { display: none; position: absolute; left: 80px; top: 100%; margin-top: -4px; background: #111; border: 1px solid #333; padding: 8px 12px; border-radius: 4px; box-shadow: 0 4px 10px rgba(0,0,0,0.8); z-index: 10; color: #9c9fa9; flex-direction: column; gap: 4px; }\n'
-				'		.log-entry.active .log-popup { display: flex; }\n'
-				'		.meta-label { color: #8be9fd; font-weight: bold; margin-right: 4px; }\n'
-				'		.log-traceback { margin-top: 6px; background: #050505; padding: 10px; border-radius: 6px; border: 1px solid #1a1a1a; overflow-x: auto; -webkit-text-size-adjust: 100% !important; text-size-adjust: 100% !important; }\n'
-				'		.log-traceback pre { margin: 0; display: block; width: max-content; min-width: 100%; }\n'
-				'		.log-traceback pre, .log-traceback code, .log-traceback span { font-family: "JetBrains Mono", Consolas, "Courier New", monospace !important; font-size: 11px !important; line-height: 1.25 !important; letter-spacing: 0 !important; word-spacing: 0 !important; white-space: pre !important; font-feature-settings: "tnum" !important; }\n'
-				'	</style>\n'
-				'</head>\n<body>\n'
-			)
+			header = d("""
+				<!DOCTYPE html><html><head>
+					<meta charset="utf-8">
+					<meta name="viewport" content="width=device-width, initial-scale=1.0">
+					<title>Logs</title>
+					<style>
+						@import url("https://fonts.googleapis.com/css2?family=JetBrains+Mono&display=swap");
+						body {
+							background-color: #000000; color: #f8f8f2; margin: 0; padding: 10px;
+							font-family: "JetBrains Mono", Consolas, "Courier New", monospace;
+							font-variant-numeric: tabular-nums; font-size: 11px;
+							-webkit-text-size-adjust: 100% !important; text-size-adjust: 100% !important;
+						}
+						.log-entry { display: flex; flex-direction: row; gap: 12px; padding: 6px 8px; border-bottom: 1px solid #1a1a1a; cursor: pointer; position: relative; transition: background 0.2s; }
+						.log-entry:hover { background-color: #0a0a0a; }
+						.log-entry.active { background-color: #0a0a0a; z-index: 20; }
+						.log-time-level { display: flex; gap: 8px; flex-shrink: 0; font-size: 9.5px; padding-top: 1px; opacity: 0.85; }
+						.log-time { color: #8be9fd; }
+						.log-level { font-weight: bold; }
+						.log-content { display: flex; flex-direction: column; flex-grow: 1; min-width: 0; }
+						.log-msg { color: #f8f8f2; white-space: pre-wrap; overflow-wrap: anywhere; word-break: break-word; line-height: 1.4; }
+						.log-popup { display: none; position: absolute; left: 80px; top: 100%; margin-top: -4px; background: #111; border: 1px solid #333; padding: 8px 12px; border-radius: 4px; box-shadow: 0 4px 10px rgba(0,0,0,0.8); z-index: 10; color: #9c9fa9; flex-direction: column; gap: 4px; }
+						.log-entry.active .log-popup { display: flex; }
+						.meta-label { color: #8be9fd; font-weight: bold; margin-right: 4px; }
+						.log-traceback { margin-top: 6px; background: #050505; padding: 10px; border-radius: 6px; border: 1px solid #1a1a1a; overflow-x: auto; -webkit-text-size-adjust: 100% !important; text-size-adjust: 100% !important; }
+						.log-traceback pre { margin: 0; display: block; width: max-content; min-width: 100%; }
+						.log-traceback pre, .log-traceback code, .log-traceback span { font-family: "JetBrains Mono", Consolas, "Courier New", monospace !important; font-size: 11px !important; line-height: 1.25 !important; letter-spacing: 0 !important; word-spacing: 0 !important; white-space: pre !important; font-feature-settings: "tnum" !important; }
+					</style>
+				</head><body>
+			""")
 			stream.write(header)
 			stream.flush()
 		return stream

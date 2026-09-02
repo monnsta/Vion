@@ -7,12 +7,10 @@ logging handler registration, path initialization, config loading, and backgroun
 
 import asyncio
 import atexit
-import glob
 import logging
 import os
 import sys
 import termios
-import time
 import warnings
 
 from infrastructure.file import json_file
@@ -82,7 +80,7 @@ def setup_console_logging() -> None:
 
 def setup_file_logging() -> None:
 	"""
-	Initialize file-based session log handler and perform retention cleanup on old logs.
+	Initialize file-based session log handler and perform two-file log rotation.
 	"""
 	if not config.logging.file:
 		return
@@ -90,23 +88,23 @@ def setup_file_logging() -> None:
 	log_dir = storage.dirs.logs
 	os.makedirs(log_dir, exist_ok=True)
 
-	now = time.time()
-	retention = config.logging.cleanup_days * 86400
-	for log_file in glob.glob(os.path.join(log_dir, "*.*")):
-		if os.path.isfile(log_file) and os.stat(log_file).st_mtime < (now - retention):
-			try:
-				os.remove(log_file)
-			except OSError:
-				pass
-
 	ext = f".{config.logging.type}"
-	date_str = time.strftime("%Y-%m-%d_%H-%M-%S", time.localtime())
-	log_file_path = os.path.join(log_dir, f"{date_str}{ext}")
+	current_log = os.path.join(log_dir, f"current{ext}")
+	previous_log = os.path.join(log_dir, f"previous{ext}")
+
+	if os.path.exists(current_log):
+		try:
+			if os.path.exists(previous_log):
+				os.remove(previous_log)
+			os.rename(current_log, previous_log)
+		except OSError:
+			pass
 
 	root_logger = logging.getLogger()
 
 	file_handler = SessionFileHandler(
-		filename=log_file_path,
+		filename=current_log,
+		mode='w',
 		encoding='utf-8'
 	)
 	file_handler.setLevel(logging.DEBUG)

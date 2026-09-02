@@ -197,10 +197,9 @@ class Sandbox(ConfigNode):
 
 @dataclass
 class Logging(ConfigNode):
-	"""Global logging target format and file cleanup settings."""
+	"""Global logging target format settings."""
 	file: bool
 	type: Literal["text", "html", "json"]
-	cleanup_days: int
 
 
 @dataclass
