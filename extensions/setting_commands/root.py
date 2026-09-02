@@ -4,17 +4,17 @@ import discord
 from discord import app_commands as app
 from discord.ext import commands
 
-from infrastructure.utils import em
-from services.utils import resolve_target, is_admin
-from services.profile import server
-from ui_templates import (
+from vion.infrastructure.utils import em
+from vion.services.utils import resolve_target, is_admin
+from vion.services.profile import server
+from vion.ui_templates import (
 	Generic,
 	Success,
 	Fail,
 	UnexpectedError,
 	Confirmation
 )
-from config import config, emoji
+from vion.config import config, emoji
 
 from .utils import load_settings
 from .gemini_key import GeminiKeyGroup

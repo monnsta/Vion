@@ -5,12 +5,12 @@ from datetime import datetime, timezone, timedelta
 import discord
 from discord.ext import commands, tasks
 
-from services.ai import ai, consciousness
-from services.blacklist import blacklist
-from services.profile import server
-from services.memory import guild_audit
-from services.trackers import notif, activity, runtime
-from config import config
+from vion.services.ai import ai, consciousness
+from vion.services.blacklist import blacklist
+from vion.services.profile import server
+from vion.services.memory import guild_audit
+from vion.services.trackers import notif, activity, runtime
+from vion.config import config
 
 from .utils import BaseEventsCog
 

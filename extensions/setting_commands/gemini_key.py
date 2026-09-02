@@ -4,16 +4,16 @@ import discord
 from discord import app_commands as app
 from discord.ext import commands
 
-from infrastructure.llm import validate_key
-from services.utils import resolve_target, is_admin
-from ui_templates import (
+from vion.infrastructure.llm import validate_key
+from vion.services.utils import resolve_target, is_admin
+from vion.ui_templates import (
 	Generic,
 	Success,
 	Fail,
 	UnexpectedError,
 	Confirmation
 )
-from config import config
+from vion.config import config
 
 from .utils import load_settings
 

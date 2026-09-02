@@ -2,14 +2,14 @@ import discord
 from discord import app_commands as app
 from discord.ext import commands
 
-from services.extensions import extension
-from services.utils import is_dev
-from ui_templates import (
+from vion.services.extensions import extension
+from vion.services.utils import is_dev
+from vion.ui_templates import (
 	Generic,
 	Success,
 	Fail
 )
-from config import config, emoji
+from vion.config import config, emoji
 
 
 async def autocomplete(interaction: discord.Interaction, current: str):

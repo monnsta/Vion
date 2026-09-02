@@ -1,6 +1,6 @@
 from typing import Any
 
-from config import config
+from vion.config import config
 
 
 async def load_settings(manager: Any, target_id: int, scope: str) -> dict:

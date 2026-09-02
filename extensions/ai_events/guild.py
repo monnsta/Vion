@@ -1,10 +1,10 @@
 import discord
 from discord.ext import commands
 
-from services.ai import ai, consciousness
-from services.profile import server
-from services.memory import guild_audit
-from config import config
+from vion.services.ai import ai, consciousness
+from vion.services.profile import server
+from vion.services.memory import guild_audit
+from vion.config import config
 
 from .utils import BaseEventsCog
 

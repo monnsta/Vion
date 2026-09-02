@@ -5,20 +5,20 @@ import discord
 from discord import app_commands as app
 from discord.ext import commands
 
-from infrastructure.exec_code import Code, status
-from services.utils import is_dev
-from services.extensions import map_command_mentions
-from services.memory import (
+from vion.infrastructure.exec_code import Code, status
+from vion.services.utils import is_dev
+from vion.services.extensions import map_command_mentions
+from vion.services.memory import (
 	global_stm,
 	guild_stm,
 	user_stm
 )
-from ui_templates import (
+from vion.ui_templates import (
 	Success,
 	Fail,
 	Paginated
 )
-from config import config, storage
+from vion.config import config, storage
 
 from .blacklist import BlacklistGroup
 from .extension import ExtensionGroup

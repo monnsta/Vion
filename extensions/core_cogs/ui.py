@@ -3,9 +3,9 @@ from typing import cast
 import discord
 from discord import ui
 
-from infrastructure.utils import d
-from services.trackers import activity
-from ui_templates import (
+from vion.infrastructure.utils import d
+from vion.services.trackers import activity
+from vion.ui_templates import (
 	TimeoutView,
 	global_interaction_check,
 	Success,
@@ -13,7 +13,7 @@ from ui_templates import (
 	Confirmation,
 	Paginated
 )
-from config import config, emoji
+from vion.config import config, emoji
 
 from .utils import generate_timeline_graph
 

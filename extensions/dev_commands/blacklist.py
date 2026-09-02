@@ -5,9 +5,9 @@ import discord
 from discord import app_commands as app
 from discord.ext import commands
 
-from infrastructure.utils import d, em
-from services.blacklist import blacklist
-from ui_templates import (
+from vion.infrastructure.utils import d, em
+from vion.services.blacklist import blacklist
+from vion.ui_templates import (
 	Generic,
 	Success,
 	Fail,

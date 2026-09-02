@@ -5,8 +5,8 @@ import discord
 from discord import app_commands as app
 from discord.ext import commands
 
-from infrastructure.utils import em
-from ui_templates import Fail, Generic
+from vion.infrastructure.utils import em
+from vion.ui_templates import Fail, Generic
 
 from .ui import (
 	AvatarRPSView,

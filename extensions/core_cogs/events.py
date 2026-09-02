@@ -10,15 +10,15 @@ import discord
 from discord import app_commands
 from discord.ext import commands, tasks
 
-from infrastructure.file import json_file
-from services.profile import server, user
-from services.blacklist import blacklist, BlacklistedError
-from ui_templates import (
+from vion.infrastructure.file import json_file
+from vion.services.profile import server, user
+from vion.services.blacklist import blacklist, BlacklistedError
+from vion.ui_templates import (
 	Generic,
 	Fail,
 	UnexpectedError
 )
-from config import config, storage
+from vion.config import config, storage
 
 
 

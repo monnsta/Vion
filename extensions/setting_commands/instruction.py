@@ -2,16 +2,15 @@ import discord
 from discord import app_commands as app
 from discord.ext import commands
 
-from config import config
-
-from services.utils import resolve_target, is_admin
-from ui_templates import (
+from vion.services.utils import resolve_target, is_admin
+from vion.ui_templates import (
 	Generic,
 	Success,
 	UnexpectedError,
 	Confirmation,
 	TextForm
 )
+from vion.config import config
 
 from .utils import load_settings
 

@@ -4,9 +4,9 @@ import discord
 from discord import app_commands as app
 from discord.ext import commands
 
-from services.utils import resolve_target, is_admin
-from ui_templates import Generic
-from config import config
+from vion.services.utils import resolve_target, is_admin
+from vion.ui_templates import Generic
+from vion.config import config
 
 from .ui import (
 	ManageDataView,

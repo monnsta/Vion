@@ -5,10 +5,10 @@ import discord
 from discord import app_commands as app
 from discord.ext import commands
 
-from services.utils import is_dev
-from ui_templates import Success, Generic, Paginated
-from config import config, load_config
-from services.extensions import map_command_mentions
+from vion.services.utils import is_dev
+from vion.services.extensions import map_command_mentions
+from vion.ui_templates import Success, Generic, Paginated
+from vion.config import config, load_config
 
 
 class ReloadGroup(app.Group):

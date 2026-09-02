@@ -4,8 +4,8 @@ import logging
 import discord
 from discord.ext import commands
 
-from config import config
-from services.ai import ai
+from vion.services.ai import ai
+from vion.config import config
 
 
 log = logging.getLogger("extensions")

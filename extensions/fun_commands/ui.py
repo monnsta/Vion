@@ -4,15 +4,15 @@ import random
 import discord
 from discord import ui
 
-from infrastructure.utils import em
-from config import emoji
-
-from ui_templates import (
+from vion.infrastructure.utils import em
+from vion.ui_templates import (
 	TimeoutView,
 	get_annoyance_message,
 	Generic,
 	Fail
 )
+from vion.config import emoji
+
 from .utils import (
 	AvatarRPS,
 	TicTacToeBot,

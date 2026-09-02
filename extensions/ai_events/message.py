@@ -5,18 +5,18 @@ import time
 import discord
 from discord.ext import commands
 
-from services.ai import ai, consciousness
-from services.blacklist import blacklist
-from services.profile import server, user
-from services.memory import (
+from vion.services.ai import ai, consciousness
+from vion.services.blacklist import blacklist
+from vion.services.profile import server, user
+from vion.services.memory import (
 	guild_stm,
 	user_stm,
 	global_stm,
 	guild_audit,
 	channel_stm
 )
-from services.trackers import notif
-from config import config
+from vion.services.trackers import notif
+from vion.config import config
 
 from .utils import BaseEventsCog
 
