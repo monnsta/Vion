@@ -15,8 +15,22 @@ from .dataclasses import (
 
 log = logging.getLogger("config")
 
+storage: Storage = Storage.__new__(Storage)
+ROOT: Path | None = None
 
-def build_storage_registry(root_path: Path) -> Storage:
+
+def resolve_root() -> Path:
+	env_path = os.getenv("VION_ROOT_DIR")
+	if env_path:
+		return Path(env_path).expanduser().resolve()
+	log.info("No environment variable for root path found, using project root")
+
+	return Path(__file__).resolve().parent.parent
+
+
+def init_storage(root_path: Path) -> Storage:
+	global storage
+
 	data_dir = root_path / "data"
 
 	dirs = DirectoryPaths(
@@ -59,28 +73,14 @@ def build_storage_registry(root_path: Path) -> Storage:
 		delete_time_filename = "delete_time.json",
 	)
 
-	return Storage(
-		dirs=dirs,
+	storage.dirs = dirs
+	storage.env = root_path / ".env"
+	storage.config = root_path / "init.py"
+	storage.shared = shared
+	storage.guilds = guilds
+	storage.users = users
 
-		env=root_path / ".env",
-		config=root_path / "init.py",
-		shared=shared,
-		guilds=guilds,
-		users=users,
-	)
-
-
-def resolve_root() -> Path:
-	env_path = os.getenv("VION_ROOT_DIR")
-	if env_path:
-		return Path(env_path).expanduser().resolve()
-
-	return Path(__file__).resolve().parent.parent
-
-
-ROOT = resolve_root()
-
-storage = build_storage_registry(ROOT)
+	return storage
 
 
 async def validate_paths() -> None:
@@ -98,6 +98,11 @@ async def validate_paths() -> None:
 
 
 async def setup_directory() -> None:
+	global ROOT
+
+	ROOT = resolve_root()
+	init_storage(ROOT)
+
 	await validate_paths()
 
 	log.info("Initializing filesystem setup...")

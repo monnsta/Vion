@@ -1,7 +1,6 @@
 import builtins
 import logging
 import sys
-import copy
 import importlib.util
 from typing import Any, NoReturn
 

@@ -50,12 +50,12 @@ class Bot(commands.Bot):
 
 		try:
 			global_cmds = await self.tree.fetch_commands()
-			map_command_mentions(global_cmds, bot)
+			map_command_mentions(global_cmds, self)
 
 			try:
 				guild = discord.Object(id=int(config.dev_server_ids[0]))
 				guild_cmds = await self.tree.fetch_commands(guild=guild)
-				map_command_mentions(guild_cmds, bot)
+				map_command_mentions(guild_cmds, self)
 			except discord.HTTPException:
 				pass
 		except discord.HTTPException:
@@ -72,7 +72,7 @@ class Bot(commands.Bot):
 		await super().close()
 
 
-if __name__ == "__main__":
+def run():
 	bot = Bot()
 
 	try:
@@ -99,3 +99,7 @@ if __name__ == "__main__":
 
 	except Exception:
 		log.critical("An unexpected error occured", exc_info=True)
+
+
+if __name__ == "__main__":
+	run()

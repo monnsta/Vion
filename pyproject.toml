@@ -19,7 +19,7 @@ dependencies = [
 	"rich",
 	"pytz",
 	"httpx",
-	"cryptography",
+	"PyNaCl",
 	"orjson",
 	"PyYAML",
 	"yt-dlp",
@@ -30,6 +30,9 @@ classifiers = [
 	"Operating System :: OS Independent",
 	"Topic :: Communications :: Chat",
 ]
+
+[tool.setuptools]
+packages = ["vion"]
 
 [tool.pyright]
 venvPath = "."

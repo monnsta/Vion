@@ -2,7 +2,7 @@ from dataclasses import dataclass
 from pathlib import Path
 
 
-@dataclass(frozen=True)
+@dataclass()
 class DirectoryPaths:
 	root: Path
 	data: Path
@@ -18,7 +18,7 @@ class DirectoryPaths:
 		return self.guilds / entity_id / self.custom_cog_dir_name
 
 
-@dataclass(frozen=True)
+@dataclass()
 class Shared:
 	blacklist: Path
 	activity: Path
@@ -27,7 +27,7 @@ class Shared:
 	ai_data: Path
 
 
-@dataclass(frozen=True)
+@dataclass()
 class BaseEntity:
 	dirs: DirectoryPaths
 	base_dir: Path
@@ -45,12 +45,12 @@ class BaseEntity:
 		return self.dirs.trash / entity_id / self.delete_time_filename
 
 
-@dataclass(frozen=True)
+@dataclass()
 class User(BaseEntity):
 	pass
 
 
-@dataclass(frozen=True)
+@dataclass()
 class Guild(BaseEntity):
 	custom_cog_filename: str
 	custom_cog_data_filename: str
@@ -62,7 +62,7 @@ class Guild(BaseEntity):
 		return self.dirs.custom_cogs(guild_id) / self.custom_cog_data_filename
 
 
-@dataclass(frozen=True)
+@dataclass()
 class Storage:
 	dirs: DirectoryPaths
 	env: Path

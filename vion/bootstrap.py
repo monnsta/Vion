@@ -121,8 +121,8 @@ async def bootstrap():
 
 	setup_console_logging()
 
-	await load_config()
 	await setup_directory()
+	await load_config()
 
 	setup_file_logging()
 
