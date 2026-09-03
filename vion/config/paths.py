@@ -99,7 +99,7 @@ def init_storage(root_path: Path) -> Storage:
 
 	storage.dirs = dirs
 	storage.env = root_path / ".env"
-	storage.config = root_path / "init.py"
+	storage.config = root_path / "config.py"
 	storage.shared = shared
 	storage.guilds = guilds
 	storage.users = users
@@ -123,6 +123,13 @@ async def validate_paths() -> None:
 	if missing_files:
 		for f in missing_files:
 			log.critical(f"Missing important file: {f}")
+
+		if sys.stdin.isatty():
+			from vion.tui import run_setup_wizard
+			if run_setup_wizard(storage.dirs.root, force=True):
+				if all(f.exists() for f in critical_files):
+					return
+
 		sys.exit(10)
 
 
