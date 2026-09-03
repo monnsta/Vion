@@ -1,14 +1,14 @@
 """
 Runtime environment bootstrapper.
 
-Handles terminal setup (terminal control sequences, echo control), console and file
-logging handler registration, path initialization, config loading, and background tasks.
+Handles terminal setup, console/file logging registration, path initialization, and shutdown.
 """
 
 import asyncio
 import atexit
 import logging
 import os
+import signal
 import sys
 import termios
 import warnings
@@ -35,6 +35,16 @@ _fd = None
 _old_settings = None
 
 
+def disable_console_logging() -> None:
+	"""
+	Instantly remove stdout logging handlers to prevent terminal log spam during exit.
+	"""
+	root_logger = logging.getLogger()
+	for handler in list(root_logger.handlers):
+		if isinstance(handler, RichHandlerv2) or not isinstance(handler, SessionFileHandler):
+			root_logger.removeHandler(handler)
+
+
 def disable_echoctl() -> None:
 	"""
 	Disable ECHOCTL in terminal settings to prevent printing control characters like ^C.
@@ -42,6 +52,8 @@ def disable_echoctl() -> None:
 	global _fd, _old_settings
 
 	try:
+		if not sys.stdin.isatty():
+			return
 		_fd = sys.stdin.fileno()
 		_old_settings = termios.tcgetattr(_fd)
 
@@ -60,7 +72,6 @@ def setup_console_logging() -> None:
 	"""
 	root_logger = logging.getLogger()
 	root_logger.setLevel(logging.DEBUG)
-	root_logger.handlers.clear()
 
 	console_handler = RichHandlerv2(
 		level=logging.INFO,
@@ -128,13 +139,35 @@ def cleanup() -> None:
 	"""
 	Restore original terminal settings and terminate internal garbage collection routines.
 	"""
+	disable_console_logging()
+
 	if json_file:
-		json_file.cache.stop_gc()
+		try:
+			json_file.cache.stop_gc()
+		except Exception:
+			pass
 
 	if _fd is not None and _old_settings is not None:
-		termios.tcsetattr(_fd, termios.TCSADRAIN, _old_settings)
+		try:
+			if sys.stdin.isatty():
+				termios.tcsetattr(_fd, termios.TCSADRAIN, _old_settings)
+		except Exception:
+			pass
 
-	log.info("Shutting down...")
+
+def setup_signal_handlers() -> None:
+	"""
+	Intercept termination signals to immediately mute stdout output.
+	"""
+	def handle_exit_signal(signum, frame):
+		_ = signum, frame
+		disable_console_logging()
+
+	try:
+		signal.signal(signal.SIGINT, handle_exit_signal)
+		signal.signal(signal.SIGTERM, handle_exit_signal)
+	except (ValueError, OSError):
+		pass
 
 
 async def bootstrap() -> None:
@@ -145,6 +178,7 @@ async def bootstrap() -> None:
 	warnings.simplefilter("ignore", DeprecationWarning)
 
 	atexit.register(cleanup)
+	setup_signal_handlers()
 	disable_echoctl()
 
 	setup_console_logging()
