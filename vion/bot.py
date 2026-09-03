@@ -5,7 +5,7 @@ Defines client extension loading hooks, lifecycle state tracking,
 slash command mention mapping, and runtime setup exceptions.
 """
 
-import bootstrap as _
+import vion.bootstrap as _
 
 import asyncio
 import logging
@@ -15,13 +15,13 @@ import aiohttp
 import discord
 from discord.ext import commands
 
-from services.extensions import (
+from vion.services.extensions import (
 	extension,
 	server_cog,
 	map_command_mentions
 )
-from services.trackers import runtime
-from config import config
+from vion.services.trackers import runtime
+from vion.config import config
 
 
 log = logging.getLogger("startup")

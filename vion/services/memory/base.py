@@ -8,8 +8,8 @@ import logging
 from pathlib import Path
 from typing import Any
 
-from infrastructure.file import json_file
-from config import storage
+from vion.infrastructure.file import json_file
+from vion.config import storage
 
 
 log = logging.getLogger("memory")

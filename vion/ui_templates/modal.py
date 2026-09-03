@@ -6,7 +6,7 @@ from discord import ui
 class GotoModal(ui.Modal):
     def __init__(self, view: "Paginated"):  # type: ignore # noqa: F821
         super().__init__(title="Jump to Page")
-        from ui_templates.feedback import Fail
+        from vion.ui_templates.feedback import Fail
 
         self._Fail = Fail
         self.view_ref = view

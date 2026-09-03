@@ -12,7 +12,7 @@ from abc import ABC, abstractmethod
 import discord
 from discord.ext import commands
 
-from config import config
+from vion.config import config
 
 
 class BaseEventHandler(ABC):

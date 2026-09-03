@@ -6,8 +6,8 @@ Manages persistent alert queues and message event notifications per target ID.
 
 from datetime import datetime, timezone
 
-from infrastructure.file import json_file
-from config import storage
+from vion.infrastructure.file import json_file
+from vion.config import storage
 
 from .base import BaseTracker
 

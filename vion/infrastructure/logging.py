@@ -19,7 +19,7 @@ from rich.logging import RichHandler
 from rich.syntax import Syntax
 from rich.text import Text
 
-from infrastructure.utils import d
+from vion.infrastructure.utils import d
 
 
 code_log_stream: contextvars.ContextVar[io.StringIO | None] = contextvars.ContextVar('code_log_stream', default=None)

@@ -16,9 +16,9 @@ import enum
 from typing import Any
 from dataclasses import dataclass
 
-from infrastructure.utils import create_id
-from infrastructure.logging import code_log_stream
-from config import config
+from vion.infrastructure.utils import create_id
+from vion.infrastructure.logging import code_log_stream
+from vion.config import config
 
 
 log = logging.getLogger("exec_code")

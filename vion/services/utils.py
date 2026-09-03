@@ -7,9 +7,9 @@ from typing import Any, Tuple, Iterable
 import discord
 from discord import app_commands as app
 
-from services.profile import server, user
+from vion.services.profile import server, user
 
-from ui_templates import Fail
+from vion.ui_templates import Fail
 
 
 async def resolve_target(interaction: discord.Interaction, scope: str) -> Tuple[Any, int | None]:

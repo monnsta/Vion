@@ -16,10 +16,10 @@ import hashlib
 from pathlib import Path
 from typing import Any, TypeVar, Generic
 
-from infrastructure.converter import convert_guild, convert_user
-from infrastructure.file import json_file, create_path
-from config import config, storage
-from config.dataclasses import Guild, User
+from vion.infrastructure.converter import convert_guild, convert_user
+from vion.infrastructure.file import json_file, create_path
+from vion.config import config, storage
+from vion.config.dataclasses import Guild, User
 
 
 log = logging.getLogger("profile")

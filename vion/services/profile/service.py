@@ -6,9 +6,9 @@ Provides concrete profile managers for Server (Guild) and User entities.
 
 import discord
 
-from infrastructure.file import text_file
-from config import config, storage
-from config.dataclasses import Guild, User as UserC
+from vion.infrastructure.file import text_file
+from vion.config import config, storage
+from vion.config.dataclasses import Guild, User as UserC
 
 from .base import BaseProfileManager, CogData
 

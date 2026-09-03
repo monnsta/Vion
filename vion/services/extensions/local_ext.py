@@ -10,7 +10,7 @@ from typing import Dict, List, Tuple, Iterable, Optional, Any
 import discord
 from discord.ext import commands
 
-from config import config, storage
+from vion.config import config, storage
 
 
 log = logging.getLogger("extensions")

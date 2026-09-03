@@ -7,8 +7,8 @@ Monitors system connection events, startup/shutdown history, and uptime statisti
 from datetime import datetime, timezone
 from typing import Literal
 
-from infrastructure.file import json_file
-from config import storage
+from vion.infrastructure.file import json_file
+from vion.config import storage
 
 from .base import BaseTracker
 

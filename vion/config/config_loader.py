@@ -11,8 +11,8 @@ import sys
 import importlib.util
 from typing import Any, NoReturn
 
-from infrastructure.utils import F
-from infrastructure.file import yaml_file
+from vion.infrastructure.utils import F
+from vion.infrastructure.file import yaml_file
 from .paths import storage
 from .dataclasses import (
 	ConfigReloadError,

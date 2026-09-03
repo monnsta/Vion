@@ -13,12 +13,12 @@ import discord
 import discord.opus
 from discord.ext import voice_recv
 
-from infrastructure.llm import (
+from vion.infrastructure.llm import (
 	AssemblyAITranscriber,
 	GeminiTTS,
 	GeminiVoice
 )
-from config import config
+from vion.config import config
 
 
 log = logging.getLogger("ai")

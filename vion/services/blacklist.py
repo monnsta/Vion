@@ -11,8 +11,8 @@ from typing import Any, Dict, List, Tuple
 
 from discord.ext import commands
 
-from infrastructure.file import json_file
-from config import config, storage
+from vion.infrastructure.file import json_file
+from vion.config import config, storage
 
 
 log = logging.getLogger("blacklist")

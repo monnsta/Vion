@@ -48,7 +48,7 @@ def get_annoyance_message(user_id: int) -> str | None:
 async def global_interaction_check(
     interaction: discord.Interaction, target_user: discord.Member | discord.User
 ) -> bool:
-    from ui_templates.feedback import Fail
+    from vion.ui_templates.feedback import Fail
 
     if interaction.user.id != target_user.id:
         msg = get_annoyance_message(interaction.user.id)

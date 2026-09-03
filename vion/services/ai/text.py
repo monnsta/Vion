@@ -10,17 +10,17 @@ from pathlib import Path
 import discord
 from discord.ext import commands
 
-from infrastructure.llm import GenerateContent
-from infrastructure.exec_code import Code, extract
-from services.memory import (
+from vion.infrastructure.llm import GenerateContent
+from vion.infrastructure.exec_code import Code, extract
+from vion.services.memory import (
 	memory_cluster,
 	guild_response,
 	user_response
 )
-from services.profile import server, user
-from services.trackers import activity
-from services.extensions import server_cog
-from config import config
+from vion.services.profile import server, user
+from vion.services.trackers import activity
+from vion.services.extensions import server_cog
+from vion.config import config
 
 
 log = logging.getLogger("ai")

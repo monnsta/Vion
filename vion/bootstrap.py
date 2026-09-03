@@ -13,15 +13,15 @@ import sys
 import termios
 import warnings
 
-from infrastructure.file import json_file
-from infrastructure.logging import (
+from vion.infrastructure.file import json_file
+from vion.infrastructure.logging import (
 	HtmlFormatter,
 	JsonFormatter,
 	RichHandlerv2,
 	SessionFileHandler,
 	TextFormatter
 )
-from config import (
+from vion.config import (
 	config,
 	storage,
 	load_config,
@@ -40,9 +40,11 @@ def disable_echoctl() -> None:
 	Disable ECHOCTL in terminal settings to prevent printing control characters like ^C.
 	"""
 	global _fd, _old_settings
+
 	try:
 		_fd = sys.stdin.fileno()
 		_old_settings = termios.tcgetattr(_fd)
+
 		new_settings = termios.tcgetattr(_fd)
 		new_settings[3] = new_settings[3] & ~termios.ECHOCTL
 
@@ -68,6 +70,7 @@ def setup_console_logging() -> None:
 		show_path=False,
 		log_time_format="%X",
 	)
+
 	root_logger.addHandler(console_handler)
 
 	logging.getLogger("discord").setLevel(logging.INFO)
@@ -96,6 +99,7 @@ def setup_file_logging() -> None:
 		try:
 			if os.path.exists(previous_log):
 				os.remove(previous_log)
+
 			os.rename(current_log, previous_log)
 		except OSError:
 			pass
@@ -104,9 +108,10 @@ def setup_file_logging() -> None:
 
 	file_handler = SessionFileHandler(
 		filename=current_log,
-		mode='w',
-		encoding='utf-8'
+		mode="w",
+		encoding="utf-8"
 	)
+
 	file_handler.setLevel(logging.DEBUG)
 
 	if config.logging.type == "json":
@@ -125,8 +130,10 @@ def cleanup() -> None:
 	"""
 	if json_file:
 		json_file.cache.stop_gc()
+
 	if _fd is not None and _old_settings is not None:
 		termios.tcsetattr(_fd, termios.TCSADRAIN, _old_settings)
+
 	log.info("Shutting down...")
 
 
@@ -136,6 +143,7 @@ async def bootstrap() -> None:
 	"""
 	warnings.filterwarnings("ignore", category=DeprecationWarning)
 	warnings.simplefilter("ignore", DeprecationWarning)
+
 	atexit.register(cleanup)
 	disable_echoctl()
 

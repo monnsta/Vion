@@ -12,8 +12,8 @@ from typing import Tuple
 import discord
 from discord.ext import commands
 
-from infrastructure.file import text_file
-from config import storage
+from vion.infrastructure.file import text_file
+from vion.config import storage
 
 
 log = logging.getLogger("extensions")

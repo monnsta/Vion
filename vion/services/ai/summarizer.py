@@ -4,8 +4,8 @@ Text summarization module using LLM pipelines.
 
 import logging
 
-from infrastructure.llm import GenerateContent
-from config import config
+from vion.infrastructure.llm import GenerateContent
+from vion.config import config
 
 
 log = logging.getLogger("ai")

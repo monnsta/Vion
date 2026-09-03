@@ -1,7 +1,7 @@
 import discord
 from discord import ui
 
-from config import emoji
+from vion.config import emoji
 from .base import TimeoutView, global_interaction_check
 from .modal import GotoModal
 

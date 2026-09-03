@@ -4,7 +4,7 @@ Base tracker class implementation.
 Provides shared JSON loading routines for underlying metrics and event storage files.
 """
 
-from infrastructure.file import json_file
+from vion.infrastructure.file import json_file
 
 
 class BaseTracker:

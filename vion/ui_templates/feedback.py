@@ -1,6 +1,6 @@
 from discord import ui
 
-from config import emoji
+from vion.config import emoji
 from .base import TimeoutView
 
 
