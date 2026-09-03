@@ -197,7 +197,7 @@ class CoreEvents(commands.Cog):
 
 		users_path = Path(storage.dirs.users)
 		if users_path.exists():
-			cutoff = datetime.now(timezone.utc) - timedelta(days=getattr(config.logging, "cleanup_days", 30))
+			cutoff = datetime.now(timezone.utc) - timedelta(days=config.cleanup_days)
 			for folder in users_path.iterdir():
 				if folder.is_dir() and folder.name.isdigit():
 					user_id = int(folder.name)
@@ -237,7 +237,7 @@ class CoreEvents(commands.Cog):
 							if moved_at_time.tzinfo is None:
 								moved_at_time = moved_at_time.replace(tzinfo=config.timezone)
 
-							if current_time - moved_at_time > timedelta(days=config.logging.cleanup_days):
+							if current_time - moved_at_time > timedelta(days=config.cleanup_days):
 								shutil.rmtree(folder)
 								log.info(f"Permanently deleted data for guild {folder.name} from bin.")
 					except Exception:

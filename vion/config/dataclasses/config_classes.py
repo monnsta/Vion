@@ -7,7 +7,7 @@ from typing import Any, Callable, Literal
 
 from discord.ext import commands
 
-from infrastructure.utils import F
+from vion.infrastructure.utils import F
 
 
 class ConfigReloadError(Exception):
@@ -283,6 +283,7 @@ class Config(ConfigNode):
 	max_ltm: int
 	max_previous_response: int
 	max_audit: int
+	cleanup_days: int
 	event_cooldown: int
 	ai_message_cooldown_seconds: int
 

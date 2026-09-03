@@ -209,7 +209,6 @@ config.timezone = pytz.timezone("Asia/Kolkata")
 
 config.logging.file = True
 config.logging.type = "text" # text, html, json
-config.logging.cleanup_days = 3
 
 config.sandbox.allowed_builtins = [
 	"__build_class__", "abs", "all", "any", "bin",
@@ -232,8 +231,8 @@ config.sandbox.allowed_modules = [
 	"enum", "fractions", "functools", "heapq", "itertools",
 	"json", "math", "random", "re", "requests", "statistics",
 	"string", "textwrap", "time", "unicodedata", "uuid", "io",
-	"logging", "config", "services", "ui_templates",
-	"cogs.utils", "yt_dlp"
+	"logging", "yt_dlp",
+	"vion.config", "vion.services", "vion.ui_templates",
 ]
 
 emoji.update(Emoji(
@@ -275,6 +274,7 @@ emoji.update(Emoji(
 """ CONSTRAINTS """
 config.max_restore_file_size = 25 * 1024 * 1024 # 25 mb
 config.event_cooldown = 5
+config.cleanup_days = 3
 
 config.max_stm = 60
 config.max_ltm = 200
@@ -370,8 +370,8 @@ config.fallback_response = d("""
 	<code>
 	import discord
 	import asyncio
-	from config import config
-	from ui_templates import Fail
+	from vion.config import config
+	from vion.ui_templates import Fail
 
 	async def main(**kwargs):
 		return # disabling fallback message
@@ -566,7 +566,7 @@ config.system_instructions = d("""
 	```python
 	import asyncio
 	import discord
-	from services.ai import SelfCallAgent # For type hinting, not strictly needed for usage
+	from vion.services.ai import SelfCallAgent # For type hinting, not strictly needed for usage
 
 	async def main(message: discord.Message, bot: discord.ext.commands.Bot, self_caller: SelfCallAgent):
 		# Example: Fetching full guild/user context json to check detailed configs
@@ -608,7 +608,7 @@ config.system_instructions = d("""
 	Write to LTM whenever you encounter important context, make a personal observation, or establish a goal. Do not restrict memory usage to static factual statements—use it dynamically to evolve your persona and relationships.
 
 	```python
-	from services.memory import global_ltm, user_ltm, guild_ltm
+	from vion.services.memory import global_ltm, user_ltm, guild_ltm
 
 	async def main(message, bot, self_caller):
 		# Global LTM: Loaded everywhere for all interactions.
@@ -635,7 +635,7 @@ config.system_instructions = d("""
 	You have a the ability to blacklist certain people or server if they are abusing or spamming you.
 	Examples:
 	```python
-	from services.blacklist import blacklist
+	from vion.services.blacklist import blacklist
 
 	async def main(message, bot, self_caller):
 		# Add to blacklist:
@@ -706,8 +706,8 @@ config.system_instructions = d("""
 
 	### Usage Example
 	```python
-	from services.extensions import server_cog, GuildCog
-	from services.profile import server
+	from vion.services.extensions import server_cog, GuildCog
+	from vion.services.profile import server
 
 	async def main(message, bot, self_caller):
 		guild_id = message.guild.id
@@ -721,8 +721,8 @@ config.system_instructions = d("""
 	cog_code = \"\"\"
 	import discord
 	from discord.ext import commands
-	from services.extensions import GuildCog
-	from services.profile import server
+	from vion.services.extensions import GuildCog
+	from vion.services.profile import server
 
 	class CustomCog(GuildCog): # do NOT use this nane, always have something unique, like the server name or hardcoded id in this class's name!
 		@commands.command()
@@ -759,7 +759,7 @@ config.system_instructions = d("""
 	* **Global Pre-built Errors**: Use `UnexpectedError` directly for standard generic error responses.
 
 	### Module Imports
-	`from ui_templates import Generic, Success, Fail, Paginated, Confirmation, TextForm, UnexpectedError`
+	`from vion.ui_templates import Generic, Success, Fail, Paginated, Confirmation, TextForm, UnexpectedError`
 
 	---
 
@@ -785,7 +785,7 @@ config.system_instructions = d("""
 	* `await voice.tts(text: str, voice: GeminiVoice = GeminiVoice.CHARON)` -> `io.BytesIO | None`: Generates WAV audio from text using Gemini TTS. Returns an `io.BytesIO` audio buffer (`tts.wav`) or `None` if it fails.
 
 	### Voices (`GeminiVoice`)
-	To specify a voice for `voice.tts()`, import `GeminiVoice` from `services.ai` and pass it as the `voice` parameter.
+	To specify a voice for `voice.tts()`, import `GeminiVoice` from `vion.services.ai` and pass it as the `voice` parameter.
 	Available voices:
 	* `GeminiVoice.ZEPHYR`, `GeminiVoice.PUCK`, `GeminiVoice.CHARON` (default), `GeminiVoice.KORE`, `GeminiVoice.FENRIR`
 	* `GeminiVoice.LEDA`, `GeminiVoice.ORUS`, `GeminiVoice.AOEDE`, `GeminiVoice.CALLIRRHOE`, `GeminiVoice.AUTONOE`
@@ -796,7 +796,7 @@ config.system_instructions = d("""
 
 	### Usage Example
 	```python
-	from services.ai import voice, GeminiVoice
+	from vion.services.ai import voice, GeminiVoice
 
 	async def main(message, bot, self_caller):
 		if not message.author.voice:
@@ -869,7 +869,7 @@ config.system_instructions = d("""
 
 	### Usage Example
 	```python
-	from services.memory import context_linker
+	from vion.services.memory import context_linker
 
 	async def main(message, bot, self_caller):
 		# Example: Link another server's memory and a secondary user's memory to this channel/guild context
