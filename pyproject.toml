@@ -32,7 +32,10 @@ classifiers = [
 ]
 
 [tool.setuptools]
-packages = ["vion"]
+include-package-data = true
+
+[tool.setuptools.packages.find]
+include = ["vion*"]
 
 [tool.pyright]
 venvPath = "."
