@@ -4,7 +4,7 @@ Runtime dependency and platform environment manager.
 The installer is intentionally self-bootstrapping:
 
 - detects the host platform
-- discovers the project root
+- discovers the project root (source checkout vs global pip target)
 - creates/configures Vion's virtual environment
 - prefers native packages where appropriate
 - installs Python dependencies
@@ -98,10 +98,19 @@ def command_exists(name: str) -> bool:
 # Project discovery
 def find_project_root(start: Path | None = None) -> Path:
 	"""
-	Find the project root by walking upwards until pyproject.toml is found.
-	"""
-	current = (start or Path(__file__)).resolve()
+	Find the project root directory.
 
+	1. If VION_ROOT_DIR env var is explicitly provided, use it.
+	2. If pyproject.toml exists upwards, use the cloned source directory.
+	3. Otherwise, default to ~/vion for pip-installed usage.
+	"""
+	env_path = os.getenv("VION_ROOT_DIR")
+	if env_path:
+		root = Path(env_path).expanduser().resolve()
+		root.mkdir(parents=True, exist_ok=True)
+		return root
+
+	current = (start or Path(__file__)).resolve()
 	if current.is_file():
 		current = current.parent
 
@@ -109,10 +118,9 @@ def find_project_root(start: Path | None = None) -> Path:
 		if (directory / "pyproject.toml").is_file():
 			return directory
 
-	raise RuntimeError(
-		"Could not locate pyproject.toml. "
-		"Vion must be run from a source tree containing pyproject.toml."
-	)
+	default_root = Path.home() / "vion"
+	default_root.mkdir(parents=True, exist_ok=True)
+	return default_root
 
 
 # Python environment
@@ -621,8 +629,14 @@ def setup_termux() -> None:
 
 # Python dependency management
 def load_dependencies(root_dir: Path) -> list[str]:
-	"""Load project dependencies from pyproject.toml."""
+	"""
+	Load project dependencies from pyproject.toml if present.
+	Returns an empty list if pyproject.toml does not exist (e.g. installed via pip).
+	"""
 	pyproject_path = root_dir / "pyproject.toml"
+
+	if not pyproject_path.is_file():
+		return []
 
 	with pyproject_path.open("rb") as file:
 		data = tomllib.load(file)
@@ -727,7 +741,10 @@ def uv_available() -> bool:
 
 
 def install_with_uv(root_dir: Path) -> None:
-	"""Install Vion itself without re-resolving dependencies."""
+	"""Install Vion itself in editable mode if running from a source tree."""
+	if not (root_dir / "pyproject.toml").is_file():
+		return
+
 	run([
 		"uv",
 		"pip",
@@ -739,7 +756,10 @@ def install_with_uv(root_dir: Path) -> None:
 
 
 def install_with_pip(root_dir: Path) -> None:
-	"""Install the project using pip."""
+	"""Install the project in editable mode using pip if running from source."""
+	if not (root_dir / "pyproject.toml").is_file():
+		return
+
 	args = [
 		sys.executable,
 		"-m",
@@ -762,6 +782,9 @@ def install_python_dependencies(root_dir: Path) -> None:
 	On Termux, native dependencies are supplied by Termux whenever possible.
 	"""
 	dependencies = load_dependencies(root_dir)
+
+	if not dependencies:
+		return
 
 	missing = [
 		dependency
@@ -823,18 +846,19 @@ def install_python_dependencies(root_dir: Path) -> None:
 				*missing,
 			])
 
-	if uv_available():
-		install_with_uv(root_dir)
-	else:
-		run([
-			sys.executable,
-			"-m",
-			"pip",
-			"install",
-			"--no-deps",
-			"-e",
-			str(root_dir),
-		])
+	if (root_dir / "pyproject.toml").is_file():
+		if uv_available():
+			install_with_uv(root_dir)
+		else:
+			run([
+				sys.executable,
+				"-m",
+				"pip",
+				"install",
+				"--no-deps",
+				"-e",
+				str(root_dir),
+			])
 
 	broken = [
 		dependency

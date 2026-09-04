@@ -31,11 +31,17 @@ classifiers = [
 	"Topic :: Communications :: Chat",
 ]
 
+[project.scripts]
+vion = "vion.__main__:main"
+
 [tool.setuptools]
 include-package-data = true
 
 [tool.setuptools.packages.find]
-include = ["vion*"]
+include = ["vion*", "extensions*"]
+
+[tool.setuptools.package-data]
+"*" = ["*.png", "*.jpg", "*.json", "*.yaml", "*.template"]
 
 [tool.pyright]
 venvPath = "."

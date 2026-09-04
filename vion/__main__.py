@@ -19,9 +19,10 @@ from vion.installer import (
 
 def main() -> None:
 	"""
-	Main CLI entry point for python -m vion execution.
+	Main CLI entry point for python -m vion or vion execution.
 	"""
 	root_dir = find_project_root()
+	root_dir.mkdir(parents=True, exist_ok=True)
 
 	os.environ["VION_ROOT_DIR"] = str(root_dir)
 
@@ -29,7 +30,7 @@ def main() -> None:
 	ensure_dependencies(root_dir)
 
 	parser = argparse.ArgumentParser(
-		prog="python -m vion",
+		prog="vion",
 		description="Vion AI Discord Bot Execution Engine",
 		add_help=True,
 	)
@@ -81,12 +82,10 @@ def main() -> None:
 			return
 
 	env_file = root_dir / ".env"
-	init_file = root_dir / "init.py"
 
 	needs_setup = (
 		args.setup
 		or not env_file.exists()
-		or not init_file.exists()
 	)
 
 	if needs_setup and not args.child:

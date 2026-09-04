@@ -30,7 +30,7 @@ def resolve_root() -> Path:
 	"""
 	Resolve absolute root project directory path.
 
-	Checks VION_ROOT_DIR environment variable first, falling back to parent folder.
+	Checks VION_ROOT_DIR environment variable first, falling back to ~/vion.
 
 	Returns:
 		Resolved absolute Path instance.
@@ -38,9 +38,9 @@ def resolve_root() -> Path:
 	env_path = os.getenv("VION_ROOT_DIR")
 	if env_path:
 		return Path(env_path).expanduser().resolve()
-	log.info("No environment variable for root path found, using project root")
 
-	return Path(__file__).resolve().parent.parent
+	default_root = Path.home() / "vion"
+	return default_root.resolve()
 
 
 def init_storage(root_path: Path) -> Storage:
@@ -115,7 +115,6 @@ async def validate_paths() -> None:
 	"""
 	critical_files = (
 		storage.env,
-		storage.config,
 	)
 
 	missing_files = [f for f in critical_files if not f.exists()]
@@ -147,6 +146,7 @@ async def setup_directory() -> None:
 	log.info("Initializing filesystem setup...")
 
 	await create_path(
+		(storage.dirs.root, True),
 		(storage.dirs.data, True),
 		(storage.dirs.logs, True),
 		(storage.dirs.guilds, True),
