@@ -125,7 +125,7 @@ async def validate_paths() -> None:
 
 		if sys.stdin.isatty():
 			from vion.tui import run_setup_wizard
-			if run_setup_wizard(storage.dirs.root, force=True):
+			if run_setup_wizard(force=True):
 				if all(f.exists() for f in critical_files):
 					return
 

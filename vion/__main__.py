@@ -91,10 +91,7 @@ def main() -> None:
 	if needs_setup and not args.child:
 		from vion.tui import run_setup_wizard
 
-		success = run_setup_wizard(
-			root_dir,
-			force=args.setup,
-		)
+		success = run_setup_wizard(force=args.setup)
 
 		if not success:
 			sys.exit(130)

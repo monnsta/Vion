@@ -3,13 +3,16 @@ Interactive Terminal User Interface (TUI) for Vion initialization and secrets se
 """
 
 import secrets
-from pathlib import Path
 
+import yaml
 from rich.console import Console
 from rich.panel import Panel
 from rich.prompt import Confirm, Prompt
 from rich.table import Table
 from rich.text import Text
+
+from vion.config import storage
+
 
 console = Console()
 
@@ -19,12 +22,12 @@ def render_banner() -> None:
 	Display minimalist monocromatic startup banner.
 	"""
 	banner = Text()
-	banner.append("   ██╗   ██╗██╗ ██████╗ ███╗   ██╗\n", style="bold cyan")
-	banner.append("   ██║   ██║██║██╔═══██╗████╗  ██║\n", style="bold cyan")
-	banner.append("   ██║   ██║██║██║   ██║██╔██╗ ██║\n", style="bold cyan")
-	banner.append("   ╚██╗ ██╔╝██║██║   ██║██║╚██╗██║\n", style="bold blue")
-	banner.append("    ╚████╔╝ ██║╚██████╔╝██║ ╚████║\n", style="bold blue")
-	banner.append("     ╚═══╝  ╚═╝ ╚═════╝ ╚═╝  ╚═══╝\n", style="bold blue")
+	banner.append("██┐   ██┐██┐ ██████┐ ███┐   ██┐\n", style="bold cyan")
+	banner.append("██│   ██│██│██┌───██┐████┐  ██│\n", style="bold cyan")
+	banner.append("██│   ██│██│██│   ██│██┌██┐ ██│\n", style="bold cyan")
+	banner.append("└██┐ ██┌┘██│██│   ██│██│└██┐██│\n", style="bold blue")
+	banner.append(" └████┌┘ ██│└██████┌┘██│ └████│\n", style="bold blue")
+	banner.append("  └───┘  └─┘ └─────┘ └─┘  └───┘\n", style="bold blue")
 
 	panel = Panel(
 		banner,
@@ -35,7 +38,7 @@ def render_banner() -> None:
 	console.print("\n", panel)
 
 
-def run_setup_wizard(root_dir: Path, force: bool = False) -> bool:
+def run_setup_wizard(force: bool = False) -> bool:
 	"""
 	Launch guided setup wizard to configure .env and runtime files.
 
@@ -46,13 +49,10 @@ def run_setup_wizard(root_dir: Path, force: bool = False) -> bool:
 	Returns:
 		True if setup was completed or skipped successfully, False if aborted.
 	"""
-	env_file = root_dir / ".env"
-	init_file = root_dir / "init.py"
-
 	render_banner()
 
 	try:
-		if env_file.exists() and not force:
+		if storage.env.exists() and not force:
 			console.print("[dim white]Configuration file (.env) already exists.[/dim white]")
 			if not Confirm.ask("[bold cyan]Would you like to reconfigure environment secrets?[/bold cyan]", default=False):
 				return True
@@ -64,10 +64,9 @@ def run_setup_wizard(root_dir: Path, force: bool = False) -> bool:
 		existing_assembly = ""
 		existing_hmac = ""
 
-		if env_file.exists():
+		if storage.env.exists():
 			try:
-				import yaml
-				with open(env_file, "r", encoding="utf-8") as f:
+				with open(storage.env, "r", encoding="utf-8") as f:
 					data = yaml.safe_load(f) or {}
 					existing_discord = data.get("discord", "")
 					existing_gemini = data.get("gemini", "")
@@ -112,19 +111,18 @@ def run_setup_wizard(root_dir: Path, force: bool = False) -> bool:
 	)
 
 	try:
-		with open(env_file, "w", encoding="utf-8") as f:
+		with open(storage.env, "w", encoding="utf-8") as f:
 			f.write(env_content)
 		console.print("\n[bold green]✓ Saved secrets to .env[/bold green]")
 	except Exception as e:
 		console.print(f"\n[bold red]✗ Failed to write .env file: {e}[/bold red]")
 		return False
 
-	if not init_file.exists():
-		console.print("\n[bold cyan]=== Step 2: System Configuration ===[/bold cyan]\n")
-		console.print("[yellow]init.py configuration missing.[/yellow]")
-		template_path = root_dir / "init.py"
-		if not template_path.exists():
-			console.print("[bold red]✗ init.py missing. Please restore or pull init.py from repo.[/bold red]")
+	console.print("\n[bold cyan]=== Step 2: System Configuration ===[/bold cyan]\n")
+	if not storage.config.exists():
+		console.print(
+			f"[bold red]✗ {storage.config} missing. Please restore the file or pull from repo.[/bold red]"
+		)
 
 	table = Table(title="Setup Summary", border_style="dim")
 	table.add_column("Parameter", style="cyan")
@@ -134,7 +132,7 @@ def run_setup_wizard(root_dir: Path, force: bool = False) -> bool:
 	table.add_row("Gemini API Key", "[green]Configured[/green]" if gemini_key else "[dim yellow]Not Set[/dim yellow]")
 	table.add_row("AssemblyAI Key", "[green]Configured[/green]" if assembly_key else "[dim yellow]Not Set[/dim yellow]")
 	table.add_row("HMAC Secret", "[green]Generated[/green]")
-	table.add_row("init.py File", "[green]Present[/green]" if init_file.exists() else "[red]Missing[/red]")
+	table.add_row(f"{storage.config.name} File", "[green]Present[/green]" if storage.config.exists() else "[red]Missing[/red]")
 
 	console.print("\n", table, "\n")
 	return True
