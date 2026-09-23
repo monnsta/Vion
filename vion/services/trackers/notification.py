@@ -39,7 +39,7 @@ class Notification(BaseTracker):
 		channel_id: int,
 		channel_name: str,
 		message_id: int,
-		content: str
+		content: str,
 	) -> None:
 		"""
 		Append a new notification entry for a target entity.
@@ -67,12 +67,12 @@ class Notification(BaseTracker):
 				"channel_name": channel_name,
 				"message_id": message_id,
 				"content": content,
-				"timestamp": datetime.now(timezone.utc).isoformat()
+				"timestamp": datetime.now(timezone.utc).isoformat(),
 			}
 
 			data[tid].append(entry)
 			if len(data[tid]) > self.max_per_target:
-				data[tid] = data[tid][-self.max_per_target:]
+				data[tid] = data[tid][-self.max_per_target :]
 
 	async def get(self, target_id: int) -> list[dict]:
 		"""

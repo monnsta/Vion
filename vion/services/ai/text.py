@@ -12,11 +12,7 @@ from discord.ext import commands
 
 from vion.infrastructure.llm import GenerateContent
 from vion.infrastructure.exec_code import Code, extract
-from vion.services.memory import (
-	memory_cluster,
-	guild_response,
-	user_response
-)
+from vion.services.memory import memory_cluster, guild_response, user_response
 from vion.services.profile import server, user
 from vion.services.trackers import activity
 from vion.services.extensions import server_cog
@@ -31,11 +27,11 @@ class SelfCallAgent:
 
 	def __init__(
 		self,
-		parent_ai: 'AI',
+		parent_ai: "AI",
 		guild_obj: discord.Guild | None,
 		member_obj: discord.User | discord.Member | None,
 		message: discord.Message | None,
-		bot_client: commands.Bot
+		bot_client: commands.Bot,
 	):
 		"""
 		Initialize the self-call agent wrapper.
@@ -57,7 +53,7 @@ class SelfCallAgent:
 		self,
 		text: str,
 		*files: str | bytes | io.BytesIO | io.IOBase | discord.Attachment,
-		request_full_context: bool = False
+		request_full_context: bool = False,
 	) -> None:
 		"""
 		Allows the AI to recursively call itself with additional text and file inputs.
@@ -70,7 +66,9 @@ class SelfCallAgent:
 			*files: Variadic file attachments or paths to process alongside the call.
 			request_full_context: Whether to inject complete guild and user profile objects.
 		"""
-		log.info(f"AI self-call initiated by {self.member_obj.id if self.member_obj else 'unknown'}")
+		log.info(
+			f"AI self-call initiated by {self.member_obj.id if self.member_obj else 'unknown'}"
+		)
 
 		file_inputs_for_llm: List[Any] = []
 		file_descs_for_prompt: List[str] = []
@@ -83,10 +81,14 @@ class SelfCallAgent:
 				try:
 					f_item.seek(0)
 					file_inputs_for_llm.append(f_item)
-					filename = getattr(f_item, "name", f"file_{len(file_inputs_for_llm)}")
+					filename = getattr(
+						f_item, "name", f"file_{len(file_inputs_for_llm)}"
+					)
 					file_descs_for_prompt.append(filename)
 				except Exception as e:
-					log.warning(f"Failed to prepare file-like object during self-call: {e}")
+					log.warning(
+						f"Failed to prepare file-like object during self-call: {e}"
+					)
 			elif isinstance(f_item, str):
 				path_obj = Path(f_item)
 				if path_obj.is_file():
@@ -94,14 +96,28 @@ class SelfCallAgent:
 					file_descs_for_prompt.append(path_obj.name)
 				elif f_item.startswith(("http://", "https://")):
 					file_inputs_for_llm.append(f_item)
-					file_descs_for_prompt.append(Path(f_item).name if Path(f_item).name else f_item)
+					file_descs_for_prompt.append(
+						Path(f_item).name if Path(f_item).name else f_item
+					)
 				else:
-					log.warning(f"Unrecognized string as file input for self-call: {f_item}. Skipping as LLM input.")
+					log.warning(
+						f"Unrecognized string as file input for self-call: {f_item}. Skipping as LLM input."
+					)
 			else:
-				log.warning(f"Unsupported file type for self-call: {type(f_item)}. Skipping.")
+				log.warning(
+					f"Unsupported file type for self-call: {type(f_item)}. Skipping."
+				)
 
-		inputs_summary = f"Includes the following files: {', '.join(file_descs_for_prompt)}" if file_descs_for_prompt else ""
-		combined_extra = f"{text}\n\nAdditional Input Summary: {inputs_summary}" if inputs_summary else text
+		inputs_summary = (
+			f"Includes the following files: {', '.join(file_descs_for_prompt)}"
+			if file_descs_for_prompt
+			else ""
+		)
+		combined_extra = (
+			f"{text}\n\nAdditional Input Summary: {inputs_summary}"
+			if inputs_summary
+			else text
+		)
 
 		await self.parent_ai.do_action(
 			event="on_self_call",
@@ -111,7 +127,7 @@ class SelfCallAgent:
 			inputs=file_inputs_for_llm,
 			message=self.message,
 			bot=self.bot_client,
-			request_full_context=request_full_context
+			request_full_context=request_full_context,
 		)
 
 
@@ -123,10 +139,12 @@ class AI:
 		log.info("Initializing AI engine with base modules.")
 		self.base_modules = [
 			GenerateContent(
-				k, m,
+				k,
+				m,
 				config.system_instructions,
 				config.temperature,
-				config.top_p, config.top_k
+				config.top_p,
+				config.top_k,
 			)
 			for m in config.gemini_models
 			for k in config.secrets.gemini
@@ -150,13 +168,17 @@ class AI:
 			log.debug("Cache hit for custom modules.")
 			return self.custom_modules_cache[cache_signature]
 
-		log.info(f"Cache miss. Generating custom modules for signature hash: {hash(cache_signature)}")
+		log.info(
+			f"Cache miss. Generating custom modules for signature hash: {hash(cache_signature)}"
+		)
 		modules = [
 			GenerateContent(
-				k, m,
+				k,
+				m,
 				config.system_instructions,
 				config.temperature,
-				config.top_p, config.top_k
+				config.top_p,
+				config.top_k,
 			)
 			for m in config.gemini_models
 			for k in custom_keys
@@ -171,7 +193,7 @@ class AI:
 		member_obj: discord.User | discord.Member | None = None,
 		extra: str | None = None,
 		inputs: List[Any] | None = None,
-		**kwargs: Any
+		**kwargs: Any,
 	) -> bool:
 		"""
 		Build system context, invoke model generation, and execute extracted code blocks.
@@ -187,7 +209,9 @@ class AI:
 		Returns:
 			True if response generation was successful, False otherwise.
 		"""
-		log.info(f"Processing action for event: '{event}' (Guild: {guild_obj.id if guild_obj else 'None'}, Member: {member_obj.id if member_obj else 'None'})")
+		log.info(
+			f"Processing action for event: '{event}' (Guild: {guild_obj.id if guild_obj else 'None'}, Member: {member_obj.id if member_obj else 'None'})"
+		)
 
 		g_obj, u_obj = None, None
 		g_ins = None
@@ -195,9 +219,9 @@ class AI:
 		pipeline = list(self.base_modules)
 		custom_keys: List[str] = []
 
-		request_full_context = kwargs.pop('request_full_context', False)
-		message = kwargs.get('message')
-		channel = kwargs.get('channel') or (message.channel if message else None)
+		request_full_context = kwargs.pop("request_full_context", False)
+		message = kwargs.get("message")
+		channel = kwargs.get("channel") or (message.channel if message else None)
 
 		if guild_obj:
 			log.debug(f"Fetching config objects for Guild ID: {guild_obj.id}")
@@ -210,7 +234,9 @@ class AI:
 				g_cog = cog_code
 
 			if s_keys_raw := g_settings.get("api_keys"):
-				log.debug(f"Extracting server-provided API keys for Guild ID: {guild_obj.id}")
+				log.debug(
+					f"Extracting server-provided API keys for Guild ID: {guild_obj.id}"
+				)
 				for k in s_keys_raw:
 					custom_keys.append(k["key"] if isinstance(k, dict) else k)
 
@@ -235,7 +261,9 @@ class AI:
 			u_obj = u_full_obj
 
 			if u_keys := u_sets.get("api_keys"):
-				log.debug(f"Extracting user-provided API keys for Member ID: {member_obj.id}")
+				log.debug(
+					f"Extracting user-provided API keys for Member ID: {member_obj.id}"
+				)
 				custom_keys.extend(u_keys)
 
 		if custom_keys:
@@ -252,20 +280,30 @@ class AI:
 			inputs_summary_list = []
 			for item in inputs:
 				if isinstance(item, str):
-					inputs_summary_list.append(Path(item).name if Path(item).name else item)
+					inputs_summary_list.append(
+						Path(item).name if Path(item).name else item
+					)
 				elif isinstance(item, bytes):
-					inputs_summary_list.append(f"binary_data_{len(inputs_summary_list)}.bin")
-				elif hasattr(item, 'name'):
+					inputs_summary_list.append(
+						f"binary_data_{len(inputs_summary_list)}.bin"
+					)
+				elif hasattr(item, "name"):
 					inputs_summary_list.append(item.name)
 				else:
-					inputs_summary_list.append(f"unnamed_input_{len(inputs_summary_list)}")
+					inputs_summary_list.append(
+						f"unnamed_input_{len(inputs_summary_list)}"
+					)
 			inputs_summary = ", ".join(inputs_summary_list)
 
 		active_pipeline = [m for m in pipeline if not m.is_cooling_down]
-		log.debug(f"Pipeline status -> Total modules: {len(pipeline)}, Active/Available: {len(active_pipeline)}")
+		log.debug(
+			f"Pipeline status -> Total modules: {len(pipeline)}, Active/Available: {len(active_pipeline)}"
+		)
 
 		if not active_pipeline:
-			log.warning("No active modules available in the pipeline (all cooling down or none loaded).")
+			log.warning(
+				"No active modules available in the pipeline (all cooling down or none loaded)."
+			)
 
 		success, response = False, config.fallback_response
 		prompt = config.prompt_template.format(
@@ -274,19 +312,23 @@ class AI:
 			guild_cog=g_cog,
 			user=u_obj,
 			**cluster,
-			params=kwargs.keys() | {'self_caller'},
+			params=kwargs.keys() | {"self_caller"},
 			event=event,
 			extra=extra,
-			inputs_summary=inputs_summary
+			inputs_summary=inputs_summary,
 		)
 
 		manager = None
 		entity_id = None
 
 		if self.bot:
-			kwargs['self_caller'] = SelfCallAgent(self, guild_obj, member_obj, kwargs.get('message'), self.bot)
+			kwargs["self_caller"] = SelfCallAgent(
+				self, guild_obj, member_obj, kwargs.get("message"), self.bot
+			)
 		else:
-			log.error("AI instance has no bot client reference, self_caller will not be fully functional.")
+			log.error(
+				"AI instance has no bot client reference, self_caller will not be fully functional."
+			)
 
 		for idx, model in enumerate(active_pipeline):
 			log.debug(f"Attempting model generation call (Index: {idx})")
@@ -302,7 +344,9 @@ class AI:
 					entity_id = member_obj.id
 				break
 			else:
-				log.warning(f"Model call failed at module index {idx}. Retrying next available model if any.")
+				log.warning(
+					f"Model call failed at module index {idx}. Retrying next available model if any."
+				)
 				response = config.fallback_response
 
 		try:
@@ -329,9 +373,10 @@ class AI:
 			log.debug(f"Persisting model response for entity ID: {entity_id}")
 			await manager.add(entity_id, response)
 
-		if success: await activity.log_activity(
-			guild_id=guild_obj.id if guild_obj else None,
-			user_id=member_obj.id if member_obj else None
-		)
+		if success:
+			await activity.log_activity(
+				guild_id=guild_obj.id if guild_obj else None,
+				user_id=member_obj.id if member_obj else None,
+			)
 
 		return success

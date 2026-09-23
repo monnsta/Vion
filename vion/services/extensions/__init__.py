@@ -13,7 +13,4 @@ extension = Extension()
 server_cog = ServerCogManager()
 
 
-__all__ = (
-	'extension', 'map_command_mentions',
-	'server_cog', 'GuildCog'
-)
+__all__ = ("extension", "map_command_mentions", "server_cog", "GuildCog")

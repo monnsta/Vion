@@ -95,7 +95,7 @@ class EntityListStore:
 		"""Trim list to maximum allowed size keeping latest entries."""
 		if len(items) > self.max_items:
 			log.debug(f"Trimming {self.key} list: {len(items)} -> {self.max_items}")
-			return items[-self.max_items:]
+			return items[-self.max_items :]
 		return items
 
 	async def get(self, entity_id: int) -> tuple[bool, list[Any]]:
@@ -111,12 +111,17 @@ class EntityListStore:
 		try:
 			success, data = await self._load(entity_id)
 			if not success:
-				log.warning(f"Failed to load data for {self.entity_type} {entity_id} while getting {self.key}")
+				log.warning(
+					f"Failed to load data for {self.entity_type} {entity_id} while getting {self.key}"
+				)
 				return False, []
 			log.debug(f"Loaded {self.key} for {self.entity_type} {entity_id}")
 			return True, data.get(self.key, [])
 		except Exception as e:
-			log.error(f"Error retrieving {self.key} for {self.entity_type} {entity_id}: {e}", exc_info=True)
+			log.error(
+				f"Error retrieving {self.key} for {self.entity_type} {entity_id}: {e}",
+				exc_info=True,
+			)
 			return False, []
 
 	async def clear(self, entity_id: int) -> bool:
@@ -138,5 +143,7 @@ class EntityListStore:
 			log.debug(f"Cleared {self.key} for {self.entity_type} {entity_id}")
 			return True
 		except Exception as e:
-			log.error(f"Error clearing {self.key} for {self.entity_type} {entity_id}: {e}")
+			log.error(
+				f"Error clearing {self.key} for {self.entity_type} {entity_id}: {e}"
+			)
 			return False

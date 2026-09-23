@@ -57,9 +57,7 @@ class AssemblyAITranscriber:
 		log.debug(f"Uploading raw data of size {len(data)} bytes to AssemblyAI")
 		async with httpx.AsyncClient(timeout=None) as client:
 			response = await client.post(
-				f"{self.base_url}/upload",
-				headers=self.headers,
-				content=data
+				f"{self.base_url}/upload", headers=self.headers, content=data
 			)
 			response.raise_for_status()
 			upload_url = str(response.json().get("upload_url"))
@@ -95,14 +93,16 @@ class AssemblyAITranscriber:
 			item.seek(0)
 			data = item.read()
 			if isinstance(data, str):
-				data = data.encode('utf-8')
+				data = data.encode("utf-8")
 			return await self._upload_data(data)
 
 		if isinstance(item, bytes):
 			log.debug("AssemblyAI: Handling raw bytes payload")
 			return await self._upload_data(item)
 
-		raise ValueError(f"Unsupported input type for AssemblyAI transcription: {type(item)}")
+		raise ValueError(
+			f"Unsupported input type for AssemblyAI transcription: {type(item)}"
+		)
 
 	async def call(self, item: Any) -> Tuple[bool, str]:
 		"""
@@ -122,9 +122,7 @@ class AssemblyAITranscriber:
 				payload = {"audio_url": audio_url, **self.config}
 				log.debug("Submitting transcription job to AssemblyAI endpoint")
 				submit_resp = await client.post(
-					f"{self.base_url}/transcript",
-					json=payload,
-					headers=self.headers
+					f"{self.base_url}/transcript", json=payload, headers=self.headers
 				)
 				submit_resp.raise_for_status()
 				transcript_id = submit_resp.json()["id"]
@@ -137,7 +135,7 @@ class AssemblyAITranscriber:
 
 					poll_resp = await client.get(
 						f"{self.base_url}/transcript/{transcript_id}",
-						headers=self.headers
+						headers=self.headers,
 					)
 					poll_resp.raise_for_status()
 
@@ -150,7 +148,9 @@ class AssemblyAITranscriber:
 						log.debug("Transcription completed successfully.")
 						return True, result.get("text", "")
 					elif status == "error":
-						error_msg = result.get("error", "Unknown processing error from AssemblyAI")
+						error_msg = result.get(
+							"error", "Unknown processing error from AssemblyAI"
+						)
 						log.error(f"AssemblyAI transcription failed: {error_msg}")
 						return False, error_msg
 

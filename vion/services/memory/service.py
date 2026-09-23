@@ -31,7 +31,7 @@ class STM(EntityListStore):
 		self,
 		entity_type: str = "guild",
 		guild_ltm: Optional["LTM"] = None,
-		user_ltm: Optional["LTM"] = None
+		user_ltm: Optional["LTM"] = None,
 	):
 		"""
 		Initialize short-term memory store instance.
@@ -74,7 +74,10 @@ class STM(EntityListStore):
 			if hasattr(message, "attachments") and message.attachments:
 				for attachment in message.attachments:
 					if getattr(attachment, "is_voice_message", lambda: False)():
-						from vion.services.ai import voice # importing here to avoid circular dependency
+						from vion.services.ai import (
+							voice,
+						)  # importing here to avoid circular dependency
+
 						success, text = await voice.transcribe(attachment.url)
 						if success and text:
 							transcripts.append(text)
@@ -102,7 +105,9 @@ class STM(EntityListStore):
 			log.error(f"Error adding STM for {self.entity_type} {entity_id}: {e}")
 			return False
 
-	async def _check_and_summarize(self, entity_id: int, current_items: list[Any], data: dict) -> None:
+	async def _check_and_summarize(
+		self, entity_id: int, current_items: list[Any], data: dict
+	) -> None:
 		"""
 		Check if memory window is filled with unsummarized context and trigger LTM summarize task.
 
@@ -115,16 +120,23 @@ class STM(EntityListStore):
 			return
 
 		normalized_current = [self._normalize_entry(i) for i in current_items]
-		current_hashes = [hashlib.md5(item.encode('utf-8')).hexdigest() for item in normalized_current]
+		current_hashes = [
+			hashlib.md5(item.encode("utf-8")).hexdigest() for item in normalized_current
+		]
 		last_summarized_hashes = data.get("_last_summarized_hashes", [])
 
 		has_overlap = any(h in last_summarized_hashes for h in current_hashes)
 
 		if not has_overlap:
-			log.info(f"STM entries for {self.entity_type} {entity_id} are completely unique. Triggering summarizer.")
+			log.info(
+				f"STM entries for {self.entity_type} {entity_id} are completely unique. Triggering summarizer."
+			)
 
 			stm_text_block = "\n".join(normalized_current)
-			from vion.services.ai import summarizer # importing here to avoid circular dependency
+			from vion.services.ai import (
+				summarizer,
+			)  # importing here to avoid circular dependency
+
 			summary_result = await summarizer.summarize(stm_text_block)
 
 			target_ltm = None
@@ -135,7 +147,9 @@ class STM(EntityListStore):
 
 			if target_ltm and summary_result:
 				await target_ltm.add(entity_id, f"[Auto-Summarized] {summary_result}")
-				log.info(f"Successfully added auto-summary into LTM for {self.entity_type} {entity_id}")
+				log.info(
+					f"Successfully added auto-summary into LTM for {self.entity_type} {entity_id}"
+				)
 
 			data["_last_summarized_hashes"] = current_hashes
 			await self._save(entity_id, data)
@@ -254,7 +268,9 @@ class Response(EntityListStore):
 			data[self.key] = self._trim(items)
 
 			await self._save(entity_id, data)
-			log.debug(f"Added previous response entry for {self.entity_type} {entity_id}")
+			log.debug(
+				f"Added previous response entry for {self.entity_type} {entity_id}"
+			)
 			return True
 		except Exception as e:
 			log.error(f"Error adding response for {self.entity_type} {entity_id}: {e}")
@@ -280,14 +296,21 @@ class ChannelSTM:
 		"""
 		channel_id = getattr(channel, "id", 0)
 		guild = getattr(channel, "guild", None)
-		is_private = getattr(channel, "type", None) == discord.ChannelType.private or guild is None
+		is_private = (
+			getattr(channel, "type", None) == discord.ChannelType.private
+			or guild is None
+		)
 
 		if is_private:
 			recipient = getattr(channel, "recipient", None)
 			eid = recipient.id if recipient else 0
-			return EntityListStore(f"channel_stm_{channel_id}", self.max_items, "user"), eid
+			return EntityListStore(
+				f"channel_stm_{channel_id}", self.max_items, "user"
+			), eid
 		else:
-			return EntityListStore(f"channel_stm_{channel_id}", self.max_items, "guild"), guild.id  # type: ignore
+			return EntityListStore(
+				f"channel_stm_{channel_id}", self.max_items, "guild"
+			), guild.id  # type: ignore
 
 	async def get(self, channel: discord.abc.Messageable):
 		"""
@@ -304,7 +327,9 @@ class ChannelSTM:
 			return False, []
 		return await store.get(eid)
 
-	async def add(self, channel: discord.abc.Messageable, message: discord.Message) -> bool:
+	async def add(
+		self, channel: discord.abc.Messageable, message: discord.Message
+	) -> bool:
 		"""
 		Convert and record a message into channel-specific short term memory.
 
@@ -325,7 +350,12 @@ class ChannelSTM:
 						eid = msg.author.id
 						break
 			if eid:
-				store, eid = EntityListStore(f"channel_stm_{channel_id}", self.max_items, "user"), eid
+				store, eid = (
+					EntityListStore(
+						f"channel_stm_{channel_id}", self.max_items, "user"
+					),
+					eid,
+				)
 
 		if not eid:
 			return False
@@ -341,7 +371,10 @@ class ChannelSTM:
 			if hasattr(message, "attachments") and message.attachments:
 				for attachment in message.attachments:
 					if getattr(attachment, "is_voice_message", lambda: False)():
-						from vion.services.ai import voice # importing here to avoid circular dependency
+						from vion.services.ai import (
+							voice,
+						)  # importing here to avoid circular dependency
+
 						success, text = await voice.transcribe(attachment.url)
 						if success and text:
 							transcripts.append(text)
@@ -378,7 +411,7 @@ class MemoryCluster:
 		user_stm: STM,
 		user_ltm: LTM,
 		channel_stm: ChannelSTM,
-		context_linker: "ContextLinker"
+		context_linker: "ContextLinker",
 	):
 		"""
 		Initialize memory cluster aggregating service pointers.
@@ -408,7 +441,7 @@ class MemoryCluster:
 		self,
 		guild: discord.Guild | None,
 		user: discord.User | discord.Member | None,
-		channel: discord.abc.Messageable | None = None
+		channel: discord.abc.Messageable | None = None,
 	) -> dict:
 		"""
 		Build consolidated memory cluster dictionary for target query execution scope.
@@ -431,7 +464,7 @@ class MemoryCluster:
 			"user_stm": [],
 			"user_ltm": [],
 			"channel_stm": [],
-			"active_users": []
+			"active_users": [],
 		}
 
 		_, cluster["global_stm"] = await self.global_stm.get(0)
@@ -497,22 +530,16 @@ class MemoryCluster:
 				if s_type == "user":
 					_, stm = await self.user_stm.get(s_id)
 					_, ltm = await self.user_ltm.get(s_id)
-					cluster["linked_contexts"].append({
-						"type": "user",
-						"id": s_id,
-						"stm": stm,
-						"ltm": ltm
-					})
+					cluster["linked_contexts"].append(
+						{"type": "user", "id": s_id, "stm": stm, "ltm": ltm}
+					)
 
 				elif s_type == "guild":
 					_, stm = await self.guild_stm.get(s_id)
 					_, ltm = await self.guild_ltm.get(s_id)
-					cluster["linked_contexts"].append({
-						"type": "guild",
-						"id": s_id,
-						"stm": stm,
-						"ltm": ltm
-					})
+					cluster["linked_contexts"].append(
+						{"type": "guild", "id": s_id, "stm": stm, "ltm": ltm}
+					)
 
 		return cluster
 
@@ -524,7 +551,9 @@ class ContextLinker:
 		"""Initialize context link map."""
 		self._links = {}
 
-	def add_link(self, target_id: int, source_type: str, source_id: int, ttl: int = 3600):
+	def add_link(
+		self, target_id: int, source_type: str, source_id: int, ttl: int = 3600
+	):
 		"""
 		Create active link between target entity and secondary source context with TTL.
 
@@ -541,7 +570,7 @@ class ContextLinker:
 		self._links[target_id][key] = {
 			"type": source_type,
 			"id": source_id,
-			"expires_at": time.time() + ttl
+			"expires_at": time.time() + ttl,
 		}
 
 	def get_links(self, target_id: int) -> list:

@@ -19,14 +19,9 @@ from vion.infrastructure.logging import (
 	JsonFormatter,
 	RichHandlerv2,
 	SessionFileHandler,
-	TextFormatter
+	TextFormatter,
 )
-from vion.config import (
-	config,
-	storage,
-	load_config,
-	setup_directory
-)
+from vion.config import config, storage, load_config, setup_directory
 
 
 log = logging.getLogger("startup")
@@ -41,7 +36,9 @@ def disable_console_logging() -> None:
 	"""
 	root_logger = logging.getLogger()
 	for handler in list(root_logger.handlers):
-		if isinstance(handler, RichHandlerv2) or not isinstance(handler, SessionFileHandler):
+		if isinstance(handler, RichHandlerv2) or not isinstance(
+			handler, SessionFileHandler
+		):
 			root_logger.removeHandler(handler)
 
 
@@ -117,11 +114,7 @@ def setup_file_logging() -> None:
 
 	root_logger = logging.getLogger()
 
-	file_handler = SessionFileHandler(
-		filename=current_log,
-		mode="w",
-		encoding="utf-8"
-	)
+	file_handler = SessionFileHandler(filename=current_log, mode="w", encoding="utf-8")
 
 	file_handler.setLevel(logging.DEBUG)
 
@@ -159,6 +152,7 @@ def setup_signal_handlers() -> None:
 	"""
 	Intercept termination signals to immediately mute stdout output.
 	"""
+
 	def handle_exit_signal(signum, frame):
 		_ = signum, frame
 		disable_console_logging()

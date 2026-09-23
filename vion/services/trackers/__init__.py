@@ -15,4 +15,4 @@ notif = Notification()
 runtime = Runtime()
 
 
-__all__ = ('activity', 'notif', 'runtime')
+__all__ = ("activity", "notif", "runtime")

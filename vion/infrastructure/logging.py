@@ -22,7 +22,9 @@ from rich.text import Text
 from vion.infrastructure.utils import d
 
 
-code_log_stream: contextvars.ContextVar[io.StringIO | None] = contextvars.ContextVar('code_log_stream', default=None)
+code_log_stream: contextvars.ContextVar[io.StringIO | None] = contextvars.ContextVar(
+	"code_log_stream", default=None
+)
 
 
 class CodeLogHandler(logging.Handler):
@@ -41,7 +43,7 @@ class CodeLogHandler(logging.Handler):
 		if stream is not None:
 			try:
 				msg = self.format(record)
-				stream.write(msg + '\n')
+				stream.write(msg + "\n")
 			except Exception:
 				self.handleError(record)
 
@@ -76,7 +78,7 @@ class JsonFormatter(logging.Formatter):
 			"thread_id": record.thread,
 			"thread_name": record.threadName,
 			"millisecond_created": record.msecs,
-			"epoch_created": record.created
+			"epoch_created": record.created,
 		}
 
 		if record.exc_info:
@@ -96,7 +98,13 @@ class HtmlFormatter(logging.Formatter):
 	def __init__(self) -> None:
 		"""Initialize the HtmlFormatter and its underlying Rich console buffer."""
 		super().__init__()
-		self.console = Console(file=io.StringIO(), record=True, force_terminal=True, width=150, color_system="truecolor")
+		self.console = Console(
+			file=io.StringIO(),
+			record=True,
+			force_terminal=True,
+			width=150,
+			color_system="truecolor",
+		)
 
 	def format(self, record: logging.LogRecord) -> str:
 		"""
@@ -139,8 +147,8 @@ class HtmlFormatter(logging.Formatter):
 
 			rich_html = self.console.export_html(inline_styles=True, clear=True)
 
-			rich_html = re.sub(r'font-family:[^;"]+;?', '', rich_html)
-			rich_html = re.sub(r'line-height:[^;"]+;?', '', rich_html)
+			rich_html = re.sub(r'font-family:[^;"]+;?', "", rich_html)
+			rich_html = re.sub(r'line-height:[^;"]+;?', "", rich_html)
 
 			start = rich_html.find("<pre")
 			end = rich_html.find("</pre>") + 6
@@ -170,7 +178,9 @@ class TextFormatter(logging.Formatter):
 
 	def __init__(self) -> None:
 		"""Initialize standard text formatting template and timestamp layout."""
-		super().__init__("[%(asctime)s] [%(levelname)s] [%(name)s] %(message)s", "%Y-%m-%d %H:%M:%S")
+		super().__init__(
+			"[%(asctime)s] [%(levelname)s] [%(name)s] %(message)s", "%Y-%m-%d %H:%M:%S"
+		)
 
 
 class SessionFileHandler(FileHandler):
@@ -178,7 +188,13 @@ class SessionFileHandler(FileHandler):
 	FileHandler subclass that injects structural HTML headers into newly created log files.
 	"""
 
-	def __init__(self, filename: str, mode: str = "w", encoding: str | None = "utf-8", delay: bool = False) -> None:
+	def __init__(
+		self,
+		filename: str,
+		mode: str = "w",
+		encoding: str | None = "utf-8",
+		delay: bool = False,
+	) -> None:
 		"""Initialize SessionFileHandler forcing write mode to truncate log sessions."""
 		super().__init__(filename, mode=mode, encoding=encoding, delay=delay)
 

@@ -11,4 +11,4 @@ server = Server()
 user = User()
 
 
-__all__ = ('server', 'user')
+__all__ = ("server", "user")

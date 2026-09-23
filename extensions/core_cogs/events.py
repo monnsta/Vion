@@ -13,13 +13,8 @@ from discord.ext import commands, tasks
 from vion.infrastructure.file import json_file
 from vion.services.profile import server, user
 from vion.services.blacklist import blacklist, BlacklistedError
-from vion.ui_templates import (
-	Generic,
-	Fail,
-	UnexpectedError
-)
+from vion.ui_templates import Generic, Fail, UnexpectedError
 from vion.config import config, storage
-
 
 
 log = logging.getLogger("extensions")
@@ -44,8 +39,9 @@ class CoreEvents(commands.Cog):
 			self.random_status_task.cancel()
 		return super().cog_unload()
 
-
-	async def global_blacklist_validator(self, interaction: discord.Interaction) -> bool:
+	async def global_blacklist_validator(
+		self, interaction: discord.Interaction
+	) -> bool:
 		is_blocked, data = await blacklist.get(interaction.user.id, "user")
 		if is_blocked and isinstance(data, dict):
 			reason = data.get("reason", "No reason provided.")
@@ -53,7 +49,9 @@ class CoreEvents(commands.Cog):
 			raise BlacklistedError(reason=reason, expires_at=expires_at)
 		return True
 
-	async def on_app_command_error(self, interaction: discord.Interaction, error: app_commands.AppCommandError):
+	async def on_app_command_error(
+		self, interaction: discord.Interaction, error: app_commands.AppCommandError
+	):
 		if isinstance(error, BlacklistedError):
 			duration_str = "Permanent"
 			if error.expires_at:
@@ -67,7 +65,7 @@ class CoreEvents(commands.Cog):
 				"Access Denied",
 				"You are restricted from using this bot.\n\n",
 				f"**Reason:** {error.reason}\n",
-				f"**Duration:** {duration_str}"
+				f"**Duration:** {duration_str}",
 			)
 			if interaction.response.is_done():
 				await interaction.followup.send(view=view, ephemeral=True)
@@ -78,7 +76,7 @@ class CoreEvents(commands.Cog):
 		if isinstance(error, app_commands.errors.CheckFailure):
 			view = Fail(
 				"Action Prohibited",
-				"You lack the authorization or administrator status required to trigger this utility."
+				"You lack the authorization or administrator status required to trigger this utility.",
 			)
 			if interaction.response.is_done():
 				await interaction.followup.send(view=view, ephemeral=True)
@@ -86,12 +84,17 @@ class CoreEvents(commands.Cog):
 				await interaction.response.send_message(view=view, ephemeral=True)
 			return
 
-		log.error(f"Unresolved App Command Error in /{interaction.command.qualified_name if interaction.command else 'unknown'}:", exc_info=error)
+		log.error(
+			f"Unresolved App Command Error in /{interaction.command.qualified_name if interaction.command else 'unknown'}:",
+			exc_info=error,
+		)
 		try:
 			if interaction.response.is_done():
 				await interaction.followup.send(view=UnexpectedError, ephemeral=True)
 			else:
-				await interaction.response.send_message(view=UnexpectedError, ephemeral=True)
+				await interaction.response.send_message(
+					view=UnexpectedError, ephemeral=True
+				)
 		except Exception:
 			pass
 
@@ -106,7 +109,7 @@ class CoreEvents(commands.Cog):
 					random.shuffle(self.status_queue)
 
 				new_status = self.status_queue.pop()
-				log.info(f"Changing status to: \"{new_status}\"")
+				log.info(f'Changing status to: "{new_status}"')
 
 				activity_mapping = {
 					0: discord.Game,
@@ -120,10 +123,12 @@ class CoreEvents(commands.Cog):
 					"online": discord.Status.online,
 					"idle": discord.Status.idle,
 					"dnd": discord.Status.dnd,
-					"invisible": discord.Status.invisible
+					"invisible": discord.Status.invisible,
 				}
 
-				activity_class = activity_mapping.get(config.activity.type, discord.Activity)
+				activity_class = activity_mapping.get(
+					config.activity.type, discord.Activity
+				)
 				kwargs: dict[str, Any] = {"name": new_status}
 
 				if activity_class is discord.Activity:
@@ -133,7 +138,7 @@ class CoreEvents(commands.Cog):
 
 				await self.bot.change_presence(
 					activity=activity_class(**kwargs),
-					status=status_map.get(config.activity.status)
+					status=status_map.get(config.activity.status),
 				)
 
 				wait_seconds = random.randint(*config.activity.range)
@@ -142,16 +147,18 @@ class CoreEvents(commands.Cog):
 				log.debug("Random status task cancelled.")
 				return
 			except Exception:
-				log.error("An unexpected error occurred in random_status_change", exc_info=True)
+				log.error(
+					"An unexpected error occurred in random_status_change",
+					exc_info=True,
+				)
 				await asyncio.sleep(10)
-
 
 	async def safe_send(self, guild: discord.Guild, view):
 		if (
 			guild.system_channel
 			and isinstance(guild.system_channel, discord.TextChannel)
 			and guild.system_channel.permissions_for(
-				guild.me or guild.get_member(getattr(self.bot.user, 'id'))
+				guild.me or guild.get_member(getattr(self.bot.user, "id"))
 			).send_messages
 		):
 			try:
@@ -162,22 +169,28 @@ class CoreEvents(commands.Cog):
 
 		for channel in sorted(guild.text_channels, key=lambda c: c.position):
 			if channel.permissions_for(
-				guild.me or guild.get_member(getattr(self.bot.user, 'id'))
+				guild.me or guild.get_member(getattr(self.bot.user, "id"))
 			).send_messages:
 				if (
-					channel == channel.guild.system_channel or
-					channel.type == discord.ChannelType.news or
-					(channel.guild.rules_channel and channel.id == channel.guild.rules_channel.id)
+					channel == channel.guild.system_channel
+					or channel.type == discord.ChannelType.news
+					or (
+						channel.guild.rules_channel
+						and channel.id == channel.guild.rules_channel.id
+					)
 				):
 					continue
 				try:
 					await channel.send(view=view)
-					log.info(f"Sent join message to channel {channel.name} in {guild.id}")
+					log.info(
+						f"Sent join message to channel {channel.name} in {guild.id}"
+					)
 					return
 				except discord.Forbidden:
 					continue
-		log.warning(f"Could not find a suitable channel to send join message in {guild.id}")
-
+		log.warning(
+			f"Could not find a suitable channel to send join message in {guild.id}"
+		)
 
 	# --- Background Tasks ---
 	@tasks.loop(hours=24)
@@ -204,7 +217,9 @@ class CoreEvents(commands.Cog):
 
 					is_stale = False
 
-					mtime = datetime.fromtimestamp(folder.stat().st_mtime, tz=timezone.utc)
+					mtime = datetime.fromtimestamp(
+						folder.stat().st_mtime, tz=timezone.utc
+					)
 					if mtime < cutoff:
 						is_stale = True
 
@@ -235,32 +250,42 @@ class CoreEvents(commands.Cog):
 							moved_at_time = datetime.fromisoformat(moved_at_str)
 
 							if moved_at_time.tzinfo is None:
-								moved_at_time = moved_at_time.replace(tzinfo=config.timezone)
+								moved_at_time = moved_at_time.replace(
+									tzinfo=config.timezone
+								)
 
-							if current_time - moved_at_time > timedelta(days=config.cleanup_days):
+							if current_time - moved_at_time > timedelta(
+								days=config.cleanup_days
+							):
 								shutil.rmtree(folder)
-								log.info(f"Permanently deleted data for guild {folder.name} from bin.")
+								log.info(
+									f"Permanently deleted data for guild {folder.name} from bin."
+								)
 					except Exception:
-						log.error(f"Error processing bin folder {folder.name}", exc_info=True)
+						log.error(
+							f"Error processing bin folder {folder.name}", exc_info=True
+						)
 				else:
-					log.debug(f"No timestamp found for {folder.name}, cleaning up directly.")
+					log.debug(
+						f"No timestamp found for {folder.name}, cleaning up directly."
+					)
 					shutil.rmtree(folder)
-
 
 	@cleanup_old_data.before_loop
 	async def before_cleanup(self):
 		await self.bot.wait_until_ready()
 		log.debug("Cleanup task waiting for bot to be ready.")
 
-
 	# --- Core Event Listeners ---
 	@commands.Cog.listener()
 	async def on_ready(self):
-		log.info(f"Bot is ready. Logged in as \"{self.bot.user}\"")
+		log.info(f'Bot is ready. Logged in as "{self.bot.user}"')
 		log.info("Updating Guilds...")
 		for guild in self.bot.guilds:
 			if await blacklist.is_blacklisted(guild.id, "server"):
-				log.warning(f"Found blacklisted guild {guild.name} ({guild.id}). Leaving...")
+				log.warning(
+					f"Found blacklisted guild {guild.name} ({guild.id}). Leaving..."
+				)
 				await guild.leave()
 			if not await server.is_setup(guild.id):
 				await server.setup(guild)
@@ -268,11 +293,12 @@ class CoreEvents(commands.Cog):
 		if not self.cleanup_old_data.is_running():
 			self.cleanup_old_data.start()
 
-
 	@commands.Cog.listener()
 	async def on_guild_join(self, guild: discord.Guild):
 		if await blacklist.is_blacklisted(guild.id, "server"):
-			log.warning(f"Joined blacklisted guild: {guild.name} ({guild.id}). Leaving...")
+			log.warning(
+				f"Joined blacklisted guild: {guild.name} ({guild.id}). Leaving..."
+			)
 			await guild.leave()
 			return
 
@@ -286,11 +312,7 @@ class CoreEvents(commands.Cog):
 		)
 		if data_restored:
 			log.info(f"Data restored for guild {guild.id}.")
-			view = Generic(
-				"Here we go again.",
-				None,
-				legal
-			)
+			view = Generic("Here we go again.", None, legal)
 		else:
 			await server.setup(guild)
 			await server.info.save(guild)
@@ -299,11 +321,10 @@ class CoreEvents(commands.Cog):
 				"## Ding Dong.",
 				f"Use {config.cmd.get('help', '/help')}, or your server's organic matter might achieve peak frustration with me.",
 				None,
-				legal
+				legal,
 			)
 
 		await self.safe_send(guild, view)
-
 
 	@commands.Cog.listener()
 	async def on_guild_remove(self, guild: discord.Guild):

@@ -18,12 +18,14 @@ HAS_YAML = False
 
 try:
 	import orjson
+
 	HAS_ORJSON = True
 except ImportError:
 	pass
 
 try:
 	import yaml
+
 	HAS_YAML = True
 	try:
 		from yaml import CSafeLoader as SafeLoader, CSafeDumper as SafeDumper
@@ -95,7 +97,9 @@ class JSON(BaseFileIO[dict[str, Any]]):
 		Returns:
 			Formatted JSON byte string.
 		"""
-		return orjson.dumps(data if data is not None else {}, option=orjson.OPT_INDENT_2)
+		return orjson.dumps(
+			data if data is not None else {}, option=orjson.OPT_INDENT_2
+		)
 
 	def deserialize(self, content: bytes) -> dict[str, Any]:
 		"""
@@ -146,7 +150,9 @@ class YAML(BaseFileIO[dict[str, Any]]):
 		Returns:
 			Encoded YAML byte string.
 		"""
-		return yaml.dump(data if data is not None else {}, Dumper=SafeDumper, sort_keys=False).encode("utf-8")
+		return yaml.dump(
+			data if data is not None else {}, Dumper=SafeDumper, sort_keys=False
+		).encode("utf-8")
 
 	def deserialize(self, content: bytes) -> dict[str, Any]:
 		"""
@@ -160,7 +166,9 @@ class YAML(BaseFileIO[dict[str, Any]]):
 		"""
 		if not content or content.strip() == b"":
 			return self.default_empty
-		return cast(dict[str, Any], yaml.load(content.decode("utf-8"), Loader=SafeLoader) or {})
+		return cast(
+			dict[str, Any], yaml.load(content.decode("utf-8"), Loader=SafeLoader) or {}
+		)
 
 	def clone(self, data: dict[str, Any]) -> dict[str, Any]:
 		"""

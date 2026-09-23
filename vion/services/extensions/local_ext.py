@@ -36,7 +36,9 @@ class CommandInfo:
 		return f"<CommandInfo name={self.name!r} mention={self.mention!r}>"
 
 
-def map_command_mentions(synced_commands: List[discord.app_commands.AppCommand], bot: commands.Bot):
+def map_command_mentions(
+	synced_commands: List[discord.app_commands.AppCommand], bot: commands.Bot
+):
 	"""
 	Traverse synced app command structures and populate global config references.
 
@@ -44,6 +46,7 @@ def map_command_mentions(synced_commands: List[discord.app_commands.AppCommand],
 		synced_commands: List of synced application command objects.
 		bot: Active Discord bot instance.
 	"""
+
 	def walk(command, prefix="", root_id=None):
 		current_root_id = root_id or getattr(command, "id", None)
 		name = f"{prefix} {command.name}".strip()
@@ -53,13 +56,10 @@ def map_command_mentions(synced_commands: List[discord.app_commands.AppCommand],
 
 		command_types = (
 			discord.AppCommandOptionType.subcommand,
-			discord.AppCommandOptionType.subcommand_group
+			discord.AppCommandOptionType.subcommand_group,
 		)
 
-		is_group = any(
-			opt.type in command_types
-			for opt in options
-		)
+		is_group = any(opt.type in command_types for opt in options)
 
 		if is_group:
 			mention_name = None
@@ -81,7 +81,7 @@ def map_command_mentions(synced_commands: List[discord.app_commands.AppCommand],
 			mention=mention_name,
 			description=getattr(command, "description", "No description."),
 			parameters=options,
-			doc=doc_string
+			doc=doc_string,
 		)
 
 		config.cmd.set(var_name, command_data)
@@ -97,7 +97,9 @@ def map_command_mentions(synced_commands: List[discord.app_commands.AppCommand],
 class Extension:
 	"""Handler for finding, loading, unloading, and reloading core bot extensions."""
 
-	async def _handle_dev_guilds(self, bot: commands.Bot, extension: str, dev_guilds: Iterable | None = None) -> None:
+	async def _handle_dev_guilds(
+		self, bot: commands.Bot, extension: str, dev_guilds: Iterable | None = None
+	) -> None:
 		"""
 		Bind developer-only application commands directly to designated development guilds.
 
@@ -110,11 +112,16 @@ class Extension:
 			return
 
 		for _, cog in bot.cogs.items():
-			if getattr(cog, '__module__', '').startswith(extension) and getattr(cog, 'dev_only', False):
-
+			if getattr(cog, "__module__", "").startswith(extension) and getattr(
+				cog, "dev_only", False
+			):
 				for app_cmd in cog.get_app_commands():
 					for guild_id in dev_guilds:
-						bot.tree.add_command(app_cmd, guild=discord.Object(id=int(guild_id)), override=True)
+						bot.tree.add_command(
+							app_cmd,
+							guild=discord.Object(id=int(guild_id)),
+							override=True,
+						)
 					bot.tree.remove_command(app_cmd.name)
 
 				for cmd in cog.get_commands():
@@ -122,7 +129,11 @@ class Extension:
 						app_cmd = cmd.app_command
 						if app_cmd:
 							for guild_id in dev_guilds:
-								bot.tree.add_command(app_cmd, guild=discord.Object(id=int(guild_id)), override=True)
+								bot.tree.add_command(
+									app_cmd,
+									guild=discord.Object(id=int(guild_id)),
+									override=True,
+								)
 							bot.tree.remove_command(app_cmd.name)
 
 				log.info(f"Registered app commands for {extension} in dev guilds.")
@@ -139,13 +150,13 @@ class Extension:
 		cog_dir = Path(storage.dirs.cogs).resolve()
 		cwd = Path.cwd().resolve()
 
-		for init_path in cog_dir.rglob('__init__.py'):
+		for init_path in cog_dir.rglob("__init__.py"):
 			try:
 				rel_to_cog = init_path.relative_to(cog_dir)
 			except ValueError:
 				continue
 
-			if any(part.startswith('_') for part in rel_to_cog.parts[:-1]):
+			if any(part.startswith("_") for part in rel_to_cog.parts[:-1]):
 				continue
 
 			package_dir = init_path.parent.resolve()
@@ -158,7 +169,9 @@ class Extension:
 
 			extensions.append(extension_path)
 
-		log.debug("Valid extensions found:\n" + "\n".join(f" * {ext}" for ext in extensions))
+		log.debug(
+			"Valid extensions found:\n" + "\n".join(f" * {ext}" for ext in extensions)
+		)
 		return extensions
 
 	async def load(self, bot: commands.Bot, extension: str) -> Tuple[bool, str]:

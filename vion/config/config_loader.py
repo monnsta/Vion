@@ -17,7 +17,6 @@ from .paths import storage
 from .dataclasses import (
 	ConfigReloadError,
 	ConfigNode,
-
 	Bot,
 	Activity,
 	Sandbox,
@@ -25,9 +24,8 @@ from .dataclasses import (
 	Settings,
 	AIData,
 	Secrets,
-
 	Config,
-	Emoji
+	Emoji,
 )
 
 
@@ -125,14 +123,16 @@ async def load_config(reload: bool = False) -> None:
 		config.system_instructions = F(config.system_instructions).format(config=config)
 
 	if getattr(config, "summary_instructions", None):
-		config.summary_instructions = F(config.summary_instructions).format(config=config)
+		config.summary_instructions = F(config.summary_instructions).format(
+			config=config
+		)
 
 	_, secrets_data = await yaml_file.load(storage.env)
 	config.secrets = Secrets(
 		discord=secrets_data["discord"],
 		assemblyai=secrets_data["assemblyai"],
 		hmac=secrets_data["hmac"],
-		gemini=secrets_data["gemini"]
+		gemini=secrets_data["gemini"],
 	)
 
 	log.info(f"Configuration {'reloaded' if reload else 'loaded'} successfully.")

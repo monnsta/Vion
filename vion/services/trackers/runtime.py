@@ -22,7 +22,9 @@ class Runtime(BaseTracker):
 		"""Initialize Runtime tracker with default storage path."""
 		super().__init__(storage.shared.runtime)
 
-	async def mark_event(self, event_type: Literal['startup', 'shutdown', 'disconnect', 'resume']) -> None:
+	async def mark_event(
+		self, event_type: Literal["startup", "shutdown", "disconnect", "resume"]
+	) -> None:
 		"""
 		Record a lifecycle event and append to historical log.
 
@@ -38,9 +40,9 @@ class Runtime(BaseTracker):
 
 			data[f"last_{event_type}"] = now
 
-			if event_type == 'startup':
+			if event_type == "startup":
 				data["total_starts"] += 1
-			elif event_type == 'disconnect':
+			elif event_type == "disconnect":
 				data["total_disconnects"] += 1
 
 			data["history"].append({"event": event_type, "timestamp": now})

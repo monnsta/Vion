@@ -68,9 +68,7 @@ class GeminiTTS:
 	"""
 
 	def __init__(
-		self,
-		api_key: str,
-		model_name: str = "gemini-2.5-flash-preview-tts"
+		self, api_key: str, model_name: str = "gemini-2.5-flash-preview-tts"
 	) -> None:
 		"""
 		Initialize GeminiTTS instance parameters.
@@ -92,7 +90,9 @@ class GeminiTTS:
 		cooling = time.time() < self.cooldown_until
 
 		if cooling:
-			log.debug(f"TTS cooldown active. Remaining: {self.cooldown_until - time.time():.1f}s")
+			log.debug(
+				f"TTS cooldown active. Remaining: {self.cooldown_until - time.time():.1f}s"
+			)
 
 		return cooling
 
@@ -105,7 +105,9 @@ class GeminiTTS:
 		"""
 		self.cooldown_until = time.time() + seconds
 
-		log.debug(f"TTS cooldown set for {seconds}s. Active until: {self.cooldown_until}")
+		log.debug(
+			f"TTS cooldown set for {seconds}s. Active until: {self.cooldown_until}"
+		)
 
 	@staticmethod
 	def _pcm_to_wav(
@@ -162,9 +164,7 @@ class GeminiTTS:
 		return None
 
 	async def call(
-		self,
-		text: str,
-		voice: GeminiVoice | str = GeminiVoice.CHARON
+		self, text: str, voice: GeminiVoice | str = GeminiVoice.CHARON
 	) -> Tuple[bool, bytes]:
 		"""
 		Synthesize input text prompt into speech audio data.
@@ -183,7 +183,9 @@ class GeminiTTS:
 		if self.is_cooling_down:
 			remaining = self.cooldown_until - time.time()
 
-			log.debug(f"Gemini TTS request rejected due to cooldown. Remaining: {remaining:.1f}s")
+			log.debug(
+				f"Gemini TTS request rejected due to cooldown. Remaining: {remaining:.1f}s"
+			)
 
 			return False, b""
 
@@ -193,7 +195,9 @@ class GeminiTTS:
 			log.warning(f"Unknown Gemini TTS voice: {voice!r}")
 			return False, b""
 
-		log.debug(f"Starting Gemini TTS generation (model={self.model_name}, voice={voice_obj.value}, text_length={len(text)})")
+		log.debug(
+			f"Starting Gemini TTS generation (model={self.model_name}, voice={voice_obj.value}, text_length={len(text)})"
+		)
 
 		try:
 			response = await self.client.aio.models.generate_content(
@@ -230,26 +234,34 @@ class GeminiTTS:
 
 					wav = self._pcm_to_wav(pcm)
 
-					log.debug(f"Gemini TTS generation succeeded (voice={voice_obj.value}, PCM={len(pcm)} bytes, WAV={len(wav)} bytes)")
+					log.debug(
+						f"Gemini TTS generation succeeded (voice={voice_obj.value}, PCM={len(pcm)} bytes, WAV={len(wav)} bytes)"
+					)
 
 					return True, wav
 
-			log.warning("Gemini TTS returned a candidate, but no inline audio data was present.")
+			log.warning(
+				"Gemini TTS returned a candidate, but no inline audio data was present."
+			)
 
 			return False, b""
 
 		except APIError as e:
-			log.debug(f"Gemini TTS APIError caught (code={e.code}, message={e.message})")
+			log.debug(
+				f"Gemini TTS APIError caught (code={e.code}, message={e.message})"
+			)
 
 			if e.code == 429:
 				cooldown_seconds = 20.0
 
 				try:
-					details: List[Dict[str, Any]] = (getattr(e, "details", []) or [])
+					details: List[Dict[str, Any]] = getattr(e, "details", []) or []
 
 					for detail in details:
-						if (isinstance(detail, dict) and "retryDelay" in detail):
-							cooldown_seconds = float(str(detail["retryDelay"]).rstrip("s"))
+						if isinstance(detail, dict) and "retryDelay" in detail:
+							cooldown_seconds = float(
+								str(detail["retryDelay"]).rstrip("s")
+							)
 							break
 
 				except Exception:
@@ -257,7 +269,9 @@ class GeminiTTS:
 
 				self.set_cooldown(cooldown_seconds)
 
-				log.warning(f"Gemini TTS rate limited. Retry after {cooldown_seconds}s.")
+				log.warning(
+					f"Gemini TTS rate limited. Retry after {cooldown_seconds}s."
+				)
 
 				return False, b""
 

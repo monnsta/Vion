@@ -11,6 +11,7 @@ class DirectoryPaths:
 	"""
 	Core application folder locations and path mapping helpers.
 	"""
+
 	root: Path
 	data: Path
 	logs: Path
@@ -39,6 +40,7 @@ class Shared:
 	"""
 	Global shared JSON file locations.
 	"""
+
 	blacklist: Path
 	activity: Path
 	notif: Path
@@ -51,6 +53,7 @@ class BaseEntity:
 	"""
 	Base class defining common file resolution methods for guilds and users.
 	"""
+
 	dirs: DirectoryPaths
 	base_dir: Path
 	settings_filename: str
@@ -99,6 +102,7 @@ class User(BaseEntity):
 	"""
 	User storage layout mapping inheriting file resolution methods from BaseEntity.
 	"""
+
 	pass
 
 
@@ -107,6 +111,7 @@ class Guild(BaseEntity):
 	"""
 	Guild storage layout mapping including custom cog path resolution methods.
 	"""
+
 	custom_cog_filename: str
 	custom_cog_data_filename: str
 
@@ -140,6 +145,7 @@ class Storage:
 	"""
 	Master storage configuration container aggregating root paths, shared files, and entities.
 	"""
+
 	dirs: DirectoryPaths
 	env: Path
 	config: Path

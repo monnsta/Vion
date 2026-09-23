@@ -98,8 +98,10 @@ class Blacklist:
 		"""
 		success, data = await json_file.load(storage.shared.blacklist)
 
-		if "server" not in data: data["server"] = {}
-		if "user" not in data: data["user"] = {}
+		if "server" not in data:
+			data["server"] = {}
+		if "user" not in data:
+			data["user"] = {}
 
 		if not success and not data:
 			return False, data
@@ -123,7 +125,14 @@ class Blacklist:
 
 		return True, data
 
-	async def add(self, entity_id: int, entity_type: str, mod_id: int, reason: str, duration: str | None = None) -> Tuple[bool, str]:
+	async def add(
+		self,
+		entity_id: int,
+		entity_type: str,
+		mod_id: int,
+		reason: str,
+		duration: str | None = None,
+	) -> Tuple[bool, str]:
 		"""
 		Add an entity to the blacklist database.
 
@@ -147,7 +156,9 @@ class Blacklist:
 
 		eid = str(entity_id)
 		if eid in data[entity_type]:
-			log.info(f"Blacklist add failed: {entity_type} {eid} is already blacklisted")
+			log.info(
+				f"Blacklist add failed: {entity_type} {eid} is already blacklisted"
+			)
 			return False, "Entity is already blacklisted."
 
 		expires_at = self._parse_duration(duration) if duration else None
@@ -160,7 +171,9 @@ class Blacklist:
 		}
 
 		await json_file.save(storage.shared.blacklist, data)
-		log.info(f"Successfully blacklisted {entity_type} {eid} by mod {mod_id}. Reason: {reason}")
+		log.info(
+			f"Successfully blacklisted {entity_type} {eid} by mod {mod_id}. Reason: {reason}"
+		)
 		return True, "Blacklisted successfully."
 
 	async def remove(self, entity_id: int, entity_type: str) -> Tuple[bool, str]:
@@ -218,7 +231,14 @@ class Blacklist:
 
 		return False, f"{entity_type.capitalize()} with id '{eid}' was not found."
 
-	async def edit(self, entity_id: int, entity_type: str, mod_id: int, reason: str | None = None, duration: str | None = None) -> Tuple[bool, str]:
+	async def edit(
+		self,
+		entity_id: int,
+		entity_type: str,
+		mod_id: int,
+		reason: str | None = None,
+		duration: str | None = None,
+	) -> Tuple[bool, str]:
 		"""
 		Update reason or duration for an existing blacklist entry.
 
@@ -236,7 +256,10 @@ class Blacklist:
 			return False, "Invalid entity type"
 
 		if not reason and not duration:
-			return False, "You must provide either a new reason or a new duration to edit."
+			return (
+				False,
+				"You must provide either a new reason or a new duration to edit.",
+			)
 
 		success, data = await self._get_data()
 		if not success:
@@ -272,12 +295,17 @@ class Blacklist:
 					entry["expires_at"] = (created_at + delta).isoformat()
 				except Exception as e:
 					log.error(f"Failed to parse edit duration '{duration}': {e}")
-					return False, "Invalid duration format (use 7d, 12h, 30m). Use 0 for permanent."
+					return (
+						False,
+						"Invalid duration format (use 7d, 12h, 30m). Use 0 for permanent.",
+					)
 
 		entry["mod_id"] = mod_id
 
 		await json_file.save(storage.shared.blacklist, data)
-		log.info(f"Successfully edited blacklist entry for {entity_type} {eid} by mod {mod_id}")
+		log.info(
+			f"Successfully edited blacklist entry for {entity_type} {eid} by mod {mod_id}"
+		)
 		return True, "Blacklist entry updated successfully."
 
 	async def list_all(self, entity_type: str | None = None) -> List[Dict[str, Any]]:
@@ -331,4 +359,4 @@ class Blacklist:
 blacklist = Blacklist()
 
 
-__all__ = ('blacklist', 'BlacklistedError')
+__all__ = ("blacklist", "BlacklistedError")

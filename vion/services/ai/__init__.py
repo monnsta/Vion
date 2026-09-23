@@ -17,4 +17,4 @@ voice = VoiceUtils()
 consciousness = Consciousness()
 
 
-__all__ = ('ai', 'summarizer', 'voice', 'GeminiVoice', 'consciousness')
+__all__ = ("ai", "summarizer", "voice", "GeminiVoice", "consciousness")

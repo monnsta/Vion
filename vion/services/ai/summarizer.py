@@ -19,10 +19,12 @@ class Summarizer:
 		log.info("Initializing Summarizer engine.")
 		self.modules = [
 			GenerateContent(
-				k, m,
+				k,
+				m,
 				config.summary_instructions,
 				config.temperature,
-				config.top_p, config.top_k
+				config.top_p,
+				config.top_k,
 			)
 			for m in config.gemini_models
 			for k in config.secrets.gemini

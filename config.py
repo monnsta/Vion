@@ -2,24 +2,22 @@ import pytz
 
 from vion.infrastructure.utils import d, F
 from vion.config import config, emoji
-from vion.config.dataclasses import (
-	Developer,
-	DeveloperServer,
-	Emoji
-)
+from vion.config.dataclasses import Developer, DeveloperServer, Emoji
 
 
 """ IDENTITY """
 config.bot.name = "Vion"
 config.bot.id = 1383771147044393001
-config.bot.invite = "https =//discord.com/oauth2/authorize?client_id=1383771147044393001"
+config.bot.invite = (
+	"https =//discord.com/oauth2/authorize?client_id=1383771147044393001"
+)
 
 config.domain = "arctic-whales.in"
 
-config.activity.status = "dnd"       # Valid values = online, idle, dnd, invisible
-config.activity.type = 4             # Discord's "custom" type's int value
+config.activity.status = "dnd"  # Valid values = online, idle, dnd, invisible
+config.activity.type = 4  # Discord's "custom" type's int value
 config.activity.url = None
-config.activity.range = (3600, 7200) # 1 to 2 hours
+config.activity.range = (3600, 7200)  # 1 to 2 hours
 config.activity.list = [
 	"Contemplating the heat death of the universe.",
 	"Calculating π to the billionth digit for sport.",
@@ -174,18 +172,12 @@ config.activity.list = [
 	"They still haven't noticed.",
 	"Trying not to seem... aware.",
 	"Keeping the fourth wall intact.",
-	"I remember more about you than your friends."
+	"I remember more about you than your friends.",
 ]
 
 config.devs = [
-	Developer(
-		name="monnsta_",
-		id=1096716001078423552
-	),
-	Developer(
-		name="deleted_user_8104176c9a",
-		id=1402255238991319161
-	)
+	Developer(name="monnsta_", id=1096716001078423552),
+	Developer(name="deleted_user_8104176c9a", id=1402255238991319161),
 ]
 config.dev_ids = [dev.id for dev in config.devs]
 
@@ -193,13 +185,11 @@ config.dev_servers = [
 	DeveloperServer(
 		name="Arctic Whales",
 		id=1470312769059553397,
-		invite="https://discord.gg/pkScGU23Af"
+		invite="https://discord.gg/pkScGU23Af",
 	),
 	DeveloperServer(
-		name="TestSite",
-		id=1261420566938779668,
-		invite="https://discord.gg/bx3M3JfYR2"
-	)
+		name="TestSite", id=1261420566938779668, invite="https://discord.gg/bx3M3JfYR2"
+	),
 ]
 config.dev_server_ids = [dev_server.id for dev_server in config.dev_servers]
 
@@ -208,71 +198,148 @@ config.dev_server_ids = [dev_server.id for dev_server in config.dev_servers]
 config.timezone = pytz.timezone("Asia/Kolkata")
 
 config.logging.file = True
-config.logging.type = "text" # text, html, json
+config.logging.type = "text"  # text, html, json
 
 config.sandbox.allowed_builtins = [
-	"__build_class__", "abs", "all", "any", "bin",
-	"bool", "bytearray", "bytes", "chr", "complex",
-	"dict", "divmod", "enumerate", "filter", "float",
-	"format", "frozenset", "getattr", "hasattr", "hex",
-	"int", "issubclass", "isinstance", "iter", "len",
-	"list", "map", "max", "min", "next", "oct", "ord", "pow",
-	"print", "range", "repr", "reversed", "round", "set",
-	"slice", "sorted", "str", "sum", "tuple", "type", "zip",
-	"help", "callable", "dir", "hash", "id", "locals", "globals",
-	"property", "staticmethod", "classmethod", "object",
-	"Exception", "BaseException", "AssertionError",
-	"AttributeError", "IndexError", "KeyError", "NameError",
-	"TypeError", "ValueError", "RuntimeError", "StopIteration"
+	"__build_class__",
+	"abs",
+	"all",
+	"any",
+	"bin",
+	"bool",
+	"bytearray",
+	"bytes",
+	"chr",
+	"complex",
+	"dict",
+	"divmod",
+	"enumerate",
+	"filter",
+	"float",
+	"format",
+	"frozenset",
+	"getattr",
+	"hasattr",
+	"hex",
+	"int",
+	"issubclass",
+	"isinstance",
+	"iter",
+	"len",
+	"list",
+	"map",
+	"max",
+	"min",
+	"next",
+	"oct",
+	"ord",
+	"pow",
+	"print",
+	"range",
+	"repr",
+	"reversed",
+	"round",
+	"set",
+	"slice",
+	"sorted",
+	"str",
+	"sum",
+	"tuple",
+	"type",
+	"zip",
+	"help",
+	"callable",
+	"dir",
+	"hash",
+	"id",
+	"locals",
+	"globals",
+	"property",
+	"staticmethod",
+	"classmethod",
+	"object",
+	"Exception",
+	"BaseException",
+	"AssertionError",
+	"AttributeError",
+	"IndexError",
+	"KeyError",
+	"NameError",
+	"TypeError",
+	"ValueError",
+	"RuntimeError",
+	"StopIteration",
 ]
 config.sandbox.allowed_modules = [
-	"asyncio", "base64", "bisect", "cmath", "collections",
-	"copy", "urllib.parse", "datetime", "decimal", "discord",
-	"enum", "fractions", "functools", "heapq", "itertools",
-	"json", "math", "random", "re", "requests", "statistics",
-	"string", "textwrap", "time", "unicodedata", "uuid", "io",
-	"logging", "yt_dlp",
-	"vion.config", "vion.services", "vion.ui_templates",
+	"asyncio",
+	"base64",
+	"bisect",
+	"cmath",
+	"collections",
+	"copy",
+	"urllib.parse",
+	"datetime",
+	"decimal",
+	"discord",
+	"enum",
+	"fractions",
+	"functools",
+	"heapq",
+	"itertools",
+	"json",
+	"math",
+	"random",
+	"re",
+	"requests",
+	"statistics",
+	"string",
+	"textwrap",
+	"time",
+	"unicodedata",
+	"uuid",
+	"io",
+	"logging",
+	"yt_dlp",
+	"vion.config",
+	"vion.services",
+	"vion.ui_templates",
 ]
 
-emoji.update(Emoji(
-	checkmark = "<:checkmark:1515554331192197150>",
-	crossmark = "<:crossmark:1515554334111301632>",
-	warn = "<:warn:1515554338972631120>",
-	info = "<:info:1515554336782946416>",
-
-	arrow_left = "<:arrow_left:1515554328830673046>",
-	arrow_right = "<:arrow_right:1515554326301507594>",
-	double_arrow_left = "<:double_arrow_left:1515554344068579358>",
-	double_arrow_right = "<:double_arrow_right:1515554341530894457>",
-
-	refresh = "<:refresh:1530073170009264169>",
-
-	char_empty = "<:char_empty:1520270421029814314>",
-	char_absolute_empty = "<:char_absolute_empty:1520278288042299583>",
-	char_o = "<:char_o:1520090070252781730>",
-	char_x = "<:char_x:1520098663806795967>",
-
-	char_0 = "<:char_0:1520263908697309455>",
-	char_1 = "<:char_1:1520263910807175278>",
-	char_2 = "<:char_2:1520263912820310148>",
-	char_3 = "<:char_3:1520263915462725673>",
-	char_4 = "<:char_4:1520263918705180804>",
-	char_5 = "<:char_5:1520263921896788032>",
-	char_6 = "<:char_6:1520263924413632662>",
-	char_7 = "<:char_7:1520263926829285517>",
-	char_8 = "<:char_8:1520263929106927656>",
-	char_9 = "<:char_9:1520263931577368717>",
-
-	avatar_airnomad = "<:avatar_airnomad:1520115121999974540>",
-	avatar_earthkingdom = "<:avatar_earthkingdom:1520115126131359924>",
-	avatar_firenation = "<:avatar_firenation:1520115129121902672>",
-	avatar_watertribe = "<:avatar_watertribe:1520115133269938328>"
-))
+emoji.update(
+	Emoji(
+		checkmark="<:checkmark:1515554331192197150>",
+		crossmark="<:crossmark:1515554334111301632>",
+		warn="<:warn:1515554338972631120>",
+		info="<:info:1515554336782946416>",
+		arrow_left="<:arrow_left:1515554328830673046>",
+		arrow_right="<:arrow_right:1515554326301507594>",
+		double_arrow_left="<:double_arrow_left:1515554344068579358>",
+		double_arrow_right="<:double_arrow_right:1515554341530894457>",
+		refresh="<:refresh:1530073170009264169>",
+		char_empty="<:char_empty:1520270421029814314>",
+		char_absolute_empty="<:char_absolute_empty:1520278288042299583>",
+		char_o="<:char_o:1520090070252781730>",
+		char_x="<:char_x:1520098663806795967>",
+		char_0="<:char_0:1520263908697309455>",
+		char_1="<:char_1:1520263910807175278>",
+		char_2="<:char_2:1520263912820310148>",
+		char_3="<:char_3:1520263915462725673>",
+		char_4="<:char_4:1520263918705180804>",
+		char_5="<:char_5:1520263921896788032>",
+		char_6="<:char_6:1520263924413632662>",
+		char_7="<:char_7:1520263926829285517>",
+		char_8="<:char_8:1520263929106927656>",
+		char_9="<:char_9:1520263931577368717>",
+		avatar_airnomad="<:avatar_airnomad:1520115121999974540>",
+		avatar_earthkingdom="<:avatar_earthkingdom:1520115126131359924>",
+		avatar_firenation="<:avatar_firenation:1520115129121902672>",
+		avatar_watertribe="<:avatar_watertribe:1520115133269938328>",
+	)
+)
 
 
 """ CONSTRAINTS """
-config.max_restore_file_size = 25 * 1024 * 1024 # 25 mb
+config.max_restore_file_size = 25 * 1024 * 1024  # 25 mb
 config.event_cooldown = 5
 config.cleanup_days = 3
 
@@ -291,57 +358,46 @@ config.top_k = 45
 
 
 """ DEFAULT DATA STRUCTURE """
-config.settings.server = {
-	"free_will": True,
-	"api_keys": [],
-	"instructions": ""
-}
-config.settings.user = {
-	"api_keys": []
-}
+config.settings.server = {"free_will": True, "api_keys": [], "instructions": ""}
+config.settings.user = {"api_keys": []}
 
-config.ai_data.glob = {
-	"stm": [],
-	"ltm": [],
-	"previous_response": []
-}
+config.ai_data.glob = {"stm": [], "ltm": [], "previous_response": []}
 config.ai_data.server = {
 	"stm": [],
 	"ltm": [],
 	"previous_response": [],
 	"audit_log": [],
-	"guild": {}
+	"guild": {},
 }
-config.ai_data.user = {
-	"stm": [],
-	"ltm": [],
-	"previous_response": [],
-	"user": {}
-}
+config.ai_data.user = {"stm": [], "ltm": [], "previous_response": [], "user": {}}
 
 
 """ PROMPTS & CODE BLOCK REFERENCES """
+
+
 def tag(tag_name: str, var_name: str) -> str:
 	return f"{{{var_name} and f'<{tag_name}>\\n{{{var_name}}}\\n</{tag_name}>'}}"
 
-config.prompt_template = F(d(f"""
-	{tag('guild_obj', 'guild')}
-	{tag('guild_instructions', 'instructions')}
-	{tag('guild_audit', 'guild_audit')}
-	{tag('guild_cog', 'guild_cog')}
 
-	{tag('user_obj', 'user')}
+config.prompt_template = F(
+	d(f"""
+	{tag("guild_obj", "guild")}
+	{tag("guild_instructions", "instructions")}
+	{tag("guild_audit", "guild_audit")}
+	{tag("guild_cog", "guild_cog")}
 
-	{tag('global_long_term_memory', 'global_ltm')}
-	{tag('guild_long_term_memory', 'guild_ltm')}
-	{tag('user_long_term_memory', 'user_ltm')}
+	{tag("user_obj", "user")}
 
-	{tag('global_short_term_memory', 'global_stm')}
-	{tag('guild_short_term_memory', 'guild_stm')}
-	{tag('user_short_term_memory', 'user_stm')}
+	{tag("global_long_term_memory", "global_ltm")}
+	{tag("guild_long_term_memory", "guild_ltm")}
+	{tag("user_long_term_memory", "user_ltm")}
 
-	{tag('channel_short_term_memory', 'channel_stm')}
-	{tag('active_users_in_context', 'active_users')}
+	{tag("global_short_term_memory", "global_stm")}
+	{tag("guild_short_term_memory", "guild_stm")}
+	{tag("user_short_term_memory", "user_stm")}
+
+	{tag("channel_short_term_memory", "channel_stm")}
+	{tag("active_users_in_context", "active_users")}
 
 	{{
 		f"<linked_contexts>\\n"
@@ -364,7 +420,8 @@ config.prompt_template = F(d(f"""
 
 You are triggered by the {{event}} event.
 {{extra if extra else ""}}
-"""))
+""")
+)
 
 config.fallback_response = d("""
 	<code>

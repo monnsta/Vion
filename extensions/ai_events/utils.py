@@ -23,9 +23,15 @@ class BaseEventsCog(commands.Cog):
 		self.synced_contexts: set[str] = set()
 		ai.bot = bot
 
-	async def _smart_sync_memory(self, channel, memory_manager, entity_id=None, exclude_id=None):
-		is_channel = (entity_id is None)
-		sync_key = f"channel_stm_{getattr(channel, 'id', 0)}" if is_channel else f"{memory_manager.entity_type}_{entity_id}"
+	async def _smart_sync_memory(
+		self, channel, memory_manager, entity_id=None, exclude_id=None
+	):
+		is_channel = entity_id is None
+		sync_key = (
+			f"channel_stm_{getattr(channel, 'id', 0)}"
+			if is_channel
+			else f"{memory_manager.entity_type}_{entity_id}"
+		)
 
 		if sync_key in self.synced_contexts:
 			return
@@ -53,7 +59,9 @@ class BaseEventsCog(commands.Cog):
 			messages_to_add = []
 			if last_msg_id:
 				try:
-					async for msg in channel.history(after=discord.Object(id=last_msg_id), limit=50):
+					async for msg in channel.history(
+						after=discord.Object(id=last_msg_id), limit=50
+					):
 						messages_to_add.append(msg)
 				except discord.HTTPException:
 					pass
@@ -87,7 +95,11 @@ class BaseEventsCog(commands.Cog):
 		elif context == "self":
 			entity = getattr(message.channel, "recipient", None)
 
-			if not entity and getattr(message.channel, "type", None) == discord.ChannelType.private:
+			if (
+				not entity
+				and getattr(message.channel, "type", None)
+				== discord.ChannelType.private
+			):
 				async for msg in message.channel.history(limit=10):
 					if msg.author.id != config.bot.id:
 						entity = msg.author
@@ -100,5 +112,7 @@ class BaseEventsCog(commands.Cog):
 		if not await manager.is_setup(entity.id):
 			await manager.setup(entity)
 
-		await self._smart_sync_memory(message.channel, memory_manager, entity_id=entity.id, exclude_id=message.id)
+		await self._smart_sync_memory(
+			message.channel, memory_manager, entity_id=entity.id, exclude_id=message.id
+		)
 		await memory_manager.add(entity.id, message)

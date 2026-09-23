@@ -46,3 +46,6 @@ include = ["vion*", "extensions*"]
 [tool.pyright]
 venvPath = "."
 venv = ".venv"
+
+[tool.ruff.format]
+indent-style = "tab"

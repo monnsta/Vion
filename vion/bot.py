@@ -15,11 +15,7 @@ import aiohttp
 import discord
 from discord.ext import commands
 
-from vion.services.extensions import (
-	extension,
-	server_cog,
-	map_command_mentions
-)
+from vion.services.extensions import extension, server_cog, map_command_mentions
 from vion.services.trackers import runtime
 from vion.config import config
 
@@ -41,16 +37,12 @@ class Bot(commands.Bot):
 		intents.presences = True
 		intents.message_content = True
 
-		super().__init__(
-			command_prefix=[],
-			intents=intents,
-			help_command=None
-		)
+		super().__init__(command_prefix=[], intents=intents, help_command=None)
 
 		self.name = config.bot.name
 		self.id = config.bot.id
 		self.invite = config.bot.invite
-		config.set('bot', self)
+		config.set("bot", self)
 
 		log.info("Bot initialized")
 
@@ -65,7 +57,7 @@ class Bot(commands.Bot):
 		await extension.load_all(self)
 		await server_cog.load_all(self)
 
-		await runtime.mark_event('startup')
+		await runtime.mark_event("startup")
 
 		try:
 			global_cmds = await self.tree.fetch_commands()
@@ -84,19 +76,19 @@ class Bot(commands.Bot):
 		"""
 		Event handler triggered when client disconnects from the Discord gateway.
 		"""
-		await runtime.mark_event('disconnect')
+		await runtime.mark_event("disconnect")
 
 	async def on_resumed(self) -> None:
 		"""
 		Event handler triggered when client connection resumes after disconnection.
 		"""
-		await runtime.mark_event('resume')
+		await runtime.mark_event("resume")
 
 	async def close(self) -> None:
 		"""
 		Gracefully shut down gateway connections and record shutdown runtime metrics.
 		"""
-		await runtime.mark_event('shutdown')
+		await runtime.mark_event("shutdown")
 		await super().close()
 
 

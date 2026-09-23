@@ -8,16 +8,8 @@ from discord.ext import commands
 from vion.infrastructure.exec_code import Code, status
 from vion.services.utils import is_dev
 from vion.services.extensions import map_command_mentions
-from vion.services.memory import (
-	global_stm,
-	guild_stm,
-	user_stm
-)
-from vion.ui_templates import (
-	Success,
-	Fail,
-	Paginated
-)
+from vion.services.memory import global_stm, guild_stm, user_stm
+from vion.ui_templates import Success, Fail, Paginated
 from vion.config import config, storage
 
 from .blacklist import BlacklistGroup
@@ -38,48 +30,40 @@ class DevRoot(commands.Cog):
 		self.dev.add_command(self.extension_group)
 		self.dev.add_command(self.reload_group)
 
-
-	dev = app.Group(
-		name='dev',
-		description='Developer maintenance utilities.'
-	)
-
+	dev = app.Group(name="dev", description="Developer maintenance utilities.")
 
 	@dev.command(
-		name='send',
-		description='Send a message to the current channel as the bot.'
+		name="send", description="Send a message to the current channel as the bot."
 	)
-	@app.describe(
-		message='The message you want to send'
-	)
+	@app.describe(message="The message you want to send")
 	@is_dev(config.dev_ids)
 	async def send(self, interaction: discord.Interaction, *, message: str):
-		if not interaction.channel or isinstance(interaction.channel, (discord.ForumChannel, discord.CategoryChannel)):
-			await interaction.response.send_message(view=Fail(
-				"Cannot send messages directly to this channel type."
-			), ephemeral=True)
+		if not interaction.channel or isinstance(
+			interaction.channel, (discord.ForumChannel, discord.CategoryChannel)
+		):
+			await interaction.response.send_message(
+				view=Fail("Cannot send messages directly to this channel type."),
+				ephemeral=True,
+			)
 			return
 
 		await interaction.response.defer(ephemeral=True)
 
 		try:
 			await interaction.channel.send(message)
-			await interaction.followup.send(view=Success(
-				"Message dispatched."
-			), ephemeral=True)
+			await interaction.followup.send(
+				view=Success("Message dispatched."), ephemeral=True
+			)
 		except discord.Forbidden:
-			await interaction.followup.send(view=Fail(
-				"Missing permissions to send messages in this channel."
-			), ephemeral=True)
-
+			await interaction.followup.send(
+				view=Fail("Missing permissions to send messages in this channel."),
+				ephemeral=True,
+			)
 
 	@dev.command(
-		name='code',
-		description='Execute python code inside a secure sandbox.'
+		name="code", description="Execute python code inside a secure sandbox."
 	)
-	@app.describe(
-		code='The code to execute'
-	)
+	@app.describe(code="The code to execute")
 	@is_dev(config.dev_ids)
 	async def code(self, interaction: discord.Interaction, *, code: str):
 		await interaction.response.defer()
@@ -88,7 +72,7 @@ class DevRoot(commands.Cog):
 			header="**Execution Initializing**",
 			items=["**Status:** Preparing execution..."],
 			user=interaction.user,
-			accent_color=0x7289da
+			accent_color=0x7289DA,
 		)
 		await interaction.followup.send(view=initial_view)
 		msg = await interaction.original_response()
@@ -101,10 +85,12 @@ class DevRoot(commands.Cog):
 				return ""
 			text = str(text)
 			if len(text) > limit:
-				text = f"... (earlier output truncated)\n{text[-(limit - 35):]}"
+				text = f"... (earlier output truncated)\n{text[-(limit - 35) :]}"
 			return f"```py\n{text}\n```"
 
-		def chunk_for_pagination(title: str, text: str, chunk_size: int = 1500) -> list[str]:
+		def chunk_for_pagination(
+			title: str, text: str, chunk_size: int = 1500
+		) -> list[str]:
 			if not text:
 				return []
 			text = str(text)
@@ -112,11 +98,16 @@ class DevRoot(commands.Cog):
 			if len(text) <= chunk_size:
 				return [f"**{title}:**\n```py\n{text}\n```"]
 
-			chunks = [text[i:i + chunk_size] for i in range(0, len(text), chunk_size)]
-			return [f"**{title} ({i+1}/{len(chunks)}):**\n```py\n{chunk}\n```" for i, chunk in enumerate(chunks)]
+			chunks = [text[i : i + chunk_size] for i in range(0, len(text), chunk_size)]
+			return [
+				f"**{title} ({i + 1}/{len(chunks)}):**\n```py\n{chunk}\n```"
+				for i, chunk in enumerate(chunks)
+			]
 
 		try:
-			await runner.execute(timeout=30.0, message=interaction.message, bot=self.bot)
+			await runner.execute(
+				timeout=30.0, message=interaction.message, bot=self.bot
+			)
 
 			async def update_live_output():
 				last_content = ""
@@ -126,9 +117,13 @@ class DevRoot(commands.Cog):
 
 						output_parts = []
 						if data.logs:
-							output_parts.append(f"**Logs:**\n{format_live_block(data.logs, 500)}")
+							output_parts.append(
+								f"**Logs:**\n{format_live_block(data.logs, 500)}"
+							)
 
-						content = "\n".join(output_parts) if output_parts else "Executing..."
+						content = (
+							"\n".join(output_parts) if output_parts else "Executing..."
+						)
 
 						if content != last_content:
 							try:
@@ -136,7 +131,7 @@ class DevRoot(commands.Cog):
 									header=f"**Execution Status: {data.status}**",
 									items=[content],
 									user=interaction.user,
-									accent_color=0x7289da
+									accent_color=0x7289DA,
 								)
 								await msg.edit(view=live_view)
 								live_view.message = msg
@@ -163,17 +158,16 @@ class DevRoot(commands.Cog):
 				items.extend(chunk_for_pagination("Result", data.result))
 
 			if not items:
-				items.append("**Result:**\n```py\nCode executed silently with no output.\n```")
+				items.append(
+					"**Result:**\n```py\nCode executed silently with no output.\n```"
+				)
 
 			is_success = data.status == status.COMPLETED
 			header = f"**Execution {runner.execution_id} {'Successful' if is_success else data.status}**"
-			color = 0x43b581 if is_success else 0xf04747
+			color = 0x43B581 if is_success else 0xF04747
 
 			view = Paginated(
-				header=header,
-				items=items,
-				user=interaction.user,
-				accent_color=color
+				header=header, items=items, user=interaction.user, accent_color=color
 			)
 
 			view.current_page = view.total_pages - 1
@@ -187,31 +181,31 @@ class DevRoot(commands.Cog):
 				header="**Execution Setup Failed**",
 				items=[f"**Error:**\n```py\n{str(e)}\n```"],
 				user=interaction.user,
-				accent_color=0xf04747
+				accent_color=0xF04747,
 			)
 			await msg.edit(view=view)
 			view.message = msg
 
-
 	@dev.command(
-		name='update',
-		description='Synchronize local code structures with Discord Application Commands.'
+		name="update",
+		description="Synchronize local code structures with Discord Application Commands.",
 	)
-	@app.describe(
-		spec='The sync scope: global, dev, or clear.'
-	)
+	@app.describe(spec="The sync scope: global, dev, or clear.")
 	@is_dev(config.dev_ids)
-	async def update(self, interaction: discord.Interaction, spec: Literal['global', 'dev', 'clear']):
+	async def update(
+		self, interaction: discord.Interaction, spec: Literal["global", "dev", "clear"]
+	):
 		await interaction.response.defer()
-		if spec == 'global':
+		if spec == "global":
 			synced = await self.bot.tree.sync()
 			map_command_mentions(synced, self.bot)
 
-			await interaction.followup.send(view=Success(
-				"Success",
-				f"Synced {len(synced)} global application commands."
-			))
-		elif spec == 'dev':
+			await interaction.followup.send(
+				view=Success(
+					"Success", f"Synced {len(synced)} global application commands."
+				)
+			)
+		elif spec == "dev":
 			dev_guilds = [discord.Object(id=g_id) for g_id in config.dev_server_ids]
 			total = 0
 			for guild in dev_guilds:
@@ -222,23 +216,25 @@ class DevRoot(commands.Cog):
 				except discord.HTTPException:
 					pass
 
-			await interaction.followup.send(view=Success(
-				"Success",
-				f"Synced {total} application commands across dev servers."
-			))
-		elif spec == 'clear':
+			await interaction.followup.send(
+				view=Success(
+					"Success",
+					f"Synced {total} application commands across dev servers.",
+				)
+			)
+		elif spec == "clear":
 			self.bot.tree.clear_commands(guild=interaction.guild)
 			await self.bot.tree.sync(guild=interaction.guild)
 
-			await interaction.followup.send(view=Success(
-				"Success",
-				"Cleared and synced this guild's local tree commands."
-			))
-
+			await interaction.followup.send(
+				view=Success(
+					"Success", "Cleared and synced this guild's local tree commands."
+				)
+			)
 
 	@dev.command(
-		name='clearstm',
-		description='Recursively clean all global, server, and member short-term memory files.'
+		name="clearstm",
+		description="Recursively clean all global, server, and member short-term memory files.",
 	)
 	@is_dev(config.dev_ids)
 	async def clearstm(self, interaction: discord.Interaction):
@@ -265,10 +261,9 @@ class DevRoot(commands.Cog):
 		description = [
 			f"**Global STM:** {'Cleared' if global_cleared else 'Failed / Empty'}",
 			f"**Guilds Cleared:** {guild_count}",
-			f"**Users Cleared:** {user_count}"
+			f"**Users Cleared:** {user_count}",
 		]
 
-		await interaction.followup.send(view=Success(
-			"STM Successfully Cleared Everywhere",
-			*description
-		))
+		await interaction.followup.send(
+			view=Success("STM Successfully Cleared Everywhere", *description)
+		)

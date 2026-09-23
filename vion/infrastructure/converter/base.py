@@ -15,10 +15,19 @@ import yaml
 
 try:
 	DISCORD_MODELS = (
-		discord.Member, discord.Role, discord.Emoji, discord.Guild,
-		discord.TextChannel, discord.VoiceChannel, discord.CategoryChannel,
-		discord.User, discord.Message, discord.Asset, discord.Client,
-		discord.ClientUser, discord.app_commands.Command
+		discord.Member,
+		discord.Role,
+		discord.Emoji,
+		discord.Guild,
+		discord.TextChannel,
+		discord.VoiceChannel,
+		discord.CategoryChannel,
+		discord.User,
+		discord.Message,
+		discord.Asset,
+		discord.Client,
+		discord.ClientUser,
+		discord.app_commands.Command,
 	)
 	DISCORD_TYPES = (discord.Colour, discord.Permissions)
 except ImportError:
@@ -56,7 +65,7 @@ class Convert:
 		ignore_false: bool = True,
 		deduplicate: bool = True,
 		flatten: bool = False,
-		output_format: str = "dict"
+		output_format: str = "dict",
 	):
 		"""
 		Initialize Convert serializer instance with target rules and filters.
@@ -86,7 +95,7 @@ class Convert:
 		self.flatten = flatten
 		self.output_format = output_format
 
-	def _flatten_dict(self, d: dict, parent_key: str = '', sep: str = '_') -> dict:
+	def _flatten_dict(self, d: dict, parent_key: str = "", sep: str = "_") -> dict:
 		"""
 		Recursively flatten a nested dictionary hierarchy.
 
@@ -98,6 +107,7 @@ class Convert:
 		Returns:
 			Flattened single-level dictionary.
 		"""
+
 		def _yield_flat(curr_dict, curr_key):
 			for k, v in curr_dict.items():
 				new_key = f"{curr_key}{sep}{k}" if curr_key else str(k)
@@ -138,7 +148,11 @@ class Convert:
 			seen_discord_ids = set()
 
 			def _serialize(o, depth, current_max_depth=None):
-				effective_max_depth = current_max_depth if current_max_depth is not None else config["max_depth"]
+				effective_max_depth = (
+					current_max_depth
+					if current_max_depth is not None
+					else config["max_depth"]
+				)
 
 				# Check type-based depth overrides
 				if config["type_depths"]:
@@ -151,8 +165,10 @@ class Convert:
 					return None
 
 				if isinstance(o, (int, float, bool, str)):
-					if config["ignore_empty"] and o == "": return None
-					if config["ignore_false"] and o is False: return None
+					if config["ignore_empty"] and o == "":
+						return None
+					if config["ignore_false"] and o is False:
+						return None
 					return o
 
 				if isinstance(o, datetime.datetime):
@@ -161,10 +177,10 @@ class Convert:
 				if DISCORD_TYPES and isinstance(o, DISCORD_TYPES):
 					return str(o)
 
-				if config["deduplicate"] and hasattr(o, 'id') and isinstance(o.id, int):
+				if config["deduplicate"] and hasattr(o, "id") and isinstance(o.id, int):
 					if o.id in seen_discord_ids:
 						ref = {"id": o.id, "$ref": True}
-						if hasattr(o, 'name'):
+						if hasattr(o, "name"):
 							try:
 								ref["name"] = o.name
 							except Exception:
@@ -173,8 +189,8 @@ class Convert:
 					seen_discord_ids.add(o.id)
 
 				if depth >= effective_max_depth:
-					if hasattr(o, 'id'):
-						return {"id": getattr(o, 'id'), "$ref": True}
+					if hasattr(o, "id"):
+						return {"id": getattr(o, "id"), "$ref": True}
 					if isinstance(o, (list, tuple, set, dict)):
 						return "<Max Depth Reached>"
 					return str(o) if not callable(o) else None
@@ -189,23 +205,31 @@ class Convert:
 				if isinstance(o, dict):
 					result = {}
 					for k, v in o.items():
-						next_depth_limit = config["attr_depths"].get(str(k), effective_max_depth)
+						next_depth_limit = config["attr_depths"].get(
+							str(k), effective_max_depth
+						)
 						val = _serialize(v, depth + 1, next_depth_limit)
-						if config["ignore_none"] and val is None: continue
-						if config["ignore_empty"] and val in ({}, [], ""): continue
+						if config["ignore_none"] and val is None:
+							continue
+						if config["ignore_empty"] and val in ({}, [], ""):
+							continue
 						result[str(k)] = val
 
 				elif not (DISCORD_MODELS and isinstance(o, DISCORD_MODELS)):
 					try:
 						iterator = iter(o)
 						result = []
-						for idx, item in enumerate(islice(iterator, config["max_list_len"] + 1)):
+						for idx, item in enumerate(
+							islice(iterator, config["max_list_len"] + 1)
+						):
 							if idx >= config["max_list_len"]:
 								result.append("...<items omitted>")
 								break
 							val = _serialize(item, depth + 1, effective_max_depth)
-							if config["ignore_none"] and val is None: continue
-							if config["ignore_empty"] and val in ({}, [], ""): continue
+							if config["ignore_none"] and val is None:
+								continue
+							if config["ignore_empty"] and val in ({}, [], ""):
+								continue
 							result.append(val)
 					except TypeError:
 						pass
@@ -213,7 +237,10 @@ class Convert:
 				if result is None:
 					result = {}
 					for attr_name in dir(o):
-						if attr_name.startswith('_') or attr_name in config["filter_attrs"]:
+						if (
+							attr_name.startswith("_")
+							or attr_name in config["filter_attrs"]
+						):
 							continue
 
 						try:
@@ -224,12 +251,20 @@ class Convert:
 							if callable(value):
 								continue
 
-							next_depth_limit = config["attr_depths"].get(attr_name, effective_max_depth)
-							serialized_val = _serialize(value, depth + 1, next_depth_limit)
+							next_depth_limit = config["attr_depths"].get(
+								attr_name, effective_max_depth
+							)
+							serialized_val = _serialize(
+								value, depth + 1, next_depth_limit
+							)
 
 							if config["ignore_none"] and serialized_val is None:
 								continue
-							if config["ignore_empty"] and serialized_val in ({}, [], ""):
+							if config["ignore_empty"] and serialized_val in (
+								{},
+								[],
+								"",
+							):
 								continue
 
 							result[attr_name] = serialized_val
@@ -244,7 +279,7 @@ class Convert:
 				raw_dict = self._flatten_dict(raw_dict)
 
 			if config["output_format"] == "yaml":
-				return yaml.dump(raw_dict, default_flow_style=False, sort_keys=False) # type: ignore
+				return yaml.dump(raw_dict, default_flow_style=False, sort_keys=False)  # type: ignore
 
 			return raw_dict
 

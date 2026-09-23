@@ -158,6 +158,7 @@ class ConfigNode:
 @dataclass
 class Bot(ConfigNode, commands.Bot):
 	"""Bot metadata container inheriting from ConfigNode and commands.Bot."""
+
 	name: str
 	id: int
 	invite: str
@@ -166,6 +167,7 @@ class Bot(ConfigNode, commands.Bot):
 @dataclass
 class Activity(ConfigNode):
 	"""Rich presence and activity status settings."""
+
 	status: Literal["online", "idle", "dnd", "invisible"]
 	type: int
 	url: str | None
@@ -176,6 +178,7 @@ class Activity(ConfigNode):
 @dataclass
 class Developer(ConfigNode):
 	"""Developer user profile data."""
+
 	name: str
 	id: int
 
@@ -183,6 +186,7 @@ class Developer(ConfigNode):
 @dataclass
 class DeveloperServer(ConfigNode):
 	"""Developer guild metadata and invite links."""
+
 	name: str
 	id: int
 	invite: str
@@ -191,6 +195,7 @@ class DeveloperServer(ConfigNode):
 @dataclass
 class Sandbox(ConfigNode):
 	"""Execution sandbox restrictions for modules and builtins."""
+
 	allowed_modules: list[str]
 	allowed_builtins: list[str] | dict[str, Callable[..., Any]]
 
@@ -198,6 +203,7 @@ class Sandbox(ConfigNode):
 @dataclass
 class Logging(ConfigNode):
 	"""Global logging target format settings."""
+
 	file: bool
 	type: Literal["text", "html", "json"]
 
@@ -205,6 +211,7 @@ class Logging(ConfigNode):
 @dataclass
 class Settings(ConfigNode):
 	"""Default guild and user setting key-value maps."""
+
 	server: dict[str, Any]
 	user: dict[str, Any]
 
@@ -212,6 +219,7 @@ class Settings(ConfigNode):
 @dataclass
 class AIData(ConfigNode):
 	"""Global, server, and user level memory/context settings."""
+
 	glob: dict[str, Any]
 	server: dict[str, Any]
 	user: dict[str, Any]
@@ -220,6 +228,7 @@ class AIData(ConfigNode):
 @dataclass
 class Secrets(ConfigNode):
 	"""Secret tokens and key definitions."""
+
 	discord: str
 	assemblyai: str
 	hmac: str
@@ -229,6 +238,7 @@ class Secrets(ConfigNode):
 @dataclass
 class Emoji(ConfigNode):
 	"""Configured UI emoji string symbols."""
+
 	checkmark: str
 	crossmark: str
 	warn: str
@@ -266,6 +276,7 @@ class Emoji(ConfigNode):
 @dataclass
 class Config(ConfigNode):
 	"""Root application configuration schema definition."""
+
 	bot: Bot
 	activity: Activity
 	devs: list[Developer]

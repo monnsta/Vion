@@ -48,6 +48,7 @@ def em(*args: Any, chars: str = r"\*_~`|>#-") -> str:
 	Returns:
 		The combined string with all matched Markdown characters backslash-escaped.
 	"""
+
 	def flatten(items: Any) -> list[str]:
 		flat = []
 		for item in items:

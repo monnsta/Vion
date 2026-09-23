@@ -4,11 +4,7 @@ from discord.ext import commands
 
 from vion.services.extensions import extension
 from vion.services.utils import is_dev
-from vion.ui_templates import (
-	Generic,
-	Success,
-	Fail
-)
+from vion.ui_templates import Generic, Success, Fail
 from vion.config import config, emoji
 
 
@@ -29,8 +25,7 @@ async def autocomplete(interaction: discord.Interaction, current: str):
 class ExtensionGroup(app.Group):
 	def __init__(self, bot: commands.Bot):
 		super().__init__(
-			name='extension',
-			description='Manage bot cogs and extension packages.'
+			name="extension", description="Manage bot cogs and extension packages."
 		)
 		self.bot = bot
 
@@ -47,86 +42,56 @@ class ExtensionGroup(app.Group):
 	async def _multi_handle(self, interaction: discord.Interaction, module):
 		await interaction.response.defer()
 		results = await module(self.bot)
-		results_list = [f"{emoji.checkmark if success else emoji.crossmark} {msg}" for _, (success, msg) in results.items()]
+		results_list = [
+			f"{emoji.checkmark if success else emoji.crossmark} {msg}"
+			for _, (success, msg) in results.items()
+		]
 
-		view = Generic(
-			"### Results:",
-			f"* {'\n* '.join(results_list)}"
-		)
+		view = Generic("### Results:", f"* {'\n* '.join(results_list)}")
 
 		await interaction.followup.send(view=view)
 
-
-	@app.command(
-		name='load',
-		description='Load a specific cog file.'
-	)
-	@app.describe(
-		path='The extension path to load'
-	)
+	@app.command(name="load", description="Load a specific cog file.")
+	@app.describe(path="The extension path to load")
 	@app.autocomplete(path=autocomplete)
 	@is_dev(config.dev_ids)
 	async def load(self, interaction: discord.Interaction, *, path: str):
 		await self._single_handle(interaction, extension.load, path)
 
-
-	@app.command(
-		name='unload',
-		description='Unload a specific cog file.'
-	)
-	@app.describe(
-		path='The extension path to unload'
-	)
+	@app.command(name="unload", description="Unload a specific cog file.")
+	@app.describe(path="The extension path to unload")
 	@app.autocomplete(path=autocomplete)
 	@is_dev(config.dev_ids)
 	async def unload(self, interaction: discord.Interaction, *, path: str):
 		await self._single_handle(interaction, extension.unload, path)
 
-
-	@app.command(
-		name='reload',
-		description='Reload a specific cog file.'
-	)
-	@app.describe(
-		path='The extension path to reload'
-	)
+	@app.command(name="reload", description="Reload a specific cog file.")
+	@app.describe(path="The extension path to reload")
 	@app.autocomplete(path=autocomplete)
 	@is_dev(config.dev_ids)
 	async def reload(self, interaction: discord.Interaction, *, path: str):
 		await self._single_handle(interaction, extension.reload, path)
 
-
 	@app.command(
-		name='load_all',
-		description='Load all cog files found in defined directories.'
+		name="load_all", description="Load all cog files found in defined directories."
 	)
 	@is_dev(config.dev_ids)
 	async def load_all(self, interaction: discord.Interaction):
 		await self._multi_handle(interaction, extension.load_all)
 
-
 	@app.command(
-		name='unload_all',
-		description='Unload all loaded cogs except core managers.'
+		name="unload_all", description="Unload all loaded cogs except core managers."
 	)
 	@is_dev(config.dev_ids)
 	async def unload_all(self, interaction: discord.Interaction):
 		await self._multi_handle(interaction, extension.unload_all)
 
-
-	@app.command(
-		name='reload_all',
-		description='Reload all currently loaded cogs.'
-	)
+	@app.command(name="reload_all", description="Reload all currently loaded cogs.")
 	@is_dev(config.dev_ids)
 	async def reload_all(self, interaction: discord.Interaction):
 		await self._multi_handle(interaction, extension.reload_all)
 
-
-	@app.command(
-		name='list',
-		description='List all available cogs.'
-	)
+	@app.command(name="list", description="List all available cogs.")
 	@is_dev(config.dev_ids)
 	async def list(self, interaction: discord.Interaction):
 		all_extensions = await extension.get_all()
@@ -138,7 +103,9 @@ class ExtensionGroup(app.Group):
 			status_icon = emoji.checkmark if is_loaded else emoji.crossmark
 			results.append(f"{status_icon} `{ext}`")
 
-		await interaction.response.send_message(view=Generic(
-			"### Extension List:",
-			"\n".join(results) if results else "No extensions found."
-		))
+		await interaction.response.send_message(
+			view=Generic(
+				"### Extension List:",
+				"\n".join(results) if results else "No extensions found.",
+			)
+		)

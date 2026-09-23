@@ -6,13 +6,19 @@ import matplotlib.dates as mdates
 from matplotlib.ticker import MaxNLocator
 
 
-def generate_timeline_graph(timeline_data: dict, title: str = "Activity Timeline", timeframe_days: int | None = None) -> io.BytesIO:
+def generate_timeline_graph(
+	timeline_data: dict,
+	title: str = "Activity Timeline",
+	timeframe_days: int | None = None,
+) -> io.BytesIO:
 	fig, ax = plt.subplots(figsize=(7, 3))
 
 	if not timeline_data:
 		timeline_data = {datetime.now().strftime("%Y-%m-%d %H:00"): 0}
 
-	parsed_data = {datetime.strptime(d, "%Y-%m-%d %H:%M"): v for d, v in timeline_data.items()}
+	parsed_data = {
+		datetime.strptime(d, "%Y-%m-%d %H:%M"): v for d, v in timeline_data.items()
+	}
 
 	if timeframe_days is not None:
 		cutoff_date = datetime.now() - timedelta(days=timeframe_days)
@@ -36,33 +42,41 @@ def generate_timeline_graph(timeline_data: dict, title: str = "Activity Timeline
 		values.append(parsed_data.get(current_date, 0))
 		current_date += timedelta(hours=1)
 
-	ax.plot(dates, values, marker='o', color='#00E9FE', linestyle='-', linewidth=2, markersize=4)
-	ax.fill_between(dates, values, color='#00E9FE', alpha=0.1)
+	ax.plot(
+		dates,
+		values,
+		marker="o",
+		color="#00E9FE",
+		linestyle="-",
+		linewidth=2,
+		markersize=4,
+	)
+	ax.fill_between(dates, values, color="#00E9FE", alpha=0.1)
 
 	time_span = max_date - min_date
 	if time_span.total_seconds() <= 48 * 3600:
-		ax.xaxis.set_major_formatter(mdates.DateFormatter('%I %p'))
+		ax.xaxis.set_major_formatter(mdates.DateFormatter("%I %p"))
 	else:
-		ax.xaxis.set_major_formatter(mdates.DateFormatter('%b %d'))
+		ax.xaxis.set_major_formatter(mdates.DateFormatter("%b %d"))
 
 	ax.yaxis.set_major_locator(MaxNLocator(integer=True))
 	ax.set_ylim(bottom=0)
 
-	ax.spines['top'].set_visible(False)
-	ax.spines['right'].set_visible(False)
-	ax.spines['left'].set_color('#B0B8C1')
-	ax.spines['bottom'].set_color('#B0B8C1')
-	ax.tick_params(colors='#B0B8C1')
-	ax.grid(color='gray', linestyle='--', linewidth=0.5, alpha=0.3)
+	ax.spines["top"].set_visible(False)
+	ax.spines["right"].set_visible(False)
+	ax.spines["left"].set_color("#B0B8C1")
+	ax.spines["bottom"].set_color("#B0B8C1")
+	ax.tick_params(colors="#B0B8C1")
+	ax.grid(color="gray", linestyle="--", linewidth=0.5, alpha=0.3)
 
-	plt.setp(ax.xaxis.get_majorticklabels(), rotation=30, ha='right', color='#B0B8C1')
-	plt.setp(ax.yaxis.get_majorticklabels(), color='#B0B8C1')
+	plt.setp(ax.xaxis.get_majorticklabels(), rotation=30, ha="right", color="#B0B8C1")
+	plt.setp(ax.yaxis.get_majorticklabels(), color="#B0B8C1")
 
-	plt.title(title, color='#B0B8C1', pad=10)
+	plt.title(title, color="#B0B8C1", pad=10)
 	plt.tight_layout()
 
 	buf = io.BytesIO()
-	plt.savefig(buf, format='png', transparent=True)
+	plt.savefig(buf, format="png", transparent=True)
 	buf.seek(0)
 	plt.close(fig)
 

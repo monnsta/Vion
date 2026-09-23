@@ -11,9 +11,9 @@ from .assemblyai import AssemblyAITranscriber
 
 
 __all__ = (
-	'validate_key',
-	'GenerateContent',
-	'GeminiTTS',
-	'GeminiVoice',
-	'AssemblyAITranscriber'
+	"validate_key",
+	"GenerateContent",
+	"GeminiTTS",
+	"GeminiVoice",
+	"AssemblyAITranscriber",
 )

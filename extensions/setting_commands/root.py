@@ -7,13 +7,7 @@ from discord.ext import commands
 from vion.infrastructure.utils import em
 from vion.services.utils import resolve_target, is_admin
 from vion.services.profile import server
-from vion.ui_templates import (
-	Generic,
-	Success,
-	Fail,
-	UnexpectedError,
-	Confirmation
-)
+from vion.ui_templates import Generic, Success, Fail, UnexpectedError, Confirmation
 from vion.config import config, emoji
 
 from .utils import load_settings
@@ -30,22 +24,16 @@ class SettingRoot(commands.Cog):
 		self.setting.add_command(self.gemini_key_group)
 		self.setting.add_command(self.instruction_group)
 
-
 	setting = app.Group(
-		name='setting',
-		description='Configure custom profile or server variables.'
+		name="setting", description="Configure custom profile or server variables."
 	)
 
-
-	@setting.command(
-		name='view',
-		description='View the current server\'s settings.'
-	)
+	@setting.command(name="view", description="View the current server's settings.")
 	# @app.describe(
 	# 	type='Whether to show your personal settings or server settings'
 	# )
 	async def view(self, interaction: discord.Interaction):
-		type: Literal['server', 'user'] = 'server'
+		type: Literal["server", "user"] = "server"
 
 		manager, target_id = await resolve_target(interaction, type)
 		if not manager:
@@ -54,10 +42,14 @@ class SettingRoot(commands.Cog):
 		data = await load_settings(manager, target_id, type)  # type: ignore
 
 		lines = []
-		inst = data.get('instructions', '')
-		if type == 'server':
-			lines.append(f"# Settings for {getattr(interaction.guild, 'name', 'Unknown')}")
-			lines.append(f"**Freewill:** {'Yes' if data.get('free_will', False) else 'No'}")
+		inst = data.get("instructions", "")
+		if type == "server":
+			lines.append(
+				f"# Settings for {getattr(interaction.guild, 'name', 'Unknown')}"
+			)
+			lines.append(
+				f"**Freewill:** {'Yes' if data.get('free_will', False) else 'No'}"
+			)
 			lines.append(
 				"**Instructions:**\n"
 				f"```\n{em(inst if inst else 'None', chars='`')}\n```\n"
@@ -65,28 +57,24 @@ class SettingRoot(commands.Cog):
 			)
 		# else:
 		# 	lines.append(f"# Settings for {interaction.user.display_name}")
-		lines.append(f"**API Keys:** *Hidden for privacy.* Use {config.cmd.get('setting.gemini_key.list')} to view them.")
+		lines.append(
+			f"**API Keys:** *Hidden for privacy.* Use {config.cmd.get('setting.gemini_key.list')} to view them."
+		)
 
-		await interaction.response.send_message(view=Generic(
-			*lines
-		))
-
+		await interaction.response.send_message(view=Generic(*lines))
 
 	@setting.command(
-		name='freewill',
-		description='Toggle free will for the current server.'
+		name="freewill", description="Toggle free will for the current server."
 	)
-	@app.describe(
-		value='Whether to turn free will on or off (True or False)'
-	)
+	@app.describe(value="Whether to turn free will on or off (True or False)")
 	@app.guild_only()
 	@is_admin(config.dev_ids)
 	async def freewill(self, interaction: discord.Interaction, value: bool):
-		manager, _ = await resolve_target(interaction, 'server')
+		manager, _ = await resolve_target(interaction, "server")
 		if not manager:
 			return
 
-		data = await load_settings(server, getattr(interaction.guild, 'id'), "server")
+		data = await load_settings(server, getattr(interaction.guild, "id"), "server")
 		current_value = data.get("free_will", True)
 		target_value = value
 		conf_view = None
@@ -97,7 +85,7 @@ class SettingRoot(commands.Cog):
 				f"Freewill already set to {value}, set to {target_value} instead?",
 				f"Freewill set to {target_value}",
 				"Action Aborted",
-				interaction.user
+				interaction.user,
 			)
 			await interaction.response.send_message(view=conf_view)
 
@@ -108,10 +96,11 @@ class SettingRoot(commands.Cog):
 		if interaction.guild:
 			success = await server.settings.save(interaction.guild.id, data)
 		else:
-			await interaction.response.send_message(view=Fail(
-				"Invalid Scope",
-				"You must be in a guild to use this command."
-			))
+			await interaction.response.send_message(
+				view=Fail(
+					"Invalid Scope", "You must be in a guild to use this command."
+				)
+			)
 			return
 
 		if not success:
@@ -120,6 +109,6 @@ class SettingRoot(commands.Cog):
 			else:
 				await interaction.response.send_message(view=UnexpectedError)
 		elif not conf_view:
-			await interaction.response.send_message(view=Success(
-				f"Freewill set to {target_value}"
-			))
+			await interaction.response.send_message(
+				view=Success(f"Freewill set to {target_value}")
+			)

@@ -33,7 +33,7 @@ def render_banner() -> None:
 		banner,
 		subtitle="[bold dim white]First-Run Setup Wizard[/bold dim white]",
 		border_style="bold blue",
-		expand=False
+		expand=False,
 	)
 	console.print("\n", panel)
 
@@ -53,11 +53,18 @@ def run_setup_wizard(force: bool = False) -> bool:
 
 	try:
 		if storage.env.exists() and not force:
-			console.print("[dim white]Configuration file (.env) already exists.[/dim white]")
-			if not Confirm.ask("[bold cyan]Would you like to reconfigure environment secrets?[/bold cyan]", default=False):
+			console.print(
+				"[dim white]Configuration file (.env) already exists.[/dim white]"
+			)
+			if not Confirm.ask(
+				"[bold cyan]Would you like to reconfigure environment secrets?[/bold cyan]",
+				default=False,
+			):
 				return True
 
-		console.print("\n[bold cyan]=== Step 1: Environment & Secrets Configuration ===[/bold cyan]\n")
+		console.print(
+			"\n[bold cyan]=== Step 1: Environment & Secrets Configuration ===[/bold cyan]\n"
+		)
 
 		existing_discord = ""
 		existing_gemini = ""
@@ -78,25 +85,25 @@ def run_setup_wizard(force: bool = False) -> bool:
 		discord_token = Prompt.ask(
 			"[bold cyan]Discord Bot Token[/bold cyan]",
 			password=True,
-			default=existing_discord if existing_discord else None
+			default=existing_discord if existing_discord else None,
 		)
 
 		gemini_key = Prompt.ask(
 			"[bold cyan]Gemini API Key[/bold cyan] [dim](optional)[/dim]",
 			password=True,
-			default=existing_gemini if existing_gemini else ""
+			default=existing_gemini if existing_gemini else "",
 		)
 
 		assembly_key = Prompt.ask(
 			"[bold cyan]AssemblyAI API Key[/bold cyan] [dim](optional)[/dim]",
 			password=True,
-			default=existing_assembly if existing_assembly else ""
+			default=existing_assembly if existing_assembly else "",
 		)
 
 		default_hmac = existing_hmac if existing_hmac else secrets.token_hex(32)
 		hmac_secret = Prompt.ask(
 			"[bold cyan]HMAC Secret Key[/bold cyan] [dim](auto-generated)[/dim]",
-			default=default_hmac
+			default=default_hmac,
 		)
 
 	except (KeyboardInterrupt, EOFError):
@@ -128,11 +135,27 @@ def run_setup_wizard(force: bool = False) -> bool:
 	table.add_column("Parameter", style="cyan")
 	table.add_column("Status", style="bold")
 
-	table.add_row("Discord Token", "[green]Configured[/green]" if discord_token else "[red]Missing[/red]")
-	table.add_row("Gemini API Key", "[green]Configured[/green]" if gemini_key else "[dim yellow]Not Set[/dim yellow]")
-	table.add_row("AssemblyAI Key", "[green]Configured[/green]" if assembly_key else "[dim yellow]Not Set[/dim yellow]")
+	table.add_row(
+		"Discord Token",
+		"[green]Configured[/green]" if discord_token else "[red]Missing[/red]",
+	)
+	table.add_row(
+		"Gemini API Key",
+		"[green]Configured[/green]"
+		if gemini_key
+		else "[dim yellow]Not Set[/dim yellow]",
+	)
+	table.add_row(
+		"AssemblyAI Key",
+		"[green]Configured[/green]"
+		if assembly_key
+		else "[dim yellow]Not Set[/dim yellow]",
+	)
 	table.add_row("HMAC Secret", "[green]Generated[/green]")
-	table.add_row(f"{storage.config.name} File", "[green]Present[/green]" if storage.config.exists() else "[red]Missing[/red]")
+	table.add_row(
+		f"{storage.config.name} File",
+		"[green]Present[/green]" if storage.config.exists() else "[red]Missing[/red]",
+	)
 
 	console.print("\n", table, "\n")
 	return True

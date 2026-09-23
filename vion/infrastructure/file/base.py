@@ -35,6 +35,7 @@ class LoadOptions:
 		read_only: Return cached object directly without deep cloning if True.
 		update_cache: Store disk read results back into the cache if True.
 	"""
+
 	use_cache: bool = True
 	trust_cache: bool = False
 	read_only: bool = False
@@ -59,6 +60,7 @@ class SaveOptions:
 		trust_cache: Skip mtime check when comparing against cache.
 		skip_clone: Skip payload deep cloning when storing to cache.
 	"""
+
 	update_cache: bool = True
 	atomic: bool = True
 	verify: bool = False
@@ -89,6 +91,7 @@ class EditOptions:
 		skip_if_unchanged: Skip disk write if modified object equals initial state.
 		fsync: Perform physical disk flush via os.fsync.
 	"""
+
 	use_cache: bool = True
 	trust_cache: bool = False
 	auto_save: bool = True
@@ -189,7 +192,9 @@ class SlidingTTLCache(Generic[T]):
 			interval: Sleep interval in seconds between cleanup checks.
 			stop_event: Threading stop flag instance.
 		"""
-		log.debug(f"SlidingTTLCache _gc_loop_sync started in thread {threading.current_thread().name}")
+		log.debug(
+			f"SlidingTTLCache _gc_loop_sync started in thread {threading.current_thread().name}"
+		)
 		try:
 			while not stop_event.is_set():
 				stop_event.wait(interval)
@@ -220,7 +225,7 @@ class SlidingTTLCache(Generic[T]):
 			target=self._gc_loop_sync,
 			args=(interval, self._gc_stop_event),
 			daemon=True,
-			name="SlidingTTLCache_GC_Thread"
+			name="SlidingTTLCache_GC_Thread",
 		)
 		self._gc_thread.start()
 		log.info("SlidingTTLCache background GC thread started.")
@@ -233,7 +238,9 @@ class SlidingTTLCache(Generic[T]):
 				self._gc_stop_event.set()
 			self._gc_thread.join(timeout=5)
 			if self._gc_thread.is_alive():
-				log.warning("SlidingTTLCache background GC thread did not terminate gracefully within 5 seconds.")
+				log.warning(
+					"SlidingTTLCache background GC thread did not terminate gracefully within 5 seconds."
+				)
 			self._gc_thread = None
 			self._gc_stop_event = None
 			log.info("SlidingTTLCache background GC thread stopped.")
@@ -250,7 +257,7 @@ class RefCountedLock:
 		count: Active consumer count indicator.
 	"""
 
-	__slots__ = ('lock', 'count')
+	__slots__ = ("lock", "count")
 
 	def __init__(self) -> None:
 		"""Initialize RefCountedLock instance."""
@@ -277,7 +284,9 @@ class BaseFileIO(ABC, Generic[T]):
 			cache_ttl_seconds: Cache item expiration TTL in seconds.
 			cache_maxsize: Maximum cached records bound.
 		"""
-		self.cache = SlidingTTLCache[tuple[T, float]](ttl_seconds=cache_ttl_seconds, maxsize=cache_maxsize)
+		self.cache = SlidingTTLCache[tuple[T, float]](
+			ttl_seconds=cache_ttl_seconds, maxsize=cache_maxsize
+		)
 		self._locks: dict[str, RefCountedLock] = {}
 
 		self.load_defaults = LoadOptions()
@@ -312,7 +321,9 @@ class BaseFileIO(ABC, Generic[T]):
 		if lock_obj.count <= 0:
 			self._locks.pop(path, None)
 
-	async def _get_valid_cache(self, path: str, trust_cache: bool = False) -> tuple[T, float] | None:
+	async def _get_valid_cache(
+		self, path: str, trust_cache: bool = False
+	) -> tuple[T, float] | None:
 		"""
 		Verify cache entry freshness against disk mtime.
 
@@ -352,7 +363,7 @@ class BaseFileIO(ABC, Generic[T]):
 		with open(path, "rb") as f:
 			mtime = os.fstat(f.fileno()).st_mtime
 			content = f.read()
-		if content.startswith(b'\x1f\x8b'):
+		if content.startswith(b"\x1f\x8b"):
 			content = gzip.decompress(content)
 		return self.deserialize(content), mtime
 
@@ -365,7 +376,7 @@ class BaseFileIO(ABC, Generic[T]):
 		verify: bool,
 		compress: bool,
 		compress_level: int,
-		fsync: bool
+		fsync: bool,
 	) -> float:
 		"""
 		Synchronous disk write implementation supporting atomic replacement and fsync.
@@ -398,7 +409,7 @@ class BaseFileIO(ABC, Generic[T]):
 		flags = os.O_WRONLY | os.O_CREAT | os.O_TRUNC
 		fd = os.open(str(target_path), flags, mode or 0o666)
 		try:
-			with os.fdopen(fd, 'wb') as f:
+			with os.fdopen(fd, "wb") as f:
 				f.write(data)
 				if fsync:
 					f.flush()
@@ -413,11 +424,13 @@ class BaseFileIO(ABC, Generic[T]):
 			raise
 
 		if verify:
-			with open(target_path, 'rb') as f:
+			with open(target_path, "rb") as f:
 				if f.read() != data:
 					if atomic:
 						target_path.unlink(missing_ok=True)
-					raise IOError("Verification failed: Disk content does not match intended data.")
+					raise IOError(
+						"Verification failed: Disk content does not match intended data."
+					)
 
 		if atomic:
 			target_path.replace(final_path)
@@ -437,7 +450,7 @@ class BaseFileIO(ABC, Generic[T]):
 		skip_if_unchanged: bool,
 		fsync: bool,
 		trust_cache: bool,
-		skip_clone: bool
+		skip_clone: bool,
 	) -> bool:
 		"""
 		Internal async lock-managed file save routine.
@@ -463,13 +476,23 @@ class BaseFileIO(ABC, Generic[T]):
 		try:
 			async with lock_obj.lock:
 				if skip_if_unchanged:
-					valid_cache = await self._get_valid_cache(path, trust_cache=trust_cache)
+					valid_cache = await self._get_valid_cache(
+						path, trust_cache=trust_cache
+					)
 					if valid_cache is not None and valid_cache[0] == data:
 						return True
 
 				serialized_data = self.serialize(data)
 				new_mtime = await asyncio.to_thread(
-					self._sync_write, path, serialized_data, atomic, mode, verify, compress, compress_level, fsync
+					self._sync_write,
+					path,
+					serialized_data,
+					atomic,
+					mode,
+					verify,
+					compress,
+					compress_level,
+					fsync,
 				)
 				if update_cache:
 					cache_data = data if skip_clone else self.clone(data)
@@ -533,7 +556,7 @@ class BaseFileIO(ABC, Generic[T]):
 		use_cache: bool | None = None,
 		trust_cache: bool | None = None,
 		read_only: bool | None = None,
-		update_cache: bool | None = None
+		update_cache: bool | None = None,
 	) -> tuple[bool, T]:
 		"""
 		Read payload from cache or disk storage safely.
@@ -548,24 +571,40 @@ class BaseFileIO(ABC, Generic[T]):
 		Returns:
 			Tuple of (success_boolean, loaded_data_payload).
 		"""
-		_use_cache = use_cache if use_cache is not None else self.load_defaults.use_cache
-		_trust_cache = trust_cache if trust_cache is not None else self.load_defaults.trust_cache
-		_read_only = read_only if read_only is not None else self.load_defaults.read_only
-		_update_cache = update_cache if update_cache is not None else self.load_defaults.update_cache
+		_use_cache = (
+			use_cache if use_cache is not None else self.load_defaults.use_cache
+		)
+		_trust_cache = (
+			trust_cache if trust_cache is not None else self.load_defaults.trust_cache
+		)
+		_read_only = (
+			read_only if read_only is not None else self.load_defaults.read_only
+		)
+		_update_cache = (
+			update_cache
+			if update_cache is not None
+			else self.load_defaults.update_cache
+		)
 
 		path = os.path.abspath(os.fspath(path))
 		if _use_cache:
 			valid_cache = await self._get_valid_cache(path, trust_cache=_trust_cache)
 			if valid_cache is not None:
-				return True, (valid_cache[0] if _read_only else self.clone(valid_cache[0]))
+				return True, (
+					valid_cache[0] if _read_only else self.clone(valid_cache[0])
+				)
 
 		lock_obj = self._acquire_lock(path)
 		try:
 			async with lock_obj.lock:
 				if _use_cache:
-					valid_cache = await self._get_valid_cache(path, trust_cache=_trust_cache)
+					valid_cache = await self._get_valid_cache(
+						path, trust_cache=_trust_cache
+					)
 					if valid_cache is not None:
-						return True, (valid_cache[0] if _read_only else self.clone(valid_cache[0]))
+						return True, (
+							valid_cache[0] if _read_only else self.clone(valid_cache[0])
+						)
 
 				try:
 					data, mtime = await asyncio.to_thread(self._sync_read, path)
@@ -596,7 +635,7 @@ class BaseFileIO(ABC, Generic[T]):
 		skip_if_unchanged: bool | None = None,
 		fsync: bool | None = None,
 		trust_cache: bool | None = None,
-		skip_clone: bool | None = None
+		skip_clone: bool | None = None,
 	) -> bool:
 		"""
 		Save object data payload to disk storage.
@@ -619,17 +658,35 @@ class BaseFileIO(ABC, Generic[T]):
 		Returns:
 			True if save succeeded or dispatched to background task, False on failure.
 		"""
-		_update_cache = update_cache if update_cache is not None else self.save_defaults.update_cache
+		_update_cache = (
+			update_cache
+			if update_cache is not None
+			else self.save_defaults.update_cache
+		)
 		_atomic = atomic if atomic is not None else self.save_defaults.atomic
 		_verify = verify if verify is not None else self.save_defaults.verify
 		_compress = compress if compress is not None else self.save_defaults.compress
-		_compress_level = compress_level if compress_level is not None else self.save_defaults.compress_level
+		_compress_level = (
+			compress_level
+			if compress_level is not None
+			else self.save_defaults.compress_level
+		)
 		_mode = mode if mode is not None else self.save_defaults.mode
-		_background = background if background is not None else self.save_defaults.background
-		_skip_if_unchanged = skip_if_unchanged if skip_if_unchanged is not None else self.save_defaults.skip_if_unchanged
+		_background = (
+			background if background is not None else self.save_defaults.background
+		)
+		_skip_if_unchanged = (
+			skip_if_unchanged
+			if skip_if_unchanged is not None
+			else self.save_defaults.skip_if_unchanged
+		)
 		_fsync = fsync if fsync is not None else self.save_defaults.fsync
-		_trust_cache = trust_cache if trust_cache is not None else self.save_defaults.trust_cache
-		_skip_clone = skip_clone if skip_clone is not None else self.save_defaults.skip_clone
+		_trust_cache = (
+			trust_cache if trust_cache is not None else self.save_defaults.trust_cache
+		)
+		_skip_clone = (
+			skip_clone if skip_clone is not None else self.save_defaults.skip_clone
+		)
 
 		path = os.path.abspath(os.fspath(path))
 
@@ -638,15 +695,35 @@ class BaseFileIO(ABC, Generic[T]):
 		if _background:
 			asyncio.create_task(
 				self._save_internal(
-					path, bg_data, _update_cache, _atomic,
-					_verify, _compress, _compress_level, _mode,
-					_skip_if_unchanged, _fsync, _trust_cache, skip_clone=True
+					path,
+					bg_data,
+					_update_cache,
+					_atomic,
+					_verify,
+					_compress,
+					_compress_level,
+					_mode,
+					_skip_if_unchanged,
+					_fsync,
+					_trust_cache,
+					skip_clone=True,
 				)
 			)
 			return True
 
 		return await self._save_internal(
-			path, bg_data, _update_cache, _atomic, _verify, _compress, _compress_level, _mode, _skip_if_unchanged, _fsync, _trust_cache, skip_clone=True
+			path,
+			bg_data,
+			_update_cache,
+			_atomic,
+			_verify,
+			_compress,
+			_compress_level,
+			_mode,
+			_skip_if_unchanged,
+			_fsync,
+			_trust_cache,
+			skip_clone=True,
 		)
 
 	@asynccontextmanager
@@ -663,7 +740,7 @@ class BaseFileIO(ABC, Generic[T]):
 		compress_level: int | None = None,
 		mode: int | None = None,
 		skip_if_unchanged: bool | None = None,
-		fsync: bool | None = None
+		fsync: bool | None = None,
 	) -> AsyncIterator[T]:
 		"""
 		Async context manager for atomic read-modify-write transactional editing.
@@ -684,15 +761,29 @@ class BaseFileIO(ABC, Generic[T]):
 		Yields:
 			Mutable payload instance yielding from read operation.
 		"""
-		_use_cache = use_cache if use_cache is not None else self.edit_defaults.use_cache
-		_trust_cache = trust_cache if trust_cache is not None else self.edit_defaults.trust_cache
-		_auto_save = auto_save if auto_save is not None else self.edit_defaults.auto_save
+		_use_cache = (
+			use_cache if use_cache is not None else self.edit_defaults.use_cache
+		)
+		_trust_cache = (
+			trust_cache if trust_cache is not None else self.edit_defaults.trust_cache
+		)
+		_auto_save = (
+			auto_save if auto_save is not None else self.edit_defaults.auto_save
+		)
 		_atomic = atomic if atomic is not None else self.edit_defaults.atomic
 		_verify = verify if verify is not None else self.edit_defaults.verify
 		_compress = compress if compress is not None else self.edit_defaults.compress
-		_compress_level = compress_level if compress_level is not None else self.edit_defaults.compress_level
+		_compress_level = (
+			compress_level
+			if compress_level is not None
+			else self.edit_defaults.compress_level
+		)
 		_mode = mode if mode is not None else self.edit_defaults.mode
-		_skip_if_unchanged = skip_if_unchanged if skip_if_unchanged is not None else self.edit_defaults.skip_if_unchanged
+		_skip_if_unchanged = (
+			skip_if_unchanged
+			if skip_if_unchanged is not None
+			else self.edit_defaults.skip_if_unchanged
+		)
 		_fsync = fsync if fsync is not None else self.edit_defaults.fsync
 
 		path = os.path.abspath(os.fspath(path))
@@ -702,7 +793,9 @@ class BaseFileIO(ABC, Generic[T]):
 				data = None
 				original_data = None
 				if _use_cache:
-					valid_cache = await self._get_valid_cache(path, trust_cache=_trust_cache)
+					valid_cache = await self._get_valid_cache(
+						path, trust_cache=_trust_cache
+					)
 					if valid_cache is not None:
 						data = self.clone(valid_cache[0])
 
@@ -712,7 +805,10 @@ class BaseFileIO(ABC, Generic[T]):
 					except FileNotFoundError:
 						data = self.clone(self.default_empty)
 					except Exception as e:
-						log.error(f"Critical error reading {path} during edit. Falling back to default.", exc_info=e)
+						log.error(
+							f"Critical error reading {path} during edit. Falling back to default.",
+							exc_info=e,
+						)
 						raise
 
 				if _auto_save and _skip_if_unchanged:
@@ -726,7 +822,15 @@ class BaseFileIO(ABC, Generic[T]):
 
 					serialized = self.serialize(data)
 					new_mtime = await asyncio.to_thread(
-						self._sync_write, path, serialized, _atomic, _mode, _verify, _compress, _compress_level, _fsync
+						self._sync_write,
+						path,
+						serialized,
+						_atomic,
+						_mode,
+						_verify,
+						_compress,
+						_compress_level,
+						_fsync,
 					)
 					self.cache.set(path, (self.clone(data), new_mtime))
 		finally:
@@ -752,13 +856,17 @@ class CreatePath:
 		try:
 			if dir_to_create and not dir_to_create.exists():
 				log.debug(f"Creating directory: {dir_to_create}")
-				await asyncio.to_thread(dir_to_create.mkdir, parents=True, exist_ok=True)
+				await asyncio.to_thread(
+					dir_to_create.mkdir, parents=True, exist_ok=True
+				)
 
 			if not is_dir:
 				log.debug(f"Touching file: {path_obj}")
 				await asyncio.to_thread(path_obj.touch, exist_ok=True)
 		except Exception:
-			log.error(f"An unexpected error occurred while processing {path}", exc_info=True)
+			log.error(
+				f"An unexpected error occurred while processing {path}", exc_info=True
+			)
 
 	async def __call__(self, *paths: tuple[str | Path, bool] | str | Path) -> None:
 		"""

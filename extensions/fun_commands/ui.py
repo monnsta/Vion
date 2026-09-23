@@ -5,30 +5,25 @@ import discord
 from discord import ui
 
 from vion.infrastructure.utils import em
-from vion.ui_templates import (
-	TimeoutView,
-	get_annoyance_message,
-	Generic,
-	Fail
-)
+from vion.ui_templates import TimeoutView, get_annoyance_message, Generic, Fail
 from vion.config import emoji
 
-from .utils import (
-	AvatarRPS,
-	TicTacToeBot,
-	TicTacToeSixBySevenBot
-)
+from .utils import AvatarRPS, TicTacToeBot, TicTacToeSixBySevenBot
 
 
 class AvatarRPSView(TimeoutView):
-	def __init__(self, challenger: discord.User | discord.Member, opponent: discord.User | discord.Member):
+	def __init__(
+		self,
+		challenger: discord.User | discord.Member,
+		opponent: discord.User | discord.Member,
+	):
 		super().__init__(timeout=180.0)
 		self.challenger = challenger
 		self.opponent = opponent
 		self.choices: dict[int, str | None] = {challenger.id: None, opponent.id: None}
 
 		if opponent.bot:
-			self.choices[opponent.id] = random.choice(['water', 'earth', 'fire', 'air'])
+			self.choices[opponent.id] = random.choice(["water", "earth", "fire", "air"])
 
 		self.container = ui.Container(accent_color=0x00E9FE)
 
@@ -45,19 +40,35 @@ class AvatarRPSView(TimeoutView):
 
 		row = ui.ActionRow()
 
-		w_btn = ui.Button(label="Water", style=discord.ButtonStyle.secondary, emoji=emoji.avatar_watertribe)
+		w_btn = ui.Button(
+			label="Water",
+			style=discord.ButtonStyle.secondary,
+			emoji=emoji.avatar_watertribe,
+		)
 		w_btn.callback = lambda interaction: self.handle_choice(interaction, "water")
 		row.add_item(w_btn)
 
-		e_btn = ui.Button(label="Earth", style=discord.ButtonStyle.secondary, emoji=emoji.avatar_earthkingdom)
+		e_btn = ui.Button(
+			label="Earth",
+			style=discord.ButtonStyle.secondary,
+			emoji=emoji.avatar_earthkingdom,
+		)
 		e_btn.callback = lambda interaction: self.handle_choice(interaction, "earth")
 		row.add_item(e_btn)
 
-		f_btn = ui.Button(label="Fire", style=discord.ButtonStyle.secondary, emoji=emoji.avatar_firenation)
+		f_btn = ui.Button(
+			label="Fire",
+			style=discord.ButtonStyle.secondary,
+			emoji=emoji.avatar_firenation,
+		)
 		f_btn.callback = lambda interaction: self.handle_choice(interaction, "fire")
 		row.add_item(f_btn)
 
-		a_btn = ui.Button(label="Air", style=discord.ButtonStyle.secondary, emoji=emoji.avatar_airnomad)
+		a_btn = ui.Button(
+			label="Air",
+			style=discord.ButtonStyle.secondary,
+			emoji=emoji.avatar_airnomad,
+		)
 		a_btn.callback = lambda interaction: self.handle_choice(interaction, "air")
 		row.add_item(a_btn)
 
@@ -71,13 +82,17 @@ class AvatarRPSView(TimeoutView):
 				if not interaction.response.is_done():
 					await interaction.response.defer(ephemeral=True)
 				return False
-			await interaction.response.send_message(view=Fail("Not your game", msg), ephemeral=True)
+			await interaction.response.send_message(
+				view=Fail("Not your game", msg), ephemeral=True
+			)
 			return False
 		return True
 
 	async def handle_choice(self, interaction: discord.Interaction, choice: str):
 		if self.choices[interaction.user.id] is not None:
-			await interaction.response.send_message("You already made your choice.", ephemeral=True)
+			await interaction.response.send_message(
+				"You already made your choice.", ephemeral=True
+			)
 			return
 
 		self.choices[interaction.user.id] = choice
@@ -89,10 +104,10 @@ class AvatarRPSView(TimeoutView):
 			result = AvatarRPS.resolve(p1_choice, p2_choice)
 
 			emoji_map = {
-				'water': emoji.avatar_watertribe,
-				'earth': emoji.avatar_earthkingdom,
-				'fire': emoji.avatar_firenation,
-				'air': emoji.avatar_airnomad
+				"water": emoji.avatar_watertribe,
+				"earth": emoji.avatar_earthkingdom,
+				"fire": emoji.avatar_firenation,
+				"air": emoji.avatar_airnomad,
 			}
 
 			desc = (
@@ -103,7 +118,10 @@ class AvatarRPSView(TimeoutView):
 			if result == "tie":
 				view = Generic("### It's a tie.", desc)
 			elif result == "stalemate":
-				view = Generic("### Stalemate.", desc + "Neither element holds power over the other.")
+				view = Generic(
+					"### Stalemate.",
+					desc + "Neither element holds power over the other.",
+				)
 			elif result == "p1":
 				view = Generic(f"### {self.challenger.display_name} wins.", desc)
 			else:
@@ -112,19 +130,27 @@ class AvatarRPSView(TimeoutView):
 			await interaction.response.edit_message(view=view)
 			self.stop()
 		else:
-			await interaction.response.send_message(f"Choice locked: {choice.capitalize()}. Waiting for opponent...", ephemeral=True)
+			await interaction.response.send_message(
+				f"Choice locked: {choice.capitalize()}. Waiting for opponent...",
+				ephemeral=True,
+			)
 
 
 class TicTacToeView(TimeoutView):
-	def __init__(self, p1: discord.User | discord.Member, p2: discord.User | discord.Member, bot_client: discord.Client):
+	def __init__(
+		self,
+		p1: discord.User | discord.Member,
+		p2: discord.User | discord.Member,
+		bot_client: discord.Client,
+	):
 		super().__init__(timeout=180.0)
 		self.p1 = p1
 		self.p2 = p2
 		self.bot_client = bot_client
 		self.current_player = p1
 		self.board: list[str | None] = [None] * 9
-		self.marks = {p1.id: 'X', p2.id: 'O'}
-		self.emojis = {'X': emoji.char_x, 'O': emoji.char_o}
+		self.marks = {p1.id: "X", p2.id: "O"}
+		self.emojis = {"X": emoji.char_x, "O": emoji.char_o}
 		self.game_over = False
 		self.game_result_text: str | None = None
 
@@ -132,21 +158,28 @@ class TicTacToeView(TimeoutView):
 		bot_id = bot_client.user.id if bot_client.user else None
 
 		if self.p2.bot:
-			self.bot_difficulty = 2 if self.p2.id == bot_id else random.choice([0, 1, 2])
+			self.bot_difficulty = (
+				2 if self.p2.id == bot_id else random.choice([0, 1, 2])
+			)
 		elif self.p1.bot:
-			self.bot_difficulty = 2 if self.p1.id == bot_id else random.choice([0, 1, 2])
+			self.bot_difficulty = (
+				2 if self.p1.id == bot_id else random.choice([0, 1, 2])
+			)
 
 		self.buttons: list[ui.Button] = []
 
 		def make_callback(button: ui.Button, index: int):
 			async def callback(interaction: discord.Interaction):
 				await self.handle_turn(interaction, button, index)
+
 			return callback
 
 		for y in range(3):
 			for x in range(3):
 				idx = y * 3 + x
-				btn = ui.Button(style=discord.ButtonStyle.secondary, emoji=emoji.char_absolute_empty)
+				btn = ui.Button(
+					style=discord.ButtonStyle.secondary, emoji=emoji.char_absolute_empty
+				)
 				btn.callback = make_callback(btn, idx)
 				self.buttons.append(btn)
 
@@ -181,16 +214,22 @@ class TicTacToeView(TimeoutView):
 				if not interaction.response.is_done():
 					await interaction.response.defer(ephemeral=True)
 				return False
-			await interaction.response.send_message(view=Fail("Not your game", msg), ephemeral=True)
+			await interaction.response.send_message(
+				view=Fail("Not your game", msg), ephemeral=True
+			)
 			return False
 
 		if interaction.user.id != self.current_player.id:
-			await interaction.response.send_message(view=Fail("It's not your turn."), ephemeral=True)
+			await interaction.response.send_message(
+				view=Fail("It's not your turn."), ephemeral=True
+			)
 			return False
 
 		return True
 
-	async def handle_turn(self, interaction: discord.Interaction, button: ui.Button, idx: int):
+	async def handle_turn(
+		self, interaction: discord.Interaction, button: ui.Button, idx: int
+	):
 		if self.game_over:
 			return
 
@@ -218,14 +257,14 @@ class TicTacToeView(TimeoutView):
 		await asyncio.sleep(1)
 
 		bot_mark = self.marks[self.current_player.id]
-		human_mark = 'X' if bot_mark == 'O' else 'O'
+		human_mark = "X" if bot_mark == "O" else "O"
 
 		move_idx = await asyncio.to_thread(
 			TicTacToeBot.get_move,
 			self.board.copy(),
 			bot_mark,
 			human_mark,
-			self.bot_difficulty if self.bot_difficulty is not None else 2
+			self.bot_difficulty if self.bot_difficulty is not None else 2,
 		)
 
 		if move_idx != -1:
@@ -244,7 +283,9 @@ class TicTacToeView(TimeoutView):
 				if winner == "Tie":
 					self.game_result_text = "**It's a tie.**"
 				else:
-					self.game_result_text = f"**{self.current_player.display_name} wins.**"
+					self.game_result_text = (
+						f"**{self.current_player.display_name} wins.**"
+					)
 
 				self.create_layout()
 				await message.edit(view=self)
@@ -263,7 +304,7 @@ class TicTacToeView(TimeoutView):
 		if winner == "Tie":
 			self.game_result_text = "**It's a tie.**"
 		else:
-			winning_player = self.p1 if winner == 'X' else self.p2
+			winning_player = self.p1 if winner == "X" else self.p2
 			self.game_result_text = f"**{winning_player.display_name} wins.**"
 
 		self.create_layout()
@@ -281,14 +322,14 @@ class SixBySevenTTTModal(ui.Modal):
 			style=discord.TextStyle.short,
 			required=True,
 			max_length=1,
-			placeholder="Enter a column number..."
+			placeholder="Enter a column number...",
 		)
 		self.row_input = ui.TextInput(
 			label="Row (1-6)",
 			style=discord.TextStyle.short,
 			required=True,
 			max_length=1,
-			placeholder="Enter a row number..."
+			placeholder="Enter a row number...",
 		)
 
 		self.add_item(self.col_input)
@@ -302,21 +343,34 @@ class SixBySevenTTTModal(ui.Modal):
 			if 0 <= row <= 5 and 0 <= col <= 6:
 				await self.view_ref.process_turn(interaction, row, col)
 			else:
-				await interaction.response.send_message(view=Fail("Invalid Move", "Row must be 1-6 and Column must be 1-7."), ephemeral=True)
+				await interaction.response.send_message(
+					view=Fail(
+						"Invalid Move", "Row must be 1-6 and Column must be 1-7."
+					),
+					ephemeral=True,
+				)
 		except ValueError:
-			await interaction.response.send_message(view=Fail("Invalid Input", "Please enter valid numbers."), ephemeral=True)
+			await interaction.response.send_message(
+				view=Fail("Invalid Input", "Please enter valid numbers."),
+				ephemeral=True,
+			)
 
 
 class SixBySevenTTTView(TimeoutView):
-	def __init__(self, p1: discord.User | discord.Member, p2: discord.User | discord.Member, bot_client: discord.Client):
+	def __init__(
+		self,
+		p1: discord.User | discord.Member,
+		p2: discord.User | discord.Member,
+		bot_client: discord.Client,
+	):
 		super().__init__(timeout=180.0)
 		self.p1 = p1
 		self.p2 = p2
 		self.bot_client = bot_client
 		self.current_player = p1
 		self.board: list[str | None] = [None] * 42
-		self.marks = {p1.id: 'X', p2.id: 'O'}
-		self.emojis = {'X': emoji.char_x, 'O': emoji.char_o, None: emoji.char_empty}
+		self.marks = {p1.id: "X", p2.id: "O"}
+		self.emojis = {"X": emoji.char_x, "O": emoji.char_o, None: emoji.char_empty}
 		self.game_over = False
 		self.game_result_text: str | None = None
 
@@ -324,11 +378,17 @@ class SixBySevenTTTView(TimeoutView):
 		bot_id = bot_client.user.id if bot_client.user else None
 
 		if self.p2.bot:
-			self.bot_difficulty = 2 if self.p2.id == bot_id else random.choice([0, 1, 2])
+			self.bot_difficulty = (
+				2 if self.p2.id == bot_id else random.choice([0, 1, 2])
+			)
 		elif self.p1.bot:
-			self.bot_difficulty = 2 if self.p1.id == bot_id else random.choice([0, 1, 2])
+			self.bot_difficulty = (
+				2 if self.p1.id == bot_id else random.choice([0, 1, 2])
+			)
 
-		self.move_btn = ui.Button(style=discord.ButtonStyle.secondary, label="Place Token")
+		self.move_btn = ui.Button(
+			style=discord.ButtonStyle.secondary, label="Place Token"
+		)
 		self.move_btn.callback = self.prompt_move
 		self.buttons = [self.move_btn]
 
@@ -338,8 +398,12 @@ class SixBySevenTTTView(TimeoutView):
 		res = f"{emoji.char_absolute_empty}{emoji.char_1}{emoji.char_2}{emoji.char_3}{emoji.char_4}{emoji.char_5}{emoji.char_6}{emoji.char_7}\n"
 
 		row_emojis = [
-			emoji.char_1, emoji.char_2, emoji.char_3,
-			emoji.char_4, emoji.char_5, emoji.char_6
+			emoji.char_1,
+			emoji.char_2,
+			emoji.char_3,
+			emoji.char_4,
+			emoji.char_5,
+			emoji.char_6,
 		]
 
 		for r in range(6):
@@ -373,11 +437,15 @@ class SixBySevenTTTView(TimeoutView):
 				if not interaction.response.is_done():
 					await interaction.response.defer(ephemeral=True)
 				return False
-			await interaction.response.send_message(view=Fail("Not your game", msg), ephemeral=True)
+			await interaction.response.send_message(
+				view=Fail("Not your game", msg), ephemeral=True
+			)
 			return False
 
 		if interaction.user.id != self.current_player.id:
-			await interaction.response.send_message(view=Fail("It's not your turn."), ephemeral=True)
+			await interaction.response.send_message(
+				view=Fail("It's not your turn."), ephemeral=True
+			)
 			return False
 
 		return True
@@ -388,11 +456,15 @@ class SixBySevenTTTView(TimeoutView):
 		await interaction.response.send_modal(SixBySevenTTTModal(self))
 
 	async def process_turn(self, interaction: discord.Interaction, row: int, col: int):
-		if self.game_over: return
+		if self.game_over:
+			return
 
 		idx = row * 7 + col
 		if self.board[idx] is not None:
-			await interaction.response.send_message(view=Fail("Space Occupied", "That spot is already taken!"), ephemeral=True)
+			await interaction.response.send_message(
+				view=Fail("Space Occupied", "That spot is already taken!"),
+				ephemeral=True,
+			)
 			return
 
 		mark = self.marks[self.current_player.id]
@@ -414,14 +486,14 @@ class SixBySevenTTTView(TimeoutView):
 		await asyncio.sleep(1)
 
 		bot_mark = self.marks[self.current_player.id]
-		human_mark = 'X' if bot_mark == 'O' else 'O'
+		human_mark = "X" if bot_mark == "O" else "O"
 
 		move_idx = await asyncio.to_thread(
 			TicTacToeSixBySevenBot.get_move,
 			self.board.copy(),
 			bot_mark,
 			human_mark,
-			self.bot_difficulty if self.bot_difficulty is not None else 2
+			self.bot_difficulty if self.bot_difficulty is not None else 2,
 		)
 
 		if move_idx != -1:
@@ -436,7 +508,9 @@ class SixBySevenTTTView(TimeoutView):
 				if winner == "Tie":
 					self.game_result_text = "**It's a tie.**"
 				else:
-					self.game_result_text = f"**{self.current_player.display_name} wins.**"
+					self.game_result_text = (
+						f"**{self.current_player.display_name} wins.**"
+					)
 
 				self.create_layout()
 				await message.edit(view=self)
@@ -455,7 +529,7 @@ class SixBySevenTTTView(TimeoutView):
 		if winner == "Tie":
 			self.game_result_text = "**It's a tie.**"
 		else:
-			winning_player = self.p1 if winner == 'X' else self.p2
+			winning_player = self.p1 if winner == "X" else self.p2
 			self.game_result_text = f"**{winning_player.display_name} wins.**"
 
 		self.create_layout()

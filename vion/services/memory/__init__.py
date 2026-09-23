@@ -5,15 +5,7 @@ Instantiates and exports short-term memory (STM), long-term memory (LTM), audit 
 response tracker, channel STM, context linker, and memory cluster service singletons.
 """
 
-from .service import (
-	ContextLinker,
-	MemoryCluster,
-	STM,
-	LTM,
-	Audit,
-	Response,
-	ChannelSTM
-)
+from .service import ContextLinker, MemoryCluster, STM, LTM, Audit, Response, ChannelSTM
 
 
 context_linker = ContextLinker()
@@ -40,13 +32,22 @@ memory_cluster = MemoryCluster(
 	user_stm=user_stm,
 	user_ltm=user_ltm,
 	channel_stm=channel_stm,
-	context_linker=context_linker
+	context_linker=context_linker,
 )
 
 
 __all__ = (
-	'global_stm', 'global_ltm',
-	'guild_stm', 'guild_ltm', 'guild_audit', 'guild_response',
-	'user_stm', 'user_ltm', 'user_response', 'channel_stm',
-	'MemoryCluster', 'memory_cluster', 'context_linker'
+	"global_stm",
+	"global_ltm",
+	"guild_stm",
+	"guild_ltm",
+	"guild_audit",
+	"guild_response",
+	"user_stm",
+	"user_ltm",
+	"user_response",
+	"channel_stm",
+	"MemoryCluster",
+	"memory_cluster",
+	"context_linker",
 )

@@ -33,10 +33,7 @@ def is_termux() -> bool:
 	"""Return whether Vion is running inside Termux."""
 	prefix = os.environ.get("PREFIX", "")
 
-	return (
-		"com.termux" in prefix
-		or Path("/data/data/com.termux").exists()
-	)
+	return "com.termux" in prefix or Path("/data/data/com.termux").exists()
 
 
 def is_windows() -> bool:
@@ -244,14 +241,10 @@ def ensure_virtualenv(root_dir: Path) -> bool:
 		config = read_pyvenv_config(env_dir)
 
 		if config.get("include-system-site-packages", "").lower() != "true":
-			print(
-				"[*] Configuring Termux venv to use native Termux packages..."
-			)
+			print("[*] Configuring Termux venv to use native Termux packages...")
 
 			if not enable_system_site_packages(env_dir):
-				raise RuntimeError(
-					"Could not enable system-site-packages in .venv."
-				)
+				raise RuntimeError("Could not enable system-site-packages in .venv.")
 
 			return True
 
@@ -263,9 +256,7 @@ def restart_inside_venv(root_dir: Path) -> None:
 	python = venv_python(root_dir)
 
 	if not python.exists():
-		raise RuntimeError(
-			f"Vion Python interpreter does not exist: {python}"
-		)
+		raise RuntimeError(f"Vion Python interpreter does not exist: {python}")
 
 	print(f"[*] Restarting Vion using {python}")
 
@@ -362,16 +353,13 @@ def install_termux_packages(
 	if not available:
 		if required:
 			raise RuntimeError(
-				"No required Termux packages are available: "
-				+ ", ".join(packages)
+				"No required Termux packages are available: " + ", ".join(packages)
 			)
 
 		return []
 
 	missing = [
-		package
-		for package in available
-		if not termux_package_installed(package)
+		package for package in available if not termux_package_installed(package)
 	]
 
 	if not missing:
@@ -404,28 +392,16 @@ def ensure_termux_repo(name: str) -> None:
 
 # Termux native Python dependencies
 TERMUX_NATIVE_PACKAGES: dict[str, tuple[str, ...]] = {
-	"numpy": (
-		"python-numpy",
-	),
+	"numpy": ("python-numpy",),
 	"matplotlib": (
 		"matplotlib",
 		"python-matplotlib",
 	),
-	"pillow": (
-		"python-pillow",
-	),
-	"cryptography": (
-		"python-cryptography",
-	),
-	"pynacl": (
-		"python-pynacl",
-	),
-	"pyyaml": (
-		"python-pyyaml",
-	),
-	"orjson": (
-		"python-orjson",
-	),
+	"pillow": ("python-pillow",),
+	"cryptography": ("python-cryptography",),
+	"pynacl": ("python-pynacl",),
+	"pyyaml": ("python-pyyaml",),
+	"orjson": ("python-orjson",),
 }
 
 
@@ -456,10 +432,7 @@ def install_native_python_dependencies(dependencies: list[str]) -> set[str]:
 		if native_package_candidates(dependency):
 			candidates = native_package_candidates(dependency)
 
-			if not any(
-				termux_package_available(candidate)
-				for candidate in candidates
-			):
+			if not any(termux_package_available(candidate) for candidate in candidates):
 				needs_native_repo = True
 
 	if needs_native_repo:
@@ -496,9 +469,7 @@ def install_native_python_dependencies(dependencies: list[str]) -> set[str]:
 
 # Termux build environment
 TERMUX_BUILD_PACKAGES: dict[str, tuple[str, ...]] = {
-	"rust": (
-		"rust",
-	),
+	"rust": ("rust",),
 	"c": (
 		"clang",
 		"llvm",
@@ -532,8 +503,7 @@ def setup_termux_build_environment(dependencies: list[str]) -> None:
 		return
 
 	missing_names = {
-		normalized_name(package_name(dependency))
-		for dependency in dependencies
+		normalized_name(package_name(dependency)) for dependency in dependencies
 	}
 
 	build_groups: set[str] = set()
@@ -612,9 +582,7 @@ def setup_termux() -> None:
 		return
 
 	if not command_exists("pkg"):
-		raise RuntimeError(
-			"Termux was detected, but the 'pkg' command is unavailable."
-		)
+		raise RuntimeError("Termux was detected, but the 'pkg' command is unavailable.")
 
 	print("[*] Termux environment detected.")
 
@@ -641,9 +609,7 @@ def load_dependencies(root_dir: Path) -> list[str]:
 	with pyproject_path.open("rb") as file:
 		data = tomllib.load(file)
 
-	return list(
-		data.get("project", {}).get("dependencies", [])
-	)
+	return list(data.get("project", {}).get("dependencies", []))
 
 
 def package_name(requirement: str) -> str:
@@ -692,9 +658,7 @@ def import_name_for_distribution(distribution: str) -> str | None:
 def distribution_available(requirement: str) -> bool:
 	"""Return whether a distribution is installed."""
 	try:
-		importlib.metadata.version(
-			package_name(requirement)
-		)
+		importlib.metadata.version(package_name(requirement))
 
 		return True
 
@@ -727,12 +691,14 @@ def ensure_pip() -> None:
 
 	print("[*] pip is missing. Bootstrapping pip...")
 
-	run([
-		sys.executable,
-		"-m",
-		"ensurepip",
-		"--upgrade",
-	])
+	run(
+		[
+			sys.executable,
+			"-m",
+			"ensurepip",
+			"--upgrade",
+		]
+	)
 
 
 def uv_available() -> bool:
@@ -745,14 +711,16 @@ def install_with_uv(root_dir: Path) -> None:
 	if not (root_dir / "pyproject.toml").is_file():
 		return
 
-	run([
-		"uv",
-		"pip",
-		"install",
-		"--no-deps",
-		"-e",
-		str(root_dir),
-	])
+	run(
+		[
+			"uv",
+			"pip",
+			"install",
+			"--no-deps",
+			"-e",
+			str(root_dir),
+		]
+	)
 
 
 def install_with_pip(root_dir: Path) -> None:
@@ -829,36 +797,42 @@ def install_python_dependencies(root_dir: Path) -> None:
 
 		if uv_available():
 			for dependency in missing:
-				run([
-					"uv",
-					"pip",
-					"install",
-					dependency,
-				])
+				run(
+					[
+						"uv",
+						"pip",
+						"install",
+						dependency,
+					]
+				)
 		else:
 			ensure_pip()
 
-			run([
-				sys.executable,
-				"-m",
-				"pip",
-				"install",
-				*missing,
-			])
+			run(
+				[
+					sys.executable,
+					"-m",
+					"pip",
+					"install",
+					*missing,
+				]
+			)
 
 	if (root_dir / "pyproject.toml").is_file():
 		if uv_available():
 			install_with_uv(root_dir)
 		else:
-			run([
-				sys.executable,
-				"-m",
-				"pip",
-				"install",
-				"--no-deps",
-				"-e",
-				str(root_dir),
-			])
+			run(
+				[
+					sys.executable,
+					"-m",
+					"pip",
+					"install",
+					"--no-deps",
+					"-e",
+					str(root_dir),
+				]
+			)
 
 	broken = [
 		dependency
@@ -920,9 +894,7 @@ def clean_cache(root_dir: Path) -> None:
 		from rich.console import Console
 
 		console = Console()
-		console.print(
-			"[dim white]Cleaning cache files...[/dim white]"
-		)
+		console.print("[dim white]Cleaning cache files...[/dim white]")
 
 	except ImportError:
 		print("Cleaning cache files...")

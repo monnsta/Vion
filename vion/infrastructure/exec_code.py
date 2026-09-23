@@ -24,7 +24,7 @@ from vion.config import config
 log = logging.getLogger("exec_code")
 
 
-ANSI_ESCAPE = re.compile(r'\x1B(?:[@-Z\\-_]|\[[0-?]*[ -/]*[@-~])')
+ANSI_ESCAPE = re.compile(r"\x1B(?:[@-Z\\-_]|\[[0-?]*[ -/]*[@-~])")
 
 
 class status(enum.Enum):
@@ -32,10 +32,10 @@ class status(enum.Enum):
 	Enumeration representing execution state transitions for asynchronous tasks.
 	"""
 
-	PENDING   = "PENDING"
-	RUNNING   = "RUNNING"
+	PENDING = "PENDING"
+	RUNNING = "RUNNING"
 	COMPLETED = "COMPLETED"
-	FAILED    = "FAILED"
+	FAILED = "FAILED"
 	CANCELLED = "CANCELLED"
 	TIMED_OUT = "TIMED_OUT"
 
@@ -108,7 +108,7 @@ class Code:
 		data: ExecutionResult instance holding current state, logs, and output.
 	"""
 
-	tasks: dict[str, 'Code'] = {}
+	tasks: dict[str, "Code"] = {}
 
 	def __init__(self, code_str: str) -> None:
 		"""
@@ -127,7 +127,7 @@ class Code:
 		log.debug(f"Code task initialized: {self.execution_id}")
 
 	@staticmethod
-	def get_task(execution_id: str) -> 'Code | None':
+	def get_task(execution_id: str) -> "Code | None":
 		"""
 		Retrieve active or past task instance by execution ID.
 
@@ -139,7 +139,9 @@ class Code:
 		"""
 		return Code.tasks.get(execution_id, None)
 
-	async def execute(self, timeout: float | None = None, **context_vars: Any) -> asyncio.Task[None]:
+	async def execute(
+		self, timeout: float | None = None, **context_vars: Any
+	) -> asyncio.Task[None]:
 		"""
 		Compile and dispatch code string execution as an asynchronous task inside a sandboxed module.
 
@@ -155,7 +157,9 @@ class Code:
 			ValueError: If code lacks a valid async main function definition.
 		"""
 		if self._task and not self._task.done():
-			log.warning(f"Execution attempt on already running task: {self.execution_id}")
+			log.warning(
+				f"Execution attempt on already running task: {self.execution_id}"
+			)
 			raise RuntimeError("This code block is already running. Call stop() first.")
 
 		self._reset_state()
@@ -171,7 +175,9 @@ class Code:
 			main_func = getattr(user_module, "main", None)
 
 			if not main_func:
-				raise ValueError("User code must define an 'async def main(**kwargs)' function.")
+				raise ValueError(
+					"User code must define an 'async def main(**kwargs)' function."
+				)
 			if not inspect.iscoroutinefunction(main_func):
 				raise ValueError("'main' must be an async function.")
 
@@ -185,10 +191,11 @@ class Code:
 			token = code_log_stream.set(self._log_buf)
 			try:
 				if timeout:
-					log.debug(f"Executing ID {self.execution_id} with {timeout}s timeout")
+					log.debug(
+						f"Executing ID {self.execution_id} with {timeout}s timeout"
+					)
 					self.data.result = await asyncio.wait_for(
-						main_func(**context_vars),
-						timeout=timeout
+						main_func(**context_vars), timeout=timeout
 					)
 				else:
 					self.data.result = await main_func(**context_vars)
@@ -266,8 +273,10 @@ class Code:
 
 	def _sync_data(self) -> None:
 		"""Flush buffer and strip ANSI control sequences from log strings."""
-		self.data.logs = ANSI_ESCAPE.sub('', self._log_buf.getvalue())
-		log.debug(f"Synced buffers for ID: {self.execution_id} (logs: {len(self.data.logs)} bytes)")
+		self.data.logs = ANSI_ESCAPE.sub("", self._log_buf.getvalue())
+		log.debug(
+			f"Synced buffers for ID: {self.execution_id} (logs: {len(self.data.logs)} bytes)"
+		)
 
 	def _reset_state(self) -> None:
 		"""Reset state parameters, output payload, and log buffers prior to re-running."""
@@ -277,4 +286,4 @@ class Code:
 		self._log_buf.truncate(0)
 
 
-__all__ = ('status', 'extract', 'Code')
+__all__ = ("status", "extract", "Code")

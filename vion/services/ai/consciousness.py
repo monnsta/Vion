@@ -27,7 +27,7 @@ class BaseEventHandler(ABC):
 		consciousness: "Consciousness",
 		bot: commands.Bot,
 		free_will: bool,
-		**kwargs
+		**kwargs,
 	) -> bool:
 		"""
 		Evaluate whether the specified event should trigger an action.
@@ -63,7 +63,13 @@ class BaseEventHandler(ABC):
 class MessageEventHandler(BaseEventHandler):
 	"""Evaluates incoming Discord message events to determine if the bot should respond."""
 
-	def evaluate(self, consciousness: "Consciousness", bot: commands.Bot, free_will: bool, **kwargs) -> bool:
+	def evaluate(
+		self,
+		consciousness: "Consciousness",
+		bot: commands.Bot,
+		free_will: bool,
+		**kwargs,
+	) -> bool:
 		"""
 		Check if a received message warrants a response based on DMs, replies, mentions, or free-will.
 
@@ -82,13 +88,19 @@ class MessageEventHandler(BaseEventHandler):
 		if message is None:
 			return False
 
-		if message.content.startswith('/') or message.author == bot.user or message.interaction_metadata:
+		if (
+			message.content.startswith("/")
+			or message.author == bot.user
+			or message.interaction_metadata
+		):
 			return False
 
 		should_trigger = False
 
 		if isinstance(message.channel, discord.DMChannel):
-			should_trigger = True if not message.flags.silent else self.get_random(free_will, 0.05)
+			should_trigger = (
+				True if not message.flags.silent else self.get_random(free_will, 0.05)
+			)
 		else:
 			is_reply_to_bot = False
 			if message.reference and message.reference.cached_message:
@@ -99,9 +111,15 @@ class MessageEventHandler(BaseEventHandler):
 			if is_reply_to_bot or (bot.user and bot.user in message.mentions):
 				should_trigger = True
 			elif bot.user:
-				bot_names = (bot.user.display_name.lower(), bot.user.name.lower(), config.bot.name.lower())
+				bot_names = (
+					bot.user.display_name.lower(),
+					bot.user.name.lower(),
+					config.bot.name.lower(),
+				)
 				if any(name in message.content.lower() for name in bot_names):
-					should_trigger = self.get_random(free_will, 0.95) if free_will else True
+					should_trigger = (
+						self.get_random(free_will, 0.95) if free_will else True
+					)
 
 			if not should_trigger and free_will:
 				if message.mention_everyone:
@@ -124,7 +142,13 @@ class DynamicChanceEventHandler(BaseEventHandler):
 		"""
 		self.cooldown_seconds = cooldown_seconds
 
-	def evaluate(self, consciousness: "Consciousness", bot: commands.Bot, free_will: bool, **kwargs) -> bool:
+	def evaluate(
+		self,
+		consciousness: "Consciousness",
+		bot: commands.Bot,
+		free_will: bool,
+		**kwargs,
+	) -> bool:
 		"""
 		Evaluate using a dynamic 'chance' parameter provided in kwargs.
 
@@ -156,7 +180,13 @@ class GenericChanceEventHandler(BaseEventHandler):
 		self.base_chance = base_chance
 		self.cooldown_seconds = cooldown_seconds
 
-	def evaluate(self, consciousness: "Consciousness", bot: commands.Bot, free_will: bool, **kwargs) -> bool:
+	def evaluate(
+		self,
+		consciousness: "Consciousness",
+		bot: commands.Bot,
+		free_will: bool,
+		**kwargs,
+	) -> bool:
 		"""
 		Evaluate using static base probability.
 
@@ -201,17 +231,38 @@ class Consciousness:
 	def _register_default_handlers(self):
 		"""Register default set of event handlers and default probability thresholds."""
 		self.register_handler("on_message", MessageEventHandler())
-		self.register_handler("on_message_delete", GenericChanceEventHandler(base_chance=0.2))
-		self.register_handler("on_message_edit", GenericChanceEventHandler(base_chance=0.2))
-		self.register_handler("on_reaction_add", GenericChanceEventHandler(base_chance=0.1))
-		self.register_handler("on_guild_channel_create", GenericChanceEventHandler(base_chance=0.5))
+		self.register_handler(
+			"on_message_delete", GenericChanceEventHandler(base_chance=0.2)
+		)
+		self.register_handler(
+			"on_message_edit", GenericChanceEventHandler(base_chance=0.2)
+		)
+		self.register_handler(
+			"on_reaction_add", GenericChanceEventHandler(base_chance=0.1)
+		)
+		self.register_handler(
+			"on_guild_channel_create", GenericChanceEventHandler(base_chance=0.5)
+		)
 		self.register_handler("on_typing", GenericChanceEventHandler(base_chance=0.06))
-		self.register_handler("on_member_join", GenericChanceEventHandler(base_chance=0.6))
-		self.register_handler("on_guild_join", GenericChanceEventHandler(base_chance=1.0))
-		self.register_handler("on_voice_state_update", GenericChanceEventHandler(base_chance=0.3))
-		self.register_handler("on_inactivity", GenericChanceEventHandler(base_chance=0.5, cooldown_seconds=3600))
-		self.register_handler("freewill", GenericChanceEventHandler(base_chance=0.3, cooldown_seconds=300))
-		self.register_handler("notification_freewill", DynamicChanceEventHandler(cooldown_seconds=300))
+		self.register_handler(
+			"on_member_join", GenericChanceEventHandler(base_chance=0.6)
+		)
+		self.register_handler(
+			"on_guild_join", GenericChanceEventHandler(base_chance=1.0)
+		)
+		self.register_handler(
+			"on_voice_state_update", GenericChanceEventHandler(base_chance=0.3)
+		)
+		self.register_handler(
+			"on_inactivity",
+			GenericChanceEventHandler(base_chance=0.5, cooldown_seconds=3600),
+		)
+		self.register_handler(
+			"freewill", GenericChanceEventHandler(base_chance=0.3, cooldown_seconds=300)
+		)
+		self.register_handler(
+			"notification_freewill", DynamicChanceEventHandler(cooldown_seconds=300)
+		)
 
 	def _cleanup_cooldowns(self, now: float):
 		"""
@@ -220,22 +271,24 @@ class Consciousness:
 		Args:
 			now: Current UNIX epoch timestamp.
 		"""
-		keys_to_remove = [k for k, v in self.message_trigger_cooldowns.items() if now - v > config.event_cooldown * 2]
+		keys_to_remove = [
+			k
+			for k, v in self.message_trigger_cooldowns.items()
+			if now - v > config.event_cooldown * 2
+		]
 		for k in keys_to_remove:
 			del self.message_trigger_cooldowns[k]
 
-		keys_to_remove = [k for k, v in self.event_cooldowns.items() if now - v > 60 * 2]
+		keys_to_remove = [
+			k for k, v in self.event_cooldowns.items() if now - v > 60 * 2
+		]
 		for k in keys_to_remove:
 			del self.event_cooldowns[k]
 
 		self._last_cleanup = now
 
 	def evaluate(
-		self,
-		bot: commands.Bot,
-		event_type: str,
-		free_will: bool = False,
-		**kwargs
+		self, bot: commands.Bot, event_type: str, free_will: bool = False, **kwargs
 	) -> bool:
 		"""
 		Evaluate whether an event should execute based on active handlers and cooldowns.
@@ -260,11 +313,14 @@ class Consciousness:
 		if event_type == "on_message":
 			return handler.evaluate(self, bot, free_will, **kwargs)
 
-		context_id = kwargs.get('context_id', 0)
+		context_id = kwargs.get("context_id", 0)
 		event_cooldown_key = f"{event_type}_{context_id}"
 
 		if event_cooldown_key in self.event_cooldowns:
-			if now - self.event_cooldowns[event_cooldown_key] < handler.cooldown_seconds:
+			if (
+				now - self.event_cooldowns[event_cooldown_key]
+				< handler.cooldown_seconds
+			):
 				return False
 
 		should_trigger = handler.evaluate(self, bot, free_will, **kwargs)

@@ -59,9 +59,11 @@ class ServerCogManager:
 		"""
 		cog_path = storage.guilds.custom_cog(str(guild_id))
 		rel_path = Path(cog_path).relative_to(Path.cwd())
-		return str(rel_path.with_suffix('')).replace('/', '.').replace('\\', '.')
+		return str(rel_path.with_suffix("")).replace("/", ".").replace("\\", ".")
 
-	def _isolate_cog_commands(self, guild_id: int, bot: commands.Bot, module: str) -> None:
+	def _isolate_cog_commands(
+		self, guild_id: int, bot: commands.Bot, module: str
+	) -> None:
 		"""
 		Move global application commands belonging to a guild cog into guild-specific tree scope.
 
@@ -73,17 +75,24 @@ class ServerCogManager:
 		guild_obj = discord.Object(id=guild_id)
 
 		for _, cog in bot.cogs.items():
-			if getattr(cog, '__module__', '') == module:
+			if getattr(cog, "__module__", "") == module:
 				for app_cmd in cog.get_app_commands():
 					bot.tree.add_command(app_cmd, guild=guild_obj, override=True)
 					bot.tree.remove_command(app_cmd.name)  # Remove from global tree
 
 				for cmd in cog.get_commands():
-					if isinstance(cmd, (commands.HybridCommand, commands.HybridGroup)) and cmd.app_command:
-						bot.tree.add_command(cmd.app_command, guild=guild_obj, override=True)
+					if (
+						isinstance(cmd, (commands.HybridCommand, commands.HybridGroup))
+						and cmd.app_command
+					):
+						bot.tree.add_command(
+							cmd.app_command, guild=guild_obj, override=True
+						)
 						bot.tree.remove_command(cmd.app_command.name)
 
-	async def edit(self, guild_id: int, bot: commands.Bot, code: str) -> Tuple[bool, str]:
+	async def edit(
+		self, guild_id: int, bot: commands.Bot, code: str
+	) -> Tuple[bool, str]:
 		"""
 		Update a guild's custom cog source code and reload it, reverting on load failure.
 
@@ -212,7 +221,7 @@ class ServerCogManager:
 		Args:
 			bot: Active Discord bot instance.
 		"""
-		servers_dir = Path('data/servers')
+		servers_dir = Path("data/servers")
 		if not servers_dir.exists():
 			return
 
@@ -238,13 +247,20 @@ class ServerCogManager:
 
 			module_prefix = self._get_module_name(guild_id)
 			for _, cog in bot.cogs.items():
-				if getattr(cog, '__module__', '') == module_prefix:
+				if getattr(cog, "__module__", "") == module_prefix:
 					for app_cmd in cog.get_app_commands():
 						bot.tree.add_command(app_cmd, guild=guild_obj, override=True)
 
 					for cmd in cog.get_commands():
-						if isinstance(cmd, (commands.HybridCommand, commands.HybridGroup)) and cmd.app_command:
-							bot.tree.add_command(cmd.app_command, guild=guild_obj, override=True)
+						if (
+							isinstance(
+								cmd, (commands.HybridCommand, commands.HybridGroup)
+							)
+							and cmd.app_command
+						):
+							bot.tree.add_command(
+								cmd.app_command, guild=guild_obj, override=True
+							)
 
 			synced_commands = await bot.tree.sync(guild=guild_obj)
 

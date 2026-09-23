@@ -83,10 +83,7 @@ def main() -> None:
 
 	env_file = root_dir / ".env"
 
-	needs_setup = (
-		args.setup
-		or not env_file.exists()
-	)
+	needs_setup = args.setup or not env_file.exists()
 
 	if needs_setup and not args.child:
 		from vion.tui import run_setup_wizard
@@ -100,9 +97,7 @@ def main() -> None:
 		from rich.console import Console
 
 		console = Console()
-		console.print(
-			"[bold green]✓ Environment check passed.[/bold green]"
-		)
+		console.print("[bold green]✓ Environment check passed.[/bold green]")
 		return
 
 	if args.supervise and not args.child:

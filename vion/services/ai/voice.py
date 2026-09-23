@@ -13,11 +13,7 @@ import discord
 import discord.opus
 from discord.ext import voice_recv
 
-from vion.infrastructure.llm import (
-	AssemblyAITranscriber,
-	GeminiTTS,
-	GeminiVoice
-)
+from vion.infrastructure.llm import AssemblyAITranscriber, GeminiTTS, GeminiVoice
 from vion.config import config
 
 
@@ -25,12 +21,14 @@ log = logging.getLogger("ai")
 
 original_opus_decode = discord.opus.Decoder.decode
 
+
 def patched_opus_decode(self, *args, **kwargs):
 	"""Patched Opus decoder preventing error raises on minor audio frame corruptions."""
 	try:
 		return original_opus_decode(self, *args, **kwargs)
 	except discord.opus.OpusError:
-		return b''
+		return b""
+
 
 discord.opus.Decoder.decode = patched_opus_decode
 
@@ -55,17 +53,17 @@ class YTDLPLogger:
 
 
 ytdl_format_options: dict[str, Any] = {
-	'format': 'bestaudio/best',
-	'outtmpl': '%(extractor)s-%(id)s-%(title)s.%(ext)s',
-	'restrictfilenames': True,
-	'noplaylist': True,
-	'nocheckcertificate': True,
-	'ignoreerrors': False,
-	'quiet': False,
-	'no_warnings': False,
-	'logger': YTDLPLogger(),
-	'default_search': 'auto',
-	'source_address': '0.0.0.0',
+	"format": "bestaudio/best",
+	"outtmpl": "%(extractor)s-%(id)s-%(title)s.%(ext)s",
+	"restrictfilenames": True,
+	"noplaylist": True,
+	"nocheckcertificate": True,
+	"ignoreerrors": False,
+	"quiet": False,
+	"no_warnings": False,
+	"logger": YTDLPLogger(),
+	"default_search": "auto",
+	"source_address": "0.0.0.0",
 }
 
 ytdl = yt_dlp.YoutubeDL(cast(Any, ytdl_format_options))
@@ -84,7 +82,9 @@ class MemoryAudioSink(voice_recv.AudioSink):
 		"""Return False to request decoded PCM audio data."""
 		return False
 
-	def write(self, user: discord.Member | discord.User | None, data: voice_recv.VoiceData):
+	def write(
+		self, user: discord.Member | discord.User | None, data: voice_recv.VoiceData
+	):
 		"""
 		Write incoming PCM audio frames into the targeted user's WAV memory buffer.
 
@@ -99,7 +99,7 @@ class MemoryAudioSink(voice_recv.AudioSink):
 
 		if user_id not in self.user_buffers:
 			buffer = io.BytesIO()
-			wav_writer = wave.open(buffer, 'wb')
+			wav_writer = wave.open(buffer, "wb")
 			wav_writer.setnchannels(2)
 			wav_writer.setsampwidth(2)
 			wav_writer.setframerate(48000)
@@ -125,10 +125,7 @@ class VoiceUtils:
 		log.info("Initializing VoiceUtils.")
 
 		self.tts_modules = [
-			GeminiTTS(
-				api_key=key,
-				model_name="gemini-2.5-flash-preview-tts"
-			)
+			GeminiTTS(api_key=key, model_name="gemini-2.5-flash-preview-tts")
 			for key in config.secrets.gemini
 		]
 
@@ -173,7 +170,9 @@ class VoiceUtils:
 		return False
 
 	@staticmethod
-	async def play(guild: discord.Guild, source: str | discord.AudioSource, volume: float = 1.0) -> bool:
+	async def play(
+		guild: discord.Guild, source: str | discord.AudioSource, volume: float = 1.0
+	) -> bool:
 		"""
 		Play audio in a voice channel from a URL, local path, or AudioSource object.
 
@@ -196,27 +195,32 @@ class VoiceUtils:
 			vc.stop()
 
 		if isinstance(source, str):
-			if source.startswith(('http://', 'https://')):
+			if source.startswith(("http://", "https://")):
 				loop = asyncio.get_event_loop()
-				data = cast(dict[str, Any] | None, await loop.run_in_executor(None, lambda: ytdl.extract_info(source, download=False)))
+				data = cast(
+					dict[str, Any] | None,
+					await loop.run_in_executor(
+						None, lambda: ytdl.extract_info(source, download=False)
+					),
+				)
 
 				if not data:
 					return False
 
-				if 'entries' in data and data['entries']:
-					data = data['entries'][0]
+				if "entries" in data and data["entries"]:
+					data = data["entries"][0]
 
-				stream_url = data.get('url')
+				stream_url = data.get("url")
 				if not isinstance(stream_url, str):
 					return False
 
 				audio_source: discord.AudioSource = discord.PCMVolumeTransformer(
 					discord.FFmpegPCMAudio(
 						stream_url,
-						before_options='-reconnect 1 -reconnect_streamed 1 -reconnect_delay_max 5',
-						options='-vn'
+						before_options="-reconnect 1 -reconnect_streamed 1 -reconnect_delay_max 5",
+						options="-vn",
 					),
-					volume=volume
+					volume=volume,
 				)
 			else:
 				audio_source: discord.AudioSource = discord.PCMVolumeTransformer(
@@ -286,7 +290,9 @@ class VoiceUtils:
 		return False
 
 	@staticmethod
-	async def set_bot_status(guild: discord.Guild, mute: bool | None = None, deafen: bool | None = None) -> bool:
+	async def set_bot_status(
+		guild: discord.Guild, mute: bool | None = None, deafen: bool | None = None
+	) -> bool:
 		"""
 		Update server mute and deafen status for the bot itself.
 
@@ -310,7 +316,9 @@ class VoiceUtils:
 		return False
 
 	@staticmethod
-	async def move_member(member: discord.Member, channel: discord.VoiceChannel | None) -> bool:
+	async def move_member(
+		member: discord.Member, channel: discord.VoiceChannel | None
+	) -> bool:
 		"""Move a guild member to another voice channel or disconnect them."""
 		if member.voice:
 			await member.edit(voice_channel=channel)
@@ -391,12 +399,13 @@ class VoiceUtils:
 			Tuple of (success_boolean, transcript_string).
 		"""
 		transcriber = AssemblyAITranscriber(
-			api_key=config.secrets.assemblyai,
-			**config_kwargs
+			api_key=config.secrets.assemblyai, **config_kwargs
 		)
 		return await transcriber.call(item)
 
-	async def tts(self, text: str, voice: GeminiVoice = GeminiVoice.CHARON) -> io.BytesIO | None:
+	async def tts(
+		self, text: str, voice: GeminiVoice = GeminiVoice.CHARON
+	) -> io.BytesIO | None:
 		"""
 		Synthesize speech from text using Gemini TTS models.
 
@@ -412,9 +421,7 @@ class VoiceUtils:
 			return None
 
 		active_modules = [
-			module
-			for module in self.tts_modules
-			if not module.is_cooling_down
+			module for module in self.tts_modules if not module.is_cooling_down
 		]
 
 		if not active_modules:
@@ -422,12 +429,11 @@ class VoiceUtils:
 			return None
 
 		for idx, module in enumerate(active_modules):
-			log.debug(f"Attempting Gemini TTS call (Index: {idx}, Voice: {voice.value})")
-
-			success, audio = await module.call(
-				text=text,
-				voice=voice
+			log.debug(
+				f"Attempting Gemini TTS call (Index: {idx}, Voice: {voice.value})"
 			)
+
+			success, audio = await module.call(text=text, voice=voice)
 
 			if success and audio:
 				log.info(f"Gemini TTS succeeded via module index {idx}.")
@@ -438,10 +444,12 @@ class VoiceUtils:
 
 				return file
 
-			log.warning(f"Gemini TTS module index {idx} failed. Trying next available module.")
+			log.warning(
+				f"Gemini TTS module index {idx} failed. Trying next available module."
+			)
 
 		log.warning("All Gemini TTS modules failed.")
 		return None
 
 
-__all__ = ('VoiceUtils', 'GeminiVoice')
+__all__ = ("VoiceUtils", "GeminiVoice")

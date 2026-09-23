@@ -131,6 +131,7 @@ class Data:
 
 		try:
 			log.info(f"Moving {self.parent.entity_type} data {eid} to bin")
+
 			def sync_io_ops():
 				if dest.exists():
 					shutil.rmtree(dest)
@@ -142,7 +143,10 @@ class Data:
 			await json_file.save(self.parent.file_routes.delete_time(eid), info)
 			return True
 		except Exception:
-			log.error(f"Error moving data for {self.parent.entity_type} '{eid}' to bin", exc_info=True)
+			log.error(
+				f"Error moving data for {self.parent.entity_type} '{eid}' to bin",
+				exc_info=True,
+			)
 			return False
 
 	async def restore(self, entity_id: int) -> bool:
@@ -167,6 +171,7 @@ class Data:
 		log.info(f"Restoring {self.parent.entity_type} data for {eid} from bin")
 
 		try:
+
 			def sync_restore_ops():
 				if active.exists():
 					active.rename(temp_backup)
@@ -183,10 +188,12 @@ class Data:
 			return True
 		except Exception:
 			log.error(f"Restore failed for '{eid}'", exc_info=True)
+
 			def rollback():
 				if temp_backup.exists():
 					log.info(f"Rolling back restoration for {eid}")
 					temp_backup.rename(active)
+
 			await asyncio.to_thread(rollback)
 			return False
 
@@ -213,26 +220,42 @@ class Data:
 				zf = zipfile.ZipFile(buffer, "r")
 			except zipfile.BadZipFile:
 				log.error("BadZipFile while opening restore archive", exc_info=True)
-				return False, "The uploaded file is corrupted or not a valid ZIP archive."
+				return (
+					False,
+					"The uploaded file is corrupted or not a valid ZIP archive.",
+				)
 
 			with zf:
-				if '.signature' not in zf.namelist():
-					return False, "Restore Failed: Missing security signature (`.signature`). Ensure you are uploading an unmodified backup export."
+				if ".signature" not in zf.namelist():
+					return (
+						False,
+						"Restore Failed: Missing security signature (`.signature`). Ensure you are uploading an unmodified backup export.",
+					)
 
 				try:
-					expected_sig = zf.read('.signature').decode('utf-8')
-					h = hmac.new(config.secrets.hmac.encode('utf-8'), digestmod=hashlib.sha256)
+					expected_sig = zf.read(".signature").decode("utf-8")
+					h = hmac.new(
+						config.secrets.hmac.encode("utf-8"), digestmod=hashlib.sha256
+					)
 
-					files_to_check = [n for n in zf.namelist() if n not in ('.signature', 'README.md')]
+					files_to_check = [
+						n for n in zf.namelist() if n not in (".signature", "README.md")
+					]
 
 					for path in sorted(files_to_check):
-						h.update(path.encode('utf-8'))
+						h.update(path.encode("utf-8"))
 						h.update(zf.read(path))
 
 					if not hmac.compare_digest(h.hexdigest(), expected_sig):
-						return False, "Restore Failed: Signature verification failed. The data inside the backup appears to have been modified or tampered with."
+						return (
+							False,
+							"Restore Failed: Signature verification failed. The data inside the backup appears to have been modified or tampered with.",
+						)
 				except Exception:
-					return False, "Restore Failed: Could not verify archive integrity or security signatures."
+					return (
+						False,
+						"Restore Failed: Could not verify archive integrity or security signatures.",
+					)
 
 				try:
 					if dest_dir.exists():
@@ -242,7 +265,10 @@ class Data:
 					for path in files_to_check:
 						extracted_path = (dest_dir / path).resolve()
 						if not str(extracted_path).startswith(str(dest_dir)):
-							return False, "Restore Failed: Security violation detected (Invalid archive path structure)."
+							return (
+								False,
+								"Restore Failed: Security violation detected (Invalid archive path structure).",
+							)
 
 						extracted_path.parent.mkdir(parents=True, exist_ok=True)
 						extracted_path.write_bytes(zf.read(path))
@@ -250,7 +276,10 @@ class Data:
 					return True, "Data successfully restored."
 				except Exception:
 					log.error(f"Error writing restored files for {eid}", exc_info=True)
-					return False, "Restore Failed: An error occurred while unpacking and writing your backup files."
+					return (
+						False,
+						"Restore Failed: An error occurred while unpacking and writing your backup files.",
+					)
 
 		log.info(f"Restoring archive for {self.parent.entity_type} {eid}")
 		return await asyncio.to_thread(process_restore)
@@ -273,7 +302,9 @@ class Data:
 			path = binned if binned.exists() else source if source.exists() else None
 
 			if not path:
-				log.warning(f"Permanent delete failed: {eid} not found in active or bin")
+				log.warning(
+					f"Permanent delete failed: {eid} not found in active or bin"
+				)
 				return False, "Could not find any data"
 
 			log.info(f"Permanently purging {self.parent.entity_type} {eid}")
@@ -323,30 +354,37 @@ class Data:
 						"(like Notepad, VS Code) or viewed nicely online using a JSON viewer.*"
 					)
 
-					h = hmac.new(config.secrets.hmac.encode('utf-8'), digestmod=hashlib.sha256)
+					h = hmac.new(
+						config.secrets.hmac.encode("utf-8"), digestmod=hashlib.sha256
+					)
 					files_for_sig = {}
 
-					for file_path in source_dir.rglob('*'):
+					for file_path in source_dir.rglob("*"):
 						if not file_path.is_file():
 							continue
 
-						rel_path = str(file_path.relative_to(source_dir)).replace('\\', '/')
+						rel_path = str(file_path.relative_to(source_dir)).replace(
+							"\\", "/"
+						)
 						content = file_path.read_bytes()
 						files_for_sig[rel_path] = content
 						zf.writestr(rel_path, content)
 
 					for path in sorted(files_for_sig.keys()):
-						h.update(path.encode('utf-8'))
+						h.update(path.encode("utf-8"))
 						h.update(files_for_sig[path])
 
-					zf.writestr('.signature', h.hexdigest())
+					zf.writestr(".signature", h.hexdigest())
 					zf.writestr("README.md", readme_content)
 
 				buffer.seek(0)
 				return True, buffer
 			except Exception:
 				log.error(f"Error creating zip for {eid}", exc_info=True)
-				return False, "There was an error gathering your data. Please report this."
+				return (
+					False,
+					"There was an error gathering your data. Please report this.",
+				)
 
 		log.info(f"Generating archive for {self.parent.entity_type} {eid}")
 		return await asyncio.to_thread(create_in_memory_zip)
@@ -424,7 +462,9 @@ class Info:
 		log.debug(f"Loading AI info for {self.parent.entity_type} {entity_id}")
 		path = self.parent.file_routes.ai_data(str(entity_id))
 		success, data = await json_file.load(path)
-		return (success, data.get(self.parent.entity_type, {})) if success else (False, {})
+		return (
+			(success, data.get(self.parent.entity_type, {})) if success else (False, {})
+		)
 
 	async def save(self, entity) -> bool:
 		"""
@@ -464,7 +504,14 @@ class BaseProfileManager(Generic[TRoute]):
 		info: Info manager instance for AI metadata.
 	"""
 
-	def __init__(self, entity_type: str, active_dir: Path, file_routes: TRoute, default_settings: dict, default_ai_data: dict):
+	def __init__(
+		self,
+		entity_type: str,
+		active_dir: Path,
+		file_routes: TRoute,
+		default_settings: dict,
+		default_ai_data: dict,
+	):
 		"""
 		Initialize BaseProfileManager instance.
 
@@ -497,7 +544,12 @@ class BaseProfileManager(Generic[TRoute]):
 		"""
 		return await self.data.exists(entity_id)
 
-	async def _setup(self, entity_id: int, entity_name: str, extra_paths: list[Path | tuple[Path, bool]] = []) -> bool:
+	async def _setup(
+		self,
+		entity_id: int,
+		entity_name: str,
+		extra_paths: list[Path | tuple[Path, bool]] = [],
+	) -> bool:
 		"""
 		Internal setup helper to initialize directory structures and default files.
 
@@ -515,7 +567,10 @@ class BaseProfileManager(Generic[TRoute]):
 			settings_path = self.file_routes.settings(eid)
 			ai_data_path = self.file_routes.ai_data(eid)
 
-			paths_to_create: list[Path | tuple[Path, bool]] = [settings_path, ai_data_path]
+			paths_to_create: list[Path | tuple[Path, bool]] = [
+				settings_path,
+				ai_data_path,
+			]
 			if extra_paths:
 				paths_to_create.extend(extra_paths)
 

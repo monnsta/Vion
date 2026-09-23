@@ -25,7 +25,7 @@ class Server(BaseProfileManager[Guild]):
 			active_dir=storage.dirs.guilds,
 			file_routes=storage.guilds,
 			default_settings=config.settings.server,
-			default_ai_data=config.ai_data.server
+			default_ai_data=config.ai_data.server,
 		)
 		self.cog_data = CogData(self)
 
@@ -43,9 +43,7 @@ class Server(BaseProfileManager[Guild]):
 		cog = self.file_routes.custom_cog(eid)
 
 		success = await super()._setup(
-			entity_id=guild.id,
-			entity_name=guild.name,
-			extra_paths=[cog]
+			entity_id=guild.id, entity_name=guild.name, extra_paths=[cog]
 		)
 
 		if success:
@@ -66,7 +64,7 @@ class User(BaseProfileManager[UserC]):
 			active_dir=storage.dirs.users,
 			file_routes=storage.users,
 			default_settings=config.settings.user,
-			default_ai_data=config.ai_data.user
+			default_ai_data=config.ai_data.user,
 		)
 
 	async def setup(self, user: discord.User | discord.Member) -> bool:
@@ -79,7 +77,4 @@ class User(BaseProfileManager[UserC]):
 		Returns:
 			True if setup succeeded, False otherwise.
 		"""
-		return await super()._setup(
-			entity_id=user.id,
-			entity_name=user.name
-		)
+		return await super()._setup(entity_id=user.id, entity_name=user.name)
