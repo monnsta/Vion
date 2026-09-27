@@ -351,10 +351,10 @@ config.max_audit = 40
 
 """ AI SETTINGS """
 config.gemini_models = ("gemini-3.5-flash",)
-config.free_will_frequency = 0.4
-config.temperature = 0.9
-config.top_p = 1.0
-config.top_k = 45
+config.free_will_frequency = 0.6
+config.temperature = 0.7
+config.top_p = 0.9
+config.top_k = 40
 
 
 """ DEFAULT DATA STRUCTURE """
