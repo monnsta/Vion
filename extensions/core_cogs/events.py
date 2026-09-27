@@ -2,7 +2,7 @@ import asyncio
 import logging
 import random
 import shutil
-from datetime import datetime, timedelta, timezone
+from datetime import datetime, timedelta
 from pathlib import Path
 from typing import Any
 
@@ -210,21 +210,35 @@ class CoreEvents(commands.Cog):
 
 		users_path = Path(storage.dirs.users)
 		if users_path.exists():
-			cutoff = datetime.now(timezone.utc) - timedelta(days=config.cleanup_days)
 			for folder in users_path.iterdir():
 				if folder.is_dir() and folder.name.isdigit():
 					user_id = int(folder.name)
 
-					is_stale = False
+					user_obj = self.bot.get_user(user_id)
 
-					mtime = datetime.fromtimestamp(
-						folder.stat().st_mtime, tz=timezone.utc
-					)
-					if mtime < cutoff:
-						is_stale = True
+					if user_obj is None:
+						try:
+							user_obj = await self.bot.fetch_user(user_id)
+						except discord.NotFound:
+							log.info(f"User account deleted on Discord: {user_id}")
+							user_obj = None
+						except discord.HTTPException as e:
+							log.error(f"Failed to fetch user {user_id}: {e}")
+							continue
 
-					if is_stale:
-						log.info(f"Removing inactive user profile data: {user_id}")
+					is_inactive = False
+					if user_obj is None:
+						is_inactive = True
+					else:
+						shares_guilds = any(
+							guild.get_member(user_id) is not None
+							for guild in self.bot.guilds
+						)
+						if not shares_guilds:
+							is_inactive = True
+
+					if is_inactive:
+						log.info(f"Removing inactive or deleted user profile data: {user_id}")
 						try:
 							if hasattr(user, "data") and hasattr(user.data, "delete"):
 								await user.data.delete(user_id)
