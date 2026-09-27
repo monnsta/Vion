@@ -762,10 +762,6 @@ def install_python_dependencies(root_dir: Path) -> None:
 
 	if not missing:
 		print("[✓] Python dependencies are already satisfied.")
-
-		if uv_available():
-			install_with_uv(root_dir)
-
 		return
 
 	print(
