@@ -26,9 +26,6 @@ def main() -> None:
 
 	os.environ["VION_ROOT_DIR"] = str(root_dir)
 
-	setup_platform_env()
-	ensure_dependencies(root_dir)
-
 	parser = argparse.ArgumentParser(
 		prog="vion",
 		description="Vion AI Discord Bot Execution Engine",
@@ -69,6 +66,10 @@ def main() -> None:
 	)
 
 	args, _ = parser.parse_known_args()
+
+	if not args.child:
+		setup_platform_env()
+		ensure_dependencies(root_dir)
 
 	if args.clean:
 		clean_cache(root_dir)
